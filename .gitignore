@@ -1,0 +1,50 @@
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ── Environments ─────────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+.env
+
+# ── Packaging ────────────────────────────────────────────
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# ── IDE & Editors ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs & Temp ──────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+
+# ── Testing & Coverage ───────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── Game Dev Specific ────────────────────────────────────
+*.blend1
+*.blend2
+*.bak
+saves/
+config_local.ini
+config_local.yaml
