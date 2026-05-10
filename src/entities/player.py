@@ -6,7 +6,7 @@ class Player:
         self.pos = pygame.Vector2(x, y)
         self.speed = 150
         self.radius = 40
-        self.color = "blue"
+        self.color = (0, 0, 255)  # blue
 
     def update(self, dt, input_manager):
         direction = input_manager.get_velocity_direction()

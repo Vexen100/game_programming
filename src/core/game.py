@@ -6,6 +6,8 @@ from src.core.input_manager import InputManager
 
 
 class Game:
+    """Основной игровой цикл"""
+
     def __init__(self) -> None:
         pygame.init()
         self.screen = pygame.display.set_mode((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
@@ -18,6 +20,7 @@ class Game:
         self.input_manager = InputManager()
 
     def run(self):
+        """Запускает игровой цикл"""
         while self.running:
             self.handle_events()
             self.update()
@@ -31,6 +34,7 @@ class Game:
         pygame.quit()
 
     def handle_events(self):
+        """Обрабатывает системные события и передаёт нажатия клавиш менеджеру ввода"""
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
@@ -40,6 +44,9 @@ class Game:
         self.scene_manager.handle_events(events)
 
     def update(self):
+        """
+        Обновление положения, анимаций (просто передаётся: менеджеру сцен -> сцене -> объектам)
+        """
         self.scene_manager.update(self.dt, self.input_manager)
 
     def draw(self):

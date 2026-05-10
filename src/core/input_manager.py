@@ -21,6 +21,7 @@ class InputManager:
         }
 
     def update_events(self, event):
+        """Записывает новое положение клавиш в кадре"""
         if event.type == pygame.KEYDOWN:
             self.down_keys.add(event.key)
             self.pressed_keys.add(event.key)
@@ -29,18 +30,22 @@ class InputManager:
             self.released_keys.add(event.key)
 
     def clear(self):
+        """Очищает данные об однократных нажатиях и отпущенных клавишах за кадр"""
         self.released_keys.clear()
         self.pressed_keys.clear()
 
     def was_pressed(self, action):
+        """Проверяет была ли один раз нажата клавиша в этом кадре"""
         if self.bindings[action] in self.pressed_keys:
             return True
 
     def is_pressed(self, action):
+        """Проверяет зажата ли клавиша в этом кадре"""
         if self.bindings[action] in self.down_keys:
             return True
 
     def get_velocity_direction(self):
+        """Считает направление вектора скорости игрока в этом кадре"""
         direction = pygame.Vector2(0, 0)
         if self.is_pressed(settings.MOVE_UP):
             direction.y -= 1
