@@ -1,8 +1,8 @@
 import pygame
 import settings
 from src.core.scene_manager import SceneManager
-from src.scenes.region_scene import RegionScene
 from src.core.input_manager import InputManager
+from src.scenes.region_scene import RegionScene
 
 
 class Game:
@@ -15,9 +15,15 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.dt = 0
+        scenes_ids_register = {
+            settings.REGION_SCENE: RegionScene,
+        }
         self.scene_manager = SceneManager()
-        self.scene_manager.change_scene(RegionScene())
+        self.scene_manager.registry_scene_ids(scenes_ids_register)
+        self.scene_manager.request_change_scene(settings.REGION_SCENE)
+        self.scene_manager.change_scene()
         self.input_manager = InputManager()
+        
 
     def run(self):
         """Запускает игровой цикл"""
@@ -28,6 +34,9 @@ class Game:
 
             # очищаем нажатые один раз и отпущенные клавиши в конце кадра
             self.input_manager.clear()
+
+            # проводим смену сцены, если был запрос
+            self.scene_manager.change_scene()
 
             self.dt = self.clock.tick(settings.FPS) / 1000
 

@@ -9,11 +9,26 @@ class SceneManager:
 
     def __init__(self) -> None:
         self.current_scene: BaseScene = None
+        self.scenes_ids_register: dict[str, BaseScene] = {}
+        self.next_scene_id: str = None
 
-    def change_scene(self, new_scene):
-        """Сменить текущую сцену. Каждая сцена сама использует этот метод, когда нужно"""
-        self.current_scene = new_scene
-        self.current_scene.manager = self
+    def registry_scene_ids(self, register):
+        self.scenes_ids_register = register
+    
+    def request_change_scene(self, new_scene_id: str):
+        """
+        Создаёт запрос на смену сцены. Сама смена сцены происходит в методе change_scene.
+        Каждая сцена сама использует этот метод, когда нужно.
+        """
+        self.next_scene_id = new_scene_id
+
+    def change_scene(self):
+         """Меняет сцену на новую, если был запрос в этом кадре. И очищает буфер id следующей сцены"""
+         if self.next_scene_id is not None:   
+            new_scene = self.scenes_ids_register[self.next_scene_id]
+            self.current_scene = new_scene()
+            self.current_scene.manager = self
+            self.next_scene_id = None
 
     def handle_events(self, events):
         """Обработка системных событий. Передаётся текущей сцене"""

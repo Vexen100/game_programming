@@ -1,6 +1,7 @@
 import pygame
 import settings
 from src.scenes.base_scene import BaseScene
+from src.core.scene_manager import SceneManager
 from src.entities.player import Player
 
 

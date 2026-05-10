@@ -6,7 +6,7 @@ FPS = 60
 
 # Цвета (RGB кортежи для оптимизации без строк)
 BG_COLOR = (255, 0, 0)       # red
-WALL_COLOR = (128, 128, 128) # gray
+WALL_COLOR = (128, 128, 128)  # gray
 FLOOR_COLOR = (0, 128, 0)    # green
 
 
@@ -19,3 +19,6 @@ PAUSE = "pause"
 
 # Размер тайлов для карты
 TILE_SIZE = 32
+
+# Константы для сцен (названия сцен)
+REGION_SCENE = "region"
