@@ -13,11 +13,11 @@ class RegionScene(BaseScene):
         self.player = Player(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT / 2)
         self.manager = None
 
-    def handle_event(self):
+    def handle_events(self, events):
         pass
 
-    def update(self, dt):
-        self.player.update(dt)
+    def update(self, dt, input_manager):
+        self.player.update(dt, input_manager)
 
     def draw(self, screen: pygame.Surface):
         screen.fill(settings.BG_COLOR)

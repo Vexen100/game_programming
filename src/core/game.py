@@ -2,6 +2,7 @@ import pygame
 import settings
 from src.core.scene_manager import SceneManager
 from src.scenes.region_scene import RegionScene
+from src.core.input_manager import InputManager
 
 
 class Game:
@@ -14,25 +15,32 @@ class Game:
         self.dt = 0
         self.scene_manager = SceneManager()
         self.scene_manager.change_scene(RegionScene())
+        self.input_manager = InputManager()
 
     def run(self):
         while self.running:
-            self.handle_event()
+            self.handle_events()
             self.update()
             self.draw()
+
+            # очищаем нажатые один раз и отпущенные клавиши в конце кадра
+            self.input_manager.clear()
 
             self.dt = self.clock.tick(settings.FPS) / 1000
 
         pygame.quit()
 
-    def handle_event(self):
-        for event in pygame.event.get():
+    def handle_events(self):
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 self.running = False
-        self.scene_manager.handle_event()
+            self.input_manager.update_events(event)
+
+        self.scene_manager.handle_events(events)
 
     def update(self):
-        self.scene_manager.update(self.dt)
+        self.scene_manager.update(self.dt, self.input_manager)
 
     def draw(self):
         self.scene_manager.draw(self.screen)

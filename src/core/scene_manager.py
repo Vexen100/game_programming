@@ -14,11 +14,11 @@ class SceneManager:
         self.current_scene = new_scene
         self.current_scene.manager = self
 
-    def handle_event(self):
-        self.current_scene.handle_event()
+    def handle_events(self, events):
+        self.current_scene.handle_events(events)
 
-    def update(self, dt):
-        self.current_scene.update(dt)
+    def update(self, dt, input_manager):
+        self.current_scene.update(dt, input_manager)
 
     def draw(self, screen):
         self.current_scene.draw(screen)
