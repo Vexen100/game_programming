@@ -36,13 +36,17 @@ class InputManager:
 
     def was_pressed(self, action):
         """Проверяет была ли один раз нажата клавиша в этом кадре"""
-        if self.bindings[action] in self.pressed_keys:
-            return True
+        key = self.bindings.get(action)
+        if key is None:
+            return False
+        return key in self.pressed_keys
 
     def is_pressed(self, action):
         """Проверяет зажата ли клавиша в этом кадре"""
-        if self.bindings[action] in self.down_keys:
-            return True
+        key = self.bindings.get(action)
+        if key is None:
+            return False
+        return key in self.down_keys
 
     def get_velocity_direction(self):
         """Считает направление вектора скорости игрока в этом кадре"""

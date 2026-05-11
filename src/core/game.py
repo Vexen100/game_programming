@@ -15,15 +15,15 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.dt = 0
-        scenes_ids_register = {
+        self.input_manager = InputManager()
+        scene_registry = {
             settings.REGION_SCENE: RegionScene,
         }
         self.scene_manager = SceneManager()
-        self.scene_manager.registry_scene_ids(scenes_ids_register)
-        self.scene_manager.request_change_scene(settings.REGION_SCENE)
-        self.scene_manager.change_scene()
-        self.input_manager = InputManager()
-        
+        self.scene_manager.register_scenes(scene_registry)
+        self.scene_manager.request_change(settings.REGION_SCENE)
+        self.scene_manager.process_scene_change()
+
 
     def run(self):
         """Запускает игровой цикл"""
@@ -36,7 +36,7 @@ class Game:
             self.input_manager.clear()
 
             # проводим смену сцены, если был запрос
-            self.scene_manager.change_scene()
+            self.scene_manager.process_scene_change()
 
             self.dt = self.clock.tick(settings.FPS) / 1000
 

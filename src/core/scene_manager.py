@@ -8,36 +8,46 @@ class SceneManager:
     """
 
     def __init__(self) -> None:
-        self.current_scene: BaseScene = None
-        self.scenes_ids_register: dict[str, BaseScene] = {}
-        self.next_scene_id: str = None
+        self.current_scene: BaseScene | None = None
+        self.scene_registry: dict[str, type[BaseScene]] = {}
+        self.next_scene_id: str | None = None
 
-    def registry_scene_ids(self, register):
-        self.scenes_ids_register = register
-    
-    def request_change_scene(self, new_scene_id: str):
+    def register_scenes(self, register):
+        self.scene_registry = register
+
+    def request_change(self, new_scene_id: str):
         """
-        Создаёт запрос на смену сцены. Сама смена сцены происходит в методе change_scene.
+        Создаёт запрос на смену сцены. Сама смена сцены происходит в методе process_scene_change.
         Каждая сцена сама использует этот метод, когда нужно.
         """
+        if new_scene_id not in self.scene_registry:
+            raise ValueError(f"Сцена с id '{new_scene_id}' не зарегистрирована")
         self.next_scene_id = new_scene_id
 
-    def change_scene(self):
-         """Меняет сцену на новую, если был запрос в этом кадре. И очищает буфер id следующей сцены"""
-         if self.next_scene_id is not None:   
-            new_scene = self.scenes_ids_register[self.next_scene_id]
+    def process_scene_change(self):
+        """Меняет сцену на новую, если был запрос в этом кадре. И очищает буфер id следующей сцены"""
+        if self.next_scene_id is not None:
+            new_scene = self.scene_registry.get(self.next_scene_id)
+            if new_scene is None:
+                raise ValueError(f"Сцена с id '{self.next_scene_id}' не зарегистрирована")
             self.current_scene = new_scene()
             self.current_scene.manager = self
             self.next_scene_id = None
 
     def handle_events(self, events):
         """Обработка системных событий. Передаётся текущей сцене"""
+        if self.current_scene is None:
+            return
         self.current_scene.handle_events(events)
 
     def update(self, dt, input_manager):
         """Обновление положения, анимаций. Передаётся текущей сцене -> объектам"""
+        if self.current_scene is None:
+            return
         self.current_scene.update(dt, input_manager)
 
     def draw(self, screen):
         """Отрисовывает изменения на экране. Передаётся сцене -> объектам"""
+        if self.current_scene is None:
+            return
         self.current_scene.draw(screen)
