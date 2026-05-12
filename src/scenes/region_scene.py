@@ -1,5 +1,8 @@
 import pygame
 import settings
+from src.components.components import Health, Position
+from src.ecs.entity_component_manager import EntityComponentManager
+from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.entities.player import Player
 from src.world.tile_map import TileMap
@@ -13,8 +16,23 @@ class RegionScene(BaseScene):
 
     def __init__(self) -> None:
         self.tile_map = TileMap(self.create_test_map())
+        self.ecm = EntityComponentManager()
+        self.entity_factory = EntityFactory(self.ecm)
+        self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
+        self.check_ecs_player()
         self.player = Player(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT / 2)
         self.manager = None
+
+    def check_ecs_player(self):
+        """Проверяет, что ECS-игрок создан с базовыми компонентами"""
+        position = self.ecm.get_component(self.ecs_player_id, Position)
+        health = self.ecm.get_component(self.ecs_player_id, Health)
+
+        if position is None:
+            raise RuntimeError("ECS player was created without Position component")
+
+        if health is None:
+            raise RuntimeError("ECS player was created without Health component")
 
     def create_test_map(self):
         """Создаёт простую тестовую карту региона"""
