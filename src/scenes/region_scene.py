@@ -4,7 +4,10 @@ from src.components.components import Health, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
-from src.entities.player import Player
+from src.systems.collision_system import CollisionSystem
+from src.systems.movement_system import MovementSystem
+from src.systems.player_input_system import PlayerInputSystem
+from src.systems.render_system import RenderSystem
 from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
 
@@ -20,7 +23,10 @@ class RegionScene(BaseScene):
         self.entity_factory = EntityFactory(self.ecm)
         self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
         self.check_ecs_player()
-        self.player = Player(settings.SCREEN_WIDTH / 2, settings.SCREEN_HEIGHT / 2)
+        self.player_input_system = PlayerInputSystem()
+        self.movement_system = MovementSystem()
+        self.collision_system = CollisionSystem()
+        self.render_system = RenderSystem()
         self.manager = None
 
     def check_ecs_player(self):
@@ -62,8 +68,10 @@ class RegionScene(BaseScene):
         pass
 
     def update(self, dt, input_manager):
-        self.player.update(dt, input_manager)
+        self.player_input_system.update(self.ecm, input_manager)
+        previous_positions = self.movement_system.update(self.ecm, dt)
+        self.collision_system.update(self.ecm, self.tile_map, previous_positions)
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
-        self.player.draw(screen)
+        self.render_system.draw(self.ecm, screen)
