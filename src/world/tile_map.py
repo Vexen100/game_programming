@@ -45,14 +45,16 @@ class TileMap:
 
     def is_rect_blocked(self, x, y, width, height):
         """Проверяет, заблокирован ли прямоугольник стеной или границами карты"""
-        left = x
-        right = x + width - 1
-        top = y
-        bottom = y + height - 1
+        left_tile = int(x // self.tile_size)
+        right_tile = int((x + width - 1) // self.tile_size)
+        top_tile = int(y // self.tile_size)
+        bottom_tile = int((y + height - 1) // self.tile_size)
 
-        return (
-            self.is_blocked(left, top)
-            or self.is_blocked(right, top)
-            or self.is_blocked(left, bottom)
-            or self.is_blocked(right, bottom)
-        )
+        for tile_y in range(top_tile, bottom_tile + 1):
+            for tile_x in range(left_tile, right_tile + 1):
+                if tile_x < 0 or tile_y < 0 or tile_x >= self.width or tile_y >= self.height:
+                    return True
+                if self.matrix[tile_y][tile_x] == WALL:
+                    return True
+
+        return False
