@@ -18,6 +18,7 @@ class InputManager:
             settings.MOVE_DOWN: pygame.K_s,
             settings.MOVE_RIGHT: pygame.K_d,
             settings.PAUSE: pygame.K_ESCAPE,
+            settings.DEBUG: pygame.K_F3,
         }
 
     def update_events(self, event):

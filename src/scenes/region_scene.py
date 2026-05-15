@@ -8,6 +8,8 @@ from src.systems.collision_system import CollisionSystem
 from src.systems.movement_system import MovementSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
+from src.ui.debug_overlay import DebugOverlay
+from src.ui.hud import HUD
 from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
 
@@ -27,6 +29,9 @@ class RegionScene(BaseScene):
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
         self.render_system = RenderSystem()
+        self.hud = HUD()
+        self.debug_overlay = DebugOverlay()
+        self.current_dt = 0
         self.manager = None
 
     def check_ecs_player(self):
@@ -68,6 +73,11 @@ class RegionScene(BaseScene):
         pass
 
     def update(self, dt, input_manager):
+        self.current_dt = dt
+
+        if input_manager.was_pressed(settings.DEBUG):
+            self.debug_overlay.toggle()
+
         self.player_input_system.update(self.ecm, input_manager)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
@@ -75,3 +85,5 @@ class RegionScene(BaseScene):
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
         self.render_system.draw(self.ecm, screen)
+        self.hud.draw(screen, self.ecm, self.ecs_player_id, "Region")
+        self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)
