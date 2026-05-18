@@ -36,3 +36,8 @@ class Health:
 @dataclass
 class PlayerControlled:
     pass
+
+
+@dataclass
+class Enemy:
+    pass

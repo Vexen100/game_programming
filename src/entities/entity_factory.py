@@ -1,11 +1,13 @@
 from src.components.components import (
     Collider,
+    Enemy,
     Health,
     PlayerControlled,
     Position,
     Renderable,
     Velocity,
 )
+from src.entities.entities_settings import EnemySettings
 
 
 class EntityFactory:
@@ -29,3 +31,36 @@ class EntityFactory:
         self.ecm.add_component(player, PlayerControlled())
 
         return player
+
+    def create_enemy(self, x, y):
+        """Создаёт ECS-сущность врага"""
+        enemy = self.ecm.create_entity(tag="enemy")
+
+        self.ecm.add_component(enemy, Position(x, y))
+        self.ecm.add_component(enemy, Velocity())
+        self.ecm.add_component(
+            enemy,
+            Collider(
+                width=EnemySettings.SIZE,
+                height=EnemySettings.SIZE,
+                solid=True,
+            ),
+        )
+        self.ecm.add_component(
+            enemy,
+            Renderable(
+                width=EnemySettings.SIZE,
+                height=EnemySettings.SIZE,
+                color=EnemySettings.COLOR,
+            ),
+        )
+        self.ecm.add_component(
+            enemy,
+            Health(
+                current=EnemySettings.HEALTH,
+                maximum=EnemySettings.HEALTH,
+            ),
+        )
+        self.ecm.add_component(enemy, Enemy())
+
+        return enemy

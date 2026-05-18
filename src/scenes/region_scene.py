@@ -25,6 +25,11 @@ class RegionScene(BaseScene):
         self.entity_factory = EntityFactory(self.ecm)
         self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
         self.check_ecs_player()
+        self.enemy_id = self.entity_factory.create_enemy(
+            x=settings.TILE_SIZE * 6,
+            y=settings.TILE_SIZE * 6,
+        )
+        self.check_enemy()
         self.player_input_system = PlayerInputSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
@@ -44,6 +49,17 @@ class RegionScene(BaseScene):
 
         if health is None:
             raise RuntimeError("ECS player was created without Health component")
+
+    def check_enemy(self):
+        """Проверяет, что ECS-враг создан с базовыми компонентами"""
+        position = self.ecm.get_component(self.enemy_id, Position)
+        health = self.ecm.get_component(self.enemy_id, Health)
+
+        if position is None:
+            raise RuntimeError("ECS enemy was created without Position component")
+
+        if health is None:
+            raise RuntimeError("ECS enemy was created without Health component")
 
     def create_test_map(self):
         """Создаёт простую тестовую карту региона"""
