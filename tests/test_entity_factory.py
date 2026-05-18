@@ -1,6 +1,7 @@
 import unittest
 
 from src.components.components import (
+    ChaseBehavior,
     Collider,
     Enemy,
     Health,
@@ -10,6 +11,7 @@ from src.components.components import (
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
+from src.entities.entities_settings import EnemySettings, PlayerSettings
 from src.entities.entity_factory import EntityFactory
 
 
@@ -29,6 +31,16 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(player, Health))
         self.assertTrue(self.ecm.has_component(player, PlayerControlled))
 
+        health = self.ecm.get_component(player, Health)
+        collider = self.ecm.get_component(player, Collider)
+        renderable = self.ecm.get_component(player, Renderable)
+
+        self.assertEqual(health.current, PlayerSettings.HEALTH)
+        self.assertEqual(health.maximum, PlayerSettings.HEALTH)
+        self.assertEqual(collider.width, PlayerSettings.SIZE)
+        self.assertEqual(collider.height, PlayerSettings.SIZE)
+        self.assertEqual(renderable.color, PlayerSettings.COLOR)
+
     def test_create_enemy(self):
         enemy = self.entity_factory.create_enemy(x=200, y=200)
 
@@ -39,7 +51,21 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(enemy, Renderable))
         self.assertTrue(self.ecm.has_component(enemy, Health))
         self.assertTrue(self.ecm.has_component(enemy, Enemy))
+        self.assertTrue(self.ecm.has_component(enemy, ChaseBehavior))
         self.assertFalse(self.ecm.has_component(enemy, PlayerControlled))
+
+        health = self.ecm.get_component(enemy, Health)
+        collider = self.ecm.get_component(enemy, Collider)
+        renderable = self.ecm.get_component(enemy, Renderable)
+        chase = self.ecm.get_component(enemy, ChaseBehavior)
+
+        self.assertEqual(health.current, EnemySettings.HEALTH)
+        self.assertEqual(health.maximum, EnemySettings.HEALTH)
+        self.assertEqual(collider.width, EnemySettings.SIZE)
+        self.assertEqual(collider.height, EnemySettings.SIZE)
+        self.assertEqual(renderable.color, EnemySettings.COLOR)
+        self.assertEqual(chase.speed, EnemySettings.SPEED)
+        self.assertEqual(chase.detection_radius, EnemySettings.DETECTION_RADIUS)
 
 
 if __name__ == "__main__":

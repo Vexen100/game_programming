@@ -1,4 +1,5 @@
 from src.components.components import (
+    ChaseBehavior,
     Collider,
     Enemy,
     Health,
@@ -7,7 +8,7 @@ from src.components.components import (
     Renderable,
     Velocity,
 )
-from src.entities.entities_settings import EnemySettings
+from src.entities.entities_settings import EnemySettings, PlayerSettings
 
 
 class EntityFactory:
@@ -22,12 +23,29 @@ class EntityFactory:
 
         self.ecm.add_component(player, Position(x, y))
         self.ecm.add_component(player, Velocity())
-        self.ecm.add_component(player, Collider(width=32, height=32, solid=True))
         self.ecm.add_component(
             player,
-            Renderable(width=32, height=32, color=(50, 120, 255)),
+            Collider(
+                width=PlayerSettings.SIZE,
+                height=PlayerSettings.SIZE,
+                solid=True,
+            ),
         )
-        self.ecm.add_component(player, Health(current=100, maximum=100))
+        self.ecm.add_component(
+            player,
+            Renderable(
+                width=PlayerSettings.SIZE,
+                height=PlayerSettings.SIZE,
+                color=PlayerSettings.COLOR,
+            ),
+        )
+        self.ecm.add_component(
+            player,
+            Health(
+                current=PlayerSettings.HEALTH,
+                maximum=PlayerSettings.HEALTH,
+            ),
+        )
         self.ecm.add_component(player, PlayerControlled())
 
         return player
@@ -62,5 +80,12 @@ class EntityFactory:
             ),
         )
         self.ecm.add_component(enemy, Enemy())
+        self.ecm.add_component(
+            enemy,
+            ChaseBehavior(
+                speed=EnemySettings.SPEED,
+                detection_radius=EnemySettings.DETECTION_RADIUS,
+            ),
+        )
 
         return enemy

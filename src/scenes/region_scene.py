@@ -5,6 +5,7 @@ from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.systems.collision_system import CollisionSystem
+from src.systems.enemy_chase_system import EnemyChaseSystem
 from src.systems.movement_system import MovementSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
@@ -24,13 +25,14 @@ class RegionScene(BaseScene):
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
         self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
-        self.check_ecs_player()
+        self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
         self.enemy_id = self.entity_factory.create_enemy(
             x=settings.TILE_SIZE * 6,
             y=settings.TILE_SIZE * 6,
         )
-        self.check_enemy()
+        self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
         self.player_input_system = PlayerInputSystem()
+        self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
         self.render_system = RenderSystem()
@@ -39,27 +41,14 @@ class RegionScene(BaseScene):
         self.current_dt = 0
         self.manager = None
 
-    def check_ecs_player(self):
-        """Проверяет, что ECS-игрок создан с базовыми компонентами"""
-        position = self.ecm.get_component(self.ecs_player_id, Position)
-        health = self.ecm.get_component(self.ecs_player_id, Health)
-
-        if position is None:
-            raise RuntimeError("ECS player was created without Position component")
-
-        if health is None:
-            raise RuntimeError("ECS player was created without Health component")
-
-    def check_enemy(self):
-        """Проверяет, что ECS-враг создан с базовыми компонентами"""
-        position = self.ecm.get_component(self.enemy_id, Position)
-        health = self.ecm.get_component(self.enemy_id, Health)
-
-        if position is None:
-            raise RuntimeError("ECS enemy was created without Position component")
-
-        if health is None:
-            raise RuntimeError("ECS enemy was created without Health component")
+    def check_entity_components(self, entity_id, entity_name, *component_types):
+        """Проверяет, что сущность создана с нужными компонентами"""
+        for component_type in component_types:
+            component = self.ecm.get_component(entity_id, component_type)
+            if component is None:
+                raise RuntimeError(
+                    f"{entity_name} was created without {component_type.__name__} component"
+                )
 
     def create_test_map(self):
         """Создаёт простую тестовую карту региона"""
@@ -95,6 +84,7 @@ class RegionScene(BaseScene):
             self.debug_overlay.toggle()
 
         self.player_input_system.update(self.ecm, input_manager)
+        self.enemy_chase_system.update(self.ecm)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
 

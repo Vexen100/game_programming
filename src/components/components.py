@@ -41,3 +41,9 @@ class PlayerControlled:
 @dataclass
 class Enemy:
     pass
+
+
+@dataclass
+class ChaseBehavior:
+    speed: float
+    detection_radius: float
