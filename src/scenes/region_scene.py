@@ -4,8 +4,10 @@ from src.components.components import Health, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
+from src.systems.cleanup_system import CleanupSystem
 from src.systems.collision_system import CollisionSystem
 from src.systems.enemy_chase_system import EnemyChaseSystem
+from src.systems.enemy_death_system import EnemyDeathSystem
 from src.systems.melee_attack_system import MeleeAttackSystem
 from src.systems.movement_system import MovementSystem
 from src.systems.player_attack_input_system import PlayerAttackInputSystem
@@ -39,6 +41,8 @@ class RegionScene(BaseScene):
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
+        self.enemy_death_system = EnemyDeathSystem()
+        self.cleanup_system = CleanupSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
@@ -93,6 +97,8 @@ class RegionScene(BaseScene):
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
         self.melee_attack_system.update(self.ecm, dt)
+        self.enemy_death_system.update(self.ecm)
+        self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)

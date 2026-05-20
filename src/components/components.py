@@ -44,6 +44,11 @@ class Enemy:
 
 
 @dataclass
+class Dead:
+    pass
+
+
+@dataclass
 class ChaseBehavior:
     speed: float
     detection_radius: float

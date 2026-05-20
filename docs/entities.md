@@ -29,7 +29,7 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - отображает здоровье через `HUD`;
 - может показываться в `DebugOverlay`.
 
-Смерть ещё не реализована.
+Смерть игрока ещё не реализована.
 
 Игрок не является отдельным классом `Player`.
 
@@ -50,12 +50,14 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - создаётся в `RegionScene`;
 - замечает игрока в радиусе обнаружения;
 - двигается к игроку через `EnemyChaseSystem`, `MovementSystem` и `CollisionSystem`;
+- помечается `Dead`, если `Health.current <= 0`;
+- удаляется через `CleanupSystem`, если помечен `Dead`;
 - рисуется через `RenderSystem`;
 - учитывается в `DebugOverlay` как живая сущность.
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
-Враг может получать урон от игрока. Атаки врага и смерти ещё нет.
+Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`. Атаки врага ещё нет.
 
 Враг не является отдельным классом `Enemy`.
 
@@ -90,6 +92,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - движение;
 - преследование врага;
 - атака игрока;
+- cleanup мёртвых сущностей;
 - столкновения;
 - отрисовка.
 
@@ -101,8 +104,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 Позже отдельными шагами могут быть добавлены:
 
-- смерть;
-- удаление мёртвых сущностей;
+- смерть игрока;
 - вражеская атака;
 - точки захвата;
 - NPC;
