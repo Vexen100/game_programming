@@ -14,3 +14,6 @@ class EnemySettings:
     COLOR = (200, 50, 50)
     SPEED = 80
     DETECTION_RADIUS = 220
+    DAMAGE = 8
+    ATTACK_RANGE = 40
+    ATTACK_COOLDOWN = 0.8

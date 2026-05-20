@@ -81,7 +81,7 @@
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack` и базового врага с `ChaseBehavior`.
+Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack` и базового врага с `ChaseBehavior`/`MeleeAttack`.
 
 ### `src/entities/entities_settings.py`
 
@@ -98,6 +98,7 @@
 - `CollisionSystem`;
 - `MeleeAttackSystem`;
 - `EnemyDeathSystem`;
+- `EnemyAttackSystem`;
 - `CleanupSystem`;
 - `RenderSystem`.
 
@@ -120,7 +121,6 @@
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
 - смерть игрока и GameState поражения;
-- вражеская атака;
 - GameState;
 - EventBus;
 - меню;

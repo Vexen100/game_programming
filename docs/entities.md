@@ -25,11 +25,12 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - сталкивается со стенами через `CollisionSystem`;
 - отправляет намерение атаки через `PlayerAttackInputSystem`;
 - наносит урон врагу через `MeleeAttackSystem`;
+- может получать урон от врага;
 - рисуется через `RenderSystem`;
 - отображает здоровье через `HUD`;
 - может показываться в `DebugOverlay`.
 
-Смерть игрока ещё не реализована.
+Если здоровье игрока падает до `0`, пока ничего отдельного не происходит. Смерть игрока ещё не реализована.
 
 Игрок не является отдельным классом `Player`.
 
@@ -42,7 +43,7 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 Текущий набор компонентов:
 
 ```text
-Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior
+Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior + MeleeAttack
 ```
 
 На текущем этапе враг:
@@ -50,6 +51,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - создаётся в `RegionScene`;
 - замечает игрока в радиусе обнаружения;
 - двигается к игроку через `EnemyChaseSystem`, `MovementSystem` и `CollisionSystem`;
+- наносит урон игроку через `EnemyAttackSystem`;
 - помечается `Dead`, если `Health.current <= 0`;
 - удаляется через `CleanupSystem`, если помечен `Dead`;
 - рисуется через `RenderSystem`;
@@ -57,7 +59,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
-Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`. Атаки врага ещё нет.
+Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`.
 
 Враг не является отдельным классом `Enemy`.
 
@@ -92,6 +94,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - движение;
 - преследование врага;
 - атака игрока;
+- атака врага;
 - cleanup мёртвых сущностей;
 - столкновения;
 - отрисовка.
@@ -105,7 +108,6 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 Позже отдельными шагами могут быть добавлены:
 
 - смерть игрока;
-- вражеская атака;
 - точки захвата;
 - NPC;
 - регионы и влияние.

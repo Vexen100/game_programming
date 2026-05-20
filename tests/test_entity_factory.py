@@ -60,12 +60,14 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(enemy, Health))
         self.assertTrue(self.ecm.has_component(enemy, Enemy))
         self.assertTrue(self.ecm.has_component(enemy, ChaseBehavior))
+        self.assertTrue(self.ecm.has_component(enemy, MeleeAttack))
         self.assertFalse(self.ecm.has_component(enemy, PlayerControlled))
 
         health = self.ecm.get_component(enemy, Health)
         collider = self.ecm.get_component(enemy, Collider)
         renderable = self.ecm.get_component(enemy, Renderable)
         chase = self.ecm.get_component(enemy, ChaseBehavior)
+        melee_attack = self.ecm.get_component(enemy, MeleeAttack)
 
         self.assertEqual(health.current, EnemySettings.HEALTH)
         self.assertEqual(health.maximum, EnemySettings.HEALTH)
@@ -74,6 +76,9 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(renderable.color, EnemySettings.COLOR)
         self.assertEqual(chase.speed, EnemySettings.SPEED)
         self.assertEqual(chase.detection_radius, EnemySettings.DETECTION_RADIUS)
+        self.assertEqual(melee_attack.damage, EnemySettings.DAMAGE)
+        self.assertEqual(melee_attack.attack_range, EnemySettings.ATTACK_RANGE)
+        self.assertEqual(melee_attack.cooldown, EnemySettings.ATTACK_COOLDOWN)
 
 
 if __name__ == "__main__":

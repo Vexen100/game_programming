@@ -6,6 +6,7 @@ from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.systems.cleanup_system import CleanupSystem
 from src.systems.collision_system import CollisionSystem
+from src.systems.enemy_attack_system import EnemyAttackSystem
 from src.systems.enemy_chase_system import EnemyChaseSystem
 from src.systems.enemy_death_system import EnemyDeathSystem
 from src.systems.melee_attack_system import MeleeAttackSystem
@@ -42,6 +43,7 @@ class RegionScene(BaseScene):
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
         self.enemy_death_system = EnemyDeathSystem()
+        self.enemy_attack_system = EnemyAttackSystem()
         self.cleanup_system = CleanupSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
@@ -98,6 +100,7 @@ class RegionScene(BaseScene):
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
         self.melee_attack_system.update(self.ecm, dt)
         self.enemy_death_system.update(self.ecm)
+        self.enemy_attack_system.update(self.ecm, dt)
         self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):

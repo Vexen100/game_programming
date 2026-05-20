@@ -45,6 +45,7 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "player_attack_input_system"))
         self.assertTrue(hasattr(scene, "melee_attack_system"))
         self.assertTrue(hasattr(scene, "enemy_death_system"))
+        self.assertTrue(hasattr(scene, "enemy_attack_system"))
         self.assertTrue(hasattr(scene, "cleanup_system"))
         self.assertEqual(len(scene.ecm.alive_entities), 2)
 
@@ -53,6 +54,7 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, MeleeAttack))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Enemy))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
+        self.assertTrue(scene.ecm.has_component(scene.enemy_id, MeleeAttack))
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Health))
@@ -112,6 +114,24 @@ class TestRegionScene(unittest.TestCase):
         scene.update(0.1, FakeAttackInputManager())
 
         self.assertNotIn(scene.enemy_id, scene.ecm.alive_entities)
+
+    def test_region_scene_update_enemy_attack_damages_player(self):
+        scene = RegionScene()
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+
+        player_position.x = settings.TILE_SIZE * 5
+        player_position.y = settings.TILE_SIZE * 6
+        enemy_position.x = settings.TILE_SIZE * 6
+        enemy_position.y = settings.TILE_SIZE * 6
+
+        old_health = player_health.current
+
+        scene.update(0.1, FakeInputManager())
+
+        self.assertLess(player_health.current, old_health)
 
 
 if __name__ == "__main__":

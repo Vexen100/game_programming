@@ -98,5 +98,13 @@ class EntityFactory:
                 detection_radius=EnemySettings.DETECTION_RADIUS,
             ),
         )
+        self.ecm.add_component(
+            enemy,
+            MeleeAttack(
+                damage=EnemySettings.DAMAGE,
+                attack_range=EnemySettings.ATTACK_RANGE,
+                cooldown=EnemySettings.ATTACK_COOLDOWN,
+            ),
+        )
 
         return enemy
