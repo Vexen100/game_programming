@@ -19,6 +19,7 @@ class InputManager:
             settings.MOVE_RIGHT: pygame.K_d,
             settings.PAUSE: pygame.K_ESCAPE,
             settings.DEBUG: pygame.K_F3,
+            settings.ATTACK: pygame.K_SPACE,
         }
 
     def update_events(self, event):

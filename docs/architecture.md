@@ -75,7 +75,7 @@
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `Enemy`, `ChaseBehavior`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `Enemy`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
@@ -92,9 +92,11 @@
 Содержит текущие ECS-системы:
 
 - `PlayerInputSystem`;
+- `PlayerAttackInputSystem`;
 - `EnemyChaseSystem`;
 - `MovementSystem`;
 - `CollisionSystem`;
+- `MeleeAttackSystem`;
 - `RenderSystem`.
 
 ### `src/ui/`
@@ -115,8 +117,8 @@
 
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
-- бой;
-- урон и смерть;
+- полная смерть и удаление сущностей;
+- вражеская атака;
 - GameState;
 - EventBus;
 - меню;

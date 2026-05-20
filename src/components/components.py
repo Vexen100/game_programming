@@ -47,3 +47,16 @@ class Enemy:
 class ChaseBehavior:
     speed: float
     detection_radius: float
+
+
+@dataclass
+class AttackIntent:
+    requested: bool = False
+
+
+@dataclass
+class MeleeAttack:
+    damage: int
+    attack_range: float
+    cooldown: float
+    cooldown_timer: float = 0

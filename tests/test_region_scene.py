@@ -3,7 +3,15 @@ import unittest
 import pygame
 import settings
 
-from src.components.components import ChaseBehavior, Enemy, Health, PlayerControlled, Position
+from src.components.components import (
+    AttackIntent,
+    ChaseBehavior,
+    Enemy,
+    Health,
+    MeleeAttack,
+    PlayerControlled,
+    Position,
+)
 from src.scenes.region_scene import RegionScene
 
 
@@ -26,9 +34,13 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "ecs_player_id"))
         self.assertTrue(hasattr(scene, "enemy_id"))
         self.assertTrue(hasattr(scene, "enemy_chase_system"))
+        self.assertTrue(hasattr(scene, "player_attack_input_system"))
+        self.assertTrue(hasattr(scene, "melee_attack_system"))
         self.assertEqual(len(scene.ecm.alive_entities), 2)
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerControlled))
+        self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, AttackIntent))
+        self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, MeleeAttack))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Enemy))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
 

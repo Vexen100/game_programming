@@ -1,10 +1,12 @@
 import unittest
 
 from src.components.components import (
+    AttackIntent,
     ChaseBehavior,
     Collider,
     Enemy,
     Health,
+    MeleeAttack,
     PlayerControlled,
     Position,
     Renderable,
@@ -30,16 +32,22 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(player, Renderable))
         self.assertTrue(self.ecm.has_component(player, Health))
         self.assertTrue(self.ecm.has_component(player, PlayerControlled))
+        self.assertTrue(self.ecm.has_component(player, AttackIntent))
+        self.assertTrue(self.ecm.has_component(player, MeleeAttack))
 
         health = self.ecm.get_component(player, Health)
         collider = self.ecm.get_component(player, Collider)
         renderable = self.ecm.get_component(player, Renderable)
+        melee_attack = self.ecm.get_component(player, MeleeAttack)
 
         self.assertEqual(health.current, PlayerSettings.HEALTH)
         self.assertEqual(health.maximum, PlayerSettings.HEALTH)
         self.assertEqual(collider.width, PlayerSettings.SIZE)
         self.assertEqual(collider.height, PlayerSettings.SIZE)
         self.assertEqual(renderable.color, PlayerSettings.COLOR)
+        self.assertEqual(melee_attack.damage, PlayerSettings.DAMAGE)
+        self.assertEqual(melee_attack.attack_range, PlayerSettings.ATTACK_RANGE)
+        self.assertEqual(melee_attack.cooldown, PlayerSettings.ATTACK_COOLDOWN)
 
     def test_create_enemy(self):
         enemy = self.entity_factory.create_enemy(x=200, y=200)

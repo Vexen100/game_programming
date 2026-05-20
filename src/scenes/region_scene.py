@@ -6,7 +6,9 @@ from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.systems.collision_system import CollisionSystem
 from src.systems.enemy_chase_system import EnemyChaseSystem
+from src.systems.melee_attack_system import MeleeAttackSystem
 from src.systems.movement_system import MovementSystem
+from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
 from src.ui.debug_overlay import DebugOverlay
@@ -32,9 +34,11 @@ class RegionScene(BaseScene):
         )
         self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
         self.player_input_system = PlayerInputSystem()
+        self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
+        self.melee_attack_system = MeleeAttackSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
@@ -84,9 +88,11 @@ class RegionScene(BaseScene):
             self.debug_overlay.toggle()
 
         self.player_input_system.update(self.ecm, input_manager)
+        self.player_attack_input_system.update(self.ecm, input_manager)
         self.enemy_chase_system.update(self.ecm)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
+        self.melee_attack_system.update(self.ecm, dt)
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)

@@ -15,7 +15,7 @@
 Текущий набор компонентов:
 
 ```text
-Player = entity_id + Position + Velocity + Collider + Renderable + Health + PlayerControlled
+Player = entity_id + Position + Velocity + Collider + Renderable + Health + PlayerControlled + AttackIntent + MeleeAttack
 ```
 
 На текущем этапе игрок:
@@ -23,9 +23,13 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - управляется через `PlayerInputSystem`;
 - двигается через `MovementSystem`;
 - сталкивается со стенами через `CollisionSystem`;
+- отправляет намерение атаки через `PlayerAttackInputSystem`;
+- наносит урон врагу через `MeleeAttackSystem`;
 - рисуется через `RenderSystem`;
 - отображает здоровье через `HUD`;
 - может показываться в `DebugOverlay`.
+
+Смерть ещё не реализована.
 
 Игрок не является отдельным классом `Player`.
 
@@ -51,7 +55,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
-Атаки, урона и смерти ещё нет.
+Враг может получать урон от игрока. Атаки врага и смерти ещё нет.
 
 Враг не является отдельным классом `Enemy`.
 
@@ -95,9 +99,9 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 Позже отдельными шагами могут быть добавлены:
 
-- бой;
-- урон;
 - смерть;
+- удаление мёртвых сущностей;
+- вражеская атака;
 - точки захвата;
 - NPC;
 - регионы и влияние.

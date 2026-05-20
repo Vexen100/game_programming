@@ -1,8 +1,10 @@
 from src.components.components import (
+    AttackIntent,
     ChaseBehavior,
     Collider,
     Enemy,
     Health,
+    MeleeAttack,
     PlayerControlled,
     Position,
     Renderable,
@@ -47,6 +49,15 @@ class EntityFactory:
             ),
         )
         self.ecm.add_component(player, PlayerControlled())
+        self.ecm.add_component(player, AttackIntent())
+        self.ecm.add_component(
+            player,
+            MeleeAttack(
+                damage=PlayerSettings.DAMAGE,
+                attack_range=PlayerSettings.ATTACK_RANGE,
+                cooldown=PlayerSettings.ATTACK_COOLDOWN,
+            ),
+        )
 
         return player
 
