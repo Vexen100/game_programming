@@ -23,6 +23,14 @@ class FakeInputManager:
         return pygame.Vector2(0, 0)
 
 
+class FakeAttackInputManager:
+    def was_pressed(self, action):
+        return action == settings.ATTACK
+
+    def get_velocity_direction(self):
+        return pygame.Vector2(0, 0)
+
+
 class TestRegionScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -67,6 +75,24 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertLess(enemy_position.x, old_enemy_x)
         self.assertEqual(enemy_position.y, old_enemy_y)
+
+    def test_region_scene_update_player_attack_damages_enemy(self):
+        scene = RegionScene()
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        enemy_health = scene.ecm.get_component(scene.enemy_id, Health)
+
+        player_position.x = settings.TILE_SIZE * 5
+        player_position.y = settings.TILE_SIZE * 6
+        enemy_position.x = settings.TILE_SIZE * 6
+        enemy_position.y = settings.TILE_SIZE * 6
+
+        old_health = enemy_health.current
+
+        scene.update(0.1, FakeAttackInputManager())
+
+        self.assertLess(enemy_health.current, old_health)
 
 
 if __name__ == "__main__":

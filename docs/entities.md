@@ -88,6 +88,8 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 - ввод;
 - движение;
+- преследование врага;
+- атака игрока;
 - столкновения;
 - отрисовка.
 

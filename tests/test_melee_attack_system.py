@@ -60,6 +60,27 @@ class TestMeleeAttackSystem(unittest.TestCase):
 
         self.assertEqual(health.current, 40)
 
+    def test_missed_attack_starts_cooldown(self):
+        player = self.create_player(attack_range=10)
+        self.create_enemy(100, 0)
+
+        self.system.update(self.ecm, dt=0.1)
+        attack = self.ecm.get_component(player, MeleeAttack)
+        attack_intent = self.ecm.get_component(player, AttackIntent)
+
+        self.assertEqual(attack.cooldown_timer, attack.cooldown)
+        self.assertFalse(attack_intent.requested)
+
+    def test_attack_without_targets_starts_cooldown(self):
+        player = self.create_player()
+
+        self.system.update(self.ecm, dt=0.1)
+        attack = self.ecm.get_component(player, MeleeAttack)
+        attack_intent = self.ecm.get_component(player, AttackIntent)
+
+        self.assertEqual(attack.cooldown_timer, attack.cooldown)
+        self.assertFalse(attack_intent.requested)
+
     def test_attack_does_not_repeat_during_cooldown(self):
         player = self.create_player()
         enemy = self.create_enemy(40, 0)

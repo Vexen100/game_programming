@@ -81,7 +81,7 @@
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока и базового врага с `ChaseBehavior`.
+Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack` и базового врага с `ChaseBehavior`.
 
 ### `src/entities/entities_settings.py`
 

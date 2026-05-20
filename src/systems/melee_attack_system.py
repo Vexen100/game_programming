@@ -44,8 +44,8 @@ class MeleeAttackSystem:
             if target_id is not None:
                 target_health = ecm.get_component(target_id, Health)
                 target_health.current = max(0, target_health.current - attack.damage)
-                attack.cooldown_timer = attack.cooldown
 
+            attack.cooldown_timer = attack.cooldown
             attack_intent.requested = False
 
     def find_closest_target(self, ecm, attacker_position, attacker_collider, attack_range):
