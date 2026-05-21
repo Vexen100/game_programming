@@ -13,6 +13,7 @@ from src.components.components import (
     PlayerDefeated,
     Position,
 )
+from src.core.game_state import GameState
 from src.scenes.region_scene import RegionScene
 
 
@@ -187,6 +188,18 @@ class TestRegionScene(unittest.TestCase):
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
         self.assertEqual(new_player_health.current, new_player_health.maximum)
         self.assertEqual(len(scene.ecm.alive_entities), 2)
+
+    def test_region_scene_uses_current_region_name_from_game_state(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        scene = RegionScene(game_state)
+
+        self.assertEqual(scene.get_region_title(), "Old Ruins")
+
+    def test_region_scene_without_game_state_uses_default_title(self):
+        scene = RegionScene()
+
+        self.assertEqual(scene.get_region_title(), "Region")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from src.core.game_state import GameState
 from src.core.input_manager import InputManager
 from src.core.scene_manager import SceneManager
 from src.scenes.region_scene import RegionScene
+from src.scenes.world_map_scene import WorldMapScene
 
 
 class Game:
@@ -19,11 +20,12 @@ class Game:
         self.input_manager = InputManager()
         self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         scene_registry = {
-            settings.REGION_SCENE: lambda: RegionScene(),
+            settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),
+            settings.REGION_SCENE: lambda: RegionScene(self.game_state),
         }
         self.scene_manager = SceneManager()
         self.scene_manager.register_scenes(scene_registry)
-        self.scene_manager.request_change(settings.REGION_SCENE)
+        self.scene_manager.request_change(settings.WORLD_MAP_SCENE)
         self.scene_manager.process_scene_change()
 
     def run(self):

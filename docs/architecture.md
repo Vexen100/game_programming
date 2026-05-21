@@ -32,6 +32,7 @@
 - `src/core/game_state.py`
 - `src/core/input_manager.py`
 - `src/core/scene_manager.py`
+- `src/scenes/world_map_scene.py`
 - `src/scenes/region_scene.py`
 - `src/ecs/entity_component_manager.py`
 - `src/components/components.py`
@@ -57,9 +58,9 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `GameState`, `SceneManager`, регистрирует `RegionScene` и запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `SceneManager`, регистрирует `WorldMapScene` и `RegionScene`, затем запускает цикл `handle_events -> update -> draw`.
 
-`GameState` пока не управляет сценами, но готовит основу для будущей `WorldMapScene`.
+Стартовая сцена — `WorldMapScene`.
 
 ### `src/core/game_state.py`
 
@@ -80,6 +81,14 @@
 ### `src/scenes/region_scene.py`
 
 Создаёт тестовую карту, ECS-слой, игрока, врага, системы, HUD и debug overlay.
+
+Может получать `GameState` и показывает название текущего региона в HUD.
+
+### `src/scenes/world_map_scene.py`
+
+Показывает простую placeholder-карту регионов из `GameState`.
+
+Позволяет выбрать открытый регион и запросить переход в `RegionScene`.
 
 ### `src/ecs/entity_component_manager.py`
 
@@ -139,8 +148,6 @@
 
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
-- WorldMapScene;
-- переход карта регионов -> RegionScene;
 - EventBus;
 - InfluenceSystem;
 - GameState поражения и глобальная логика смерти игрока;
@@ -149,4 +156,5 @@
 - NPC;
 - аванпосты;
 - CastleAssaultScene;
-- точки захвата в замке.
+- точки захвата в замке;
+- связи и дороги между регионами.

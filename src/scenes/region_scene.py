@@ -26,7 +26,8 @@ class RegionScene(BaseScene):
     Стандартная сцена региона. Поле, где бегает игрок и происходит сама игра.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, game_state=None) -> None:
+        self.game_state = game_state
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
@@ -83,6 +84,17 @@ class RegionScene(BaseScene):
     def is_player_defeated(self):
         return self.ecm.has_component(self.ecs_player_id, PlayerDefeated)
 
+    def get_region_title(self):
+        if self.game_state is None:
+            return "Region"
+
+        region = self.game_state.get_region(self.game_state.current_region_id)
+
+        if region is None:
+            return "Region"
+
+        return region.name
+
     def restart_region(self):
         self.tile_map = TileMap(self.create_test_map())
         self.ecm = EntityComponentManager()
@@ -122,7 +134,7 @@ class RegionScene(BaseScene):
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
         self.render_system.draw(self.ecm, screen)
-        self.hud.draw(screen, self.ecm, self.ecs_player_id, "Region")
+        self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_region_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

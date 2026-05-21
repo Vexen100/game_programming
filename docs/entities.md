@@ -102,6 +102,8 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 `RegionState` используется глобальным `GameState`.
 
+`WorldMapScene` отображает регионы из `GameState`. Выбор открытого региона меняет `current_region_id`. Закрытый регион выбрать для входа нельзя.
+
 `RegionState` не является игровой ECS-сущностью, не содержит компонентов и не рисуется через `RenderSystem`.
 
 ---

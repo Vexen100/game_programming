@@ -19,11 +19,13 @@ PAUSE = "pause"
 DEBUG = "debug"
 ATTACK = "attack"
 RESTART = "restart"
+SELECT = "select"
 
 # Размер тайлов для карты
 TILE_SIZE = 32
 
 # Константы для сцен (названия сцен)
+WORLD_MAP_SCENE = "world_map"
 REGION_SCENE = "region"
 
 # Пути к данным
