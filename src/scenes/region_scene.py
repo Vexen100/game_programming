@@ -1,6 +1,6 @@
 import pygame
 import settings
-from src.components.components import Health, Position
+from src.components.components import Health, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -12,6 +12,7 @@ from src.systems.enemy_death_system import EnemyDeathSystem
 from src.systems.melee_attack_system import MeleeAttackSystem
 from src.systems.movement_system import MovementSystem
 from src.systems.player_attack_input_system import PlayerAttackInputSystem
+from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
 from src.ui.debug_overlay import DebugOverlay
@@ -26,16 +27,6 @@ class RegionScene(BaseScene):
     """
 
     def __init__(self) -> None:
-        self.tile_map = TileMap(self.create_test_map())
-        self.ecm = EntityComponentManager()
-        self.entity_factory = EntityFactory(self.ecm)
-        self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
-        self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
-        self.enemy_id = self.entity_factory.create_enemy(
-            x=settings.TILE_SIZE * 6,
-            y=settings.TILE_SIZE * 6,
-        )
-        self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
@@ -44,12 +35,14 @@ class RegionScene(BaseScene):
         self.melee_attack_system = MeleeAttackSystem()
         self.enemy_death_system = EnemyDeathSystem()
         self.enemy_attack_system = EnemyAttackSystem()
+        self.player_death_system = PlayerDeathSystem()
         self.cleanup_system = CleanupSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
+        self.restart_region()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
         """Проверяет, что сущность создана с нужными компонентами"""
@@ -87,11 +80,33 @@ class RegionScene(BaseScene):
     def handle_events(self, events):
         pass
 
+    def is_player_defeated(self):
+        return self.ecm.has_component(self.ecs_player_id, PlayerDefeated)
+
+    def restart_region(self):
+        self.tile_map = TileMap(self.create_test_map())
+        self.ecm = EntityComponentManager()
+        self.entity_factory = EntityFactory(self.ecm)
+
+        self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
+        self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
+
+        self.enemy_id = self.entity_factory.create_enemy(
+            x=settings.TILE_SIZE * 6,
+            y=settings.TILE_SIZE * 6,
+        )
+        self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
+
     def update(self, dt, input_manager):
         self.current_dt = dt
 
         if input_manager.was_pressed(settings.DEBUG):
             self.debug_overlay.toggle()
+
+        if self.is_player_defeated():
+            if input_manager.was_pressed(settings.RESTART):
+                self.restart_region()
+            return
 
         self.player_input_system.update(self.ecm, input_manager)
         self.player_attack_input_system.update(self.ecm, input_manager)
@@ -101,10 +116,13 @@ class RegionScene(BaseScene):
         self.melee_attack_system.update(self.ecm, dt)
         self.enemy_death_system.update(self.ecm)
         self.enemy_attack_system.update(self.ecm, dt)
+        self.player_death_system.update(self.ecm)
         self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
         self.render_system.draw(self.ecm, screen)
         self.hud.draw(screen, self.ecm, self.ecs_player_id, "Region")
+        if self.is_player_defeated():
+            self.hud.draw_defeat_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

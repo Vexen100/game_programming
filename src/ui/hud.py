@@ -24,3 +24,9 @@ class HUD:
 
         screen.blit(hp_surface, (10, 10))
         screen.blit(scene_surface, (10, 32))
+
+    def draw_defeat_message(self, screen):
+        text = "Defeated. Press R to restart."
+        surface = self.font.render(text, True, self.color)
+        rect = surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
+        screen.blit(surface, rect)

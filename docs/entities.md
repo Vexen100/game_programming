@@ -26,11 +26,14 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - отправляет намерение атаки через `PlayerAttackInputSystem`;
 - наносит урон врагу через `MeleeAttackSystem`;
 - может получать урон от врага;
+- помечается `PlayerDefeated`, если `Health.current <= 0`;
 - рисуется через `RenderSystem`;
 - отображает здоровье через `HUD`;
 - может показываться в `DebugOverlay`.
 
-Если здоровье игрока падает до `0`, пока ничего отдельного не происходит. Смерть игрока ещё не реализована.
+Если здоровье игрока падает до `0`, игрок получает `PlayerDefeated`. После этого `RegionScene` не запускает gameplay-системы, а `HUD` показывает сообщение поражения. По `R` текущая `RegionScene` перезапускает локальное состояние региона.
+
+Игрок не удаляется через `CleanupSystem`. `Dead` не используется для игрока. GameState поражения пока не реализован.
 
 Игрок не является отдельным классом `Player`.
 
@@ -95,6 +98,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - преследование врага;
 - атака игрока;
 - атака врага;
+- поражение игрока;
 - cleanup мёртвых сущностей;
 - столкновения;
 - отрисовка.
@@ -107,7 +111,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 Позже отдельными шагами могут быть добавлены:
 
-- смерть игрока;
+- GameState поражения;
 - точки захвата;
 - NPC;
 - регионы и влияние.

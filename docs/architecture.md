@@ -75,7 +75,7 @@
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `Enemy`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
@@ -99,6 +99,7 @@
 - `MeleeAttackSystem`;
 - `EnemyDeathSystem`;
 - `EnemyAttackSystem`;
+- `PlayerDeathSystem`;
 - `CleanupSystem`;
 - `RenderSystem`.
 
@@ -120,7 +121,7 @@
 
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
-- смерть игрока и GameState поражения;
+- GameState поражения и глобальная логика смерти игрока;
 - GameState;
 - EventBus;
 - меню;

@@ -42,6 +42,9 @@ class TestUI(unittest.TestCase):
 
         HUD().draw(self.create_surface(), ecm, player, "Region")
 
+    def test_hud_draw_defeat_message(self):
+        HUD().draw_defeat_message(self.create_surface())
+
     def test_debug_overlay_toggle(self):
         debug_overlay = DebugOverlay()
 

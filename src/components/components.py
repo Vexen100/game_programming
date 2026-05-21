@@ -39,6 +39,11 @@ class PlayerControlled:
 
 
 @dataclass
+class PlayerDefeated:
+    pass
+
+
+@dataclass
 class Enemy:
     pass
 

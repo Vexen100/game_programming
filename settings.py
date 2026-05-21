@@ -18,6 +18,7 @@ MOVE_RIGHT = "right"
 PAUSE = "pause"
 DEBUG = "debug"
 ATTACK = "attack"
+RESTART = "restart"
 
 # Размер тайлов для карты
 TILE_SIZE = 32
