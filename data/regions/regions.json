@@ -1,0 +1,52 @@
+[
+  {
+    "id": "border_forest",
+    "name": "Border Forest",
+    "unlocked": true,
+    "control_state": "player",
+    "player_influence": 100,
+    "enemy_influence": 0,
+    "assault_unlocked": false,
+    "liberated": true
+  },
+  {
+    "id": "old_ruins",
+    "name": "Old Ruins",
+    "unlocked": true,
+    "control_state": "enemy",
+    "player_influence": 0,
+    "enemy_influence": 100,
+    "assault_unlocked": false,
+    "liberated": false
+  },
+  {
+    "id": "mountain_mines",
+    "name": "Mountain Mines",
+    "unlocked": false,
+    "control_state": "locked",
+    "player_influence": 0,
+    "enemy_influence": 100,
+    "assault_unlocked": false,
+    "liberated": false
+  },
+  {
+    "id": "swamp_lands",
+    "name": "Swamp Lands",
+    "unlocked": false,
+    "control_state": "locked",
+    "player_influence": 0,
+    "enemy_influence": 100,
+    "assault_unlocked": false,
+    "liberated": false
+  },
+  {
+    "id": "capital_fortress",
+    "name": "Capital Fortress",
+    "unlocked": false,
+    "control_state": "locked",
+    "player_influence": 0,
+    "enemy_influence": 100,
+    "assault_unlocked": false,
+    "liberated": false
+  }
+]

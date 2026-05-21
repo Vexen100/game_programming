@@ -29,6 +29,7 @@
 - `main.py`
 - `settings.py`
 - `src/core/game.py`
+- `src/core/game_state.py`
 - `src/core/input_manager.py`
 - `src/core/scene_manager.py`
 - `src/scenes/region_scene.py`
@@ -39,6 +40,7 @@
 - `src/systems/`
 - `src/ui/`
 - `src/world/`
+- `data/regions/regions.json`
 - `tests/`
 
 ---
@@ -55,7 +57,15 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `SceneManager`, регистрирует `RegionScene` и запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `SceneManager`, регистрирует `RegionScene` и запускает цикл `handle_events -> update -> draw`.
+
+`GameState` пока не управляет сценами, но готовит основу для будущей `WorldMapScene`.
+
+### `src/core/game_state.py`
+
+Хранит глобальное состояние регионов: открытие, контроль, влияние, доступность штурма и освобождение.
+
+Загружает стартовые данные из `data/regions/regions.json`.
 
 ### `src/core/input_manager.py`
 
@@ -63,7 +73,9 @@
 
 ### `src/core/scene_manager.py`
 
-Регистрирует сцены и переключает текущую сцену по запросу.
+Регистрирует scene factories и переключает текущую сцену по запросу.
+
+`SceneManager` сам не импортирует конкретные сцены. Текущая сцена создаётся через зарегистрированную фабрику.
 
 ### `src/scenes/region_scene.py`
 
@@ -111,6 +123,12 @@
 
 Содержит тайловую карту и типы тайлов.
 
+Также содержит `RegionState` — модель глобального состояния региона, которая не является ECS-сущностью.
+
+### `data/regions/regions.json`
+
+Содержит стартовые данные 5 регионов Crown Reclaim.
+
 ### `tests/`
 
 Содержит тесты для карты, ECM, фабрики сущностей, систем, UI и сцены региона.
@@ -121,11 +139,14 @@
 
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
-- GameState поражения и глобальная логика смерти игрока;
-- GameState;
+- WorldMapScene;
+- переход карта регионов -> RegionScene;
 - EventBus;
+- InfluenceSystem;
+- GameState поражения и глобальная логика смерти игрока;
 - меню;
 - камера;
-- точки захвата;
 - NPC;
-- аванпосты.
+- аванпосты;
+- CastleAssaultScene;
+- точки захвата в замке.

@@ -87,6 +87,25 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 ---
 
+## RegionState
+
+`RegionState` хранит глобальное состояние региона:
+
+- `id`;
+- `name`;
+- `unlocked`;
+- `control_state`;
+- `player_influence`;
+- `enemy_influence`;
+- `assault_unlocked`;
+- `liberated`.
+
+`RegionState` используется глобальным `GameState`.
+
+`RegionState` не является игровой ECS-сущностью, не содержит компонентов и не рисуется через `RenderSystem`.
+
+---
+
 ## Текущее правило для сущностей
 
 Компоненты хранят данные и не содержат игровой логики.

@@ -25,3 +25,6 @@ TILE_SIZE = 32
 
 # Константы для сцен (названия сцен)
 REGION_SCENE = "region"
+
+# Пути к данным
+REGIONS_DATA_PATH = "data/regions/regions.json"

@@ -1,7 +1,8 @@
 import pygame
 import settings
-from src.core.scene_manager import SceneManager
+from src.core.game_state import GameState
 from src.core.input_manager import InputManager
+from src.core.scene_manager import SceneManager
 from src.scenes.region_scene import RegionScene
 
 
@@ -16,14 +17,14 @@ class Game:
         self.running = True
         self.dt = 0
         self.input_manager = InputManager()
+        self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         scene_registry = {
-            settings.REGION_SCENE: RegionScene,
+            settings.REGION_SCENE: lambda: RegionScene(),
         }
         self.scene_manager = SceneManager()
         self.scene_manager.register_scenes(scene_registry)
         self.scene_manager.request_change(settings.REGION_SCENE)
         self.scene_manager.process_scene_change()
-
 
     def run(self):
         """Запускает игровой цикл"""

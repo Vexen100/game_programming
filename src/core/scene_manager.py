@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from src.scenes.base_scene import BaseScene
 
 
@@ -9,11 +11,11 @@ class SceneManager:
 
     def __init__(self) -> None:
         self.current_scene: BaseScene | None = None
-        self.scene_registry: dict[str, type[BaseScene]] = {}
+        self.scene_registry: dict[str, Callable[[], BaseScene]] = {}
         self.next_scene_id: str | None = None
 
-    def register_scenes(self, register):
-        self.scene_registry = register
+    def register_scenes(self, scene_registry):
+        self.scene_registry = scene_registry
 
     def request_change(self, new_scene_id: str):
         """
@@ -27,10 +29,10 @@ class SceneManager:
     def process_scene_change(self):
         """Меняет сцену на новую, если был запрос в этом кадре. И очищает буфер id следующей сцены"""
         if self.next_scene_id is not None:
-            new_scene = self.scene_registry.get(self.next_scene_id)
-            if new_scene is None:
+            scene_factory = self.scene_registry.get(self.next_scene_id)
+            if scene_factory is None:
                 raise ValueError(f"Сцена с id '{self.next_scene_id}' не зарегистрирована")
-            self.current_scene = new_scene()
+            self.current_scene = scene_factory()
             self.current_scene.manager = self
             self.next_scene_id = None
 
