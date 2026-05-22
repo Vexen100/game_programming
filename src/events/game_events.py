@@ -11,3 +11,10 @@ class EnemyKilledEvent:
 class OutpostClearedEvent:
     outpost_id: int
     region_id: str
+
+
+@dataclass
+class QuestCompletedEvent:
+    quest_id: str
+    npc_id: int
+    region_id: str

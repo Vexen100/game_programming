@@ -20,8 +20,10 @@ class InputManager:
             settings.PAUSE: pygame.K_ESCAPE,
             settings.DEBUG: pygame.K_F3,
             settings.ATTACK: pygame.K_SPACE,
+            settings.INTERACT: pygame.K_e,
             settings.RESTART: pygame.K_r,
             settings.SELECT: pygame.K_RETURN,
+            settings.START_ASSAULT: pygame.K_c,
             settings.OPEN_WORLD_MAP: pygame.K_m,
         }
 

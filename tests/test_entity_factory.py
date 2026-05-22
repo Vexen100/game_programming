@@ -7,6 +7,7 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    NPC,
     Outpost,
     PlayerControlled,
     Position,
@@ -14,7 +15,7 @@ from src.components.components import (
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
-from src.entities.entities_settings import EnemySettings, OutpostSettings, PlayerSettings
+from src.entities.entities_settings import EnemySettings, NPCSettings, OutpostSettings, PlayerSettings
 from src.entities.entity_factory import EntityFactory
 
 
@@ -99,6 +100,33 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(renderable.color, OutpostSettings.ENEMY_COLOR)
         self.assertEqual(outpost_component.radius, OutpostSettings.RADIUS)
         self.assertFalse(outpost_component.cleared)
+
+    def test_create_npc(self):
+        outpost_id = 10
+        npc = self.entity_factory.create_npc(
+            x=120,
+            y=160,
+            quest_id="clear_old_ruins_outpost",
+            required_outpost_id=outpost_id,
+        )
+
+        self.assertIn(npc, self.ecm.alive_entities)
+        self.assertTrue(self.ecm.has_component(npc, Position))
+        self.assertTrue(self.ecm.has_component(npc, Renderable))
+        self.assertTrue(self.ecm.has_component(npc, NPC))
+        self.assertFalse(self.ecm.has_component(npc, Collider))
+        self.assertFalse(self.ecm.has_component(npc, Health))
+
+        renderable = self.ecm.get_component(npc, Renderable)
+        npc_component = self.ecm.get_component(npc, NPC)
+
+        self.assertEqual(renderable.width, NPCSettings.SIZE)
+        self.assertEqual(renderable.height, NPCSettings.SIZE)
+        self.assertEqual(renderable.color, NPCSettings.ACTIVE_COLOR)
+        self.assertEqual(npc_component.interaction_radius, NPCSettings.INTERACTION_RADIUS)
+        self.assertEqual(npc_component.quest_id, "clear_old_ruins_outpost")
+        self.assertEqual(npc_component.required_outpost_id, outpost_id)
+        self.assertFalse(npc_component.quest_completed)
 
 
 if __name__ == "__main__":

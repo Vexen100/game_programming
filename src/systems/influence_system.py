@@ -1,4 +1,4 @@
-from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent
+from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent, QuestCompletedEvent
 
 
 class InfluenceSystem:
@@ -8,6 +8,8 @@ class InfluenceSystem:
     ENEMY_KILL_ENEMY_INFLUENCE_LOSS = -25
     OUTPOST_CLEAR_PLAYER_INFLUENCE_GAIN = 50
     OUTPOST_CLEAR_ENEMY_INFLUENCE_LOSS = -50
+    QUEST_COMPLETE_PLAYER_INFLUENCE_GAIN = 25
+    QUEST_COMPLETE_ENEMY_INFLUENCE_LOSS = -25
     ASSAULT_UNLOCK_ENEMY_INFLUENCE_THRESHOLD = 50
 
     def __init__(self, game_state):
@@ -16,6 +18,7 @@ class InfluenceSystem:
     def subscribe(self, event_bus):
         event_bus.subscribe(EnemyKilledEvent, self.on_enemy_killed)
         event_bus.subscribe(OutpostClearedEvent, self.on_outpost_cleared)
+        event_bus.subscribe(QuestCompletedEvent, self.on_quest_completed)
 
     def on_enemy_killed(self, event):
         self.apply_influence_change(
@@ -29,6 +32,13 @@ class InfluenceSystem:
             event.region_id,
             self.OUTPOST_CLEAR_PLAYER_INFLUENCE_GAIN,
             self.OUTPOST_CLEAR_ENEMY_INFLUENCE_LOSS,
+        )
+
+    def on_quest_completed(self, event):
+        self.apply_influence_change(
+            event.region_id,
+            self.QUEST_COMPLETE_PLAYER_INFLUENCE_GAIN,
+            self.QUEST_COMPLETE_ENEMY_INFLUENCE_LOSS,
         )
 
     def apply_influence_change(self, region_id, delta_player, delta_enemy):

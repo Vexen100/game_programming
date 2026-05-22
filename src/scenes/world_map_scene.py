@@ -51,6 +51,13 @@ class WorldMapScene(BaseScene):
                 self.game_state.set_current_region(selected_region.id)
                 self.manager.request_change(settings.REGION_SCENE)
 
+        if input_manager.was_pressed(settings.START_ASSAULT):
+            selected_region = self.get_selected_region()
+
+            if selected_region.unlocked and selected_region.assault_unlocked:
+                self.game_state.set_current_region(selected_region.id)
+                self.manager.request_change(settings.CASTLE_ASSAULT_SCENE)
+
     def draw(self, screen):
         screen.fill(self.BACKGROUND_COLOR)
         self.draw_title(screen)
@@ -82,6 +89,8 @@ class WorldMapScene(BaseScene):
 
         if not selected_region.unlocked:
             hint_text = "Locked"
+        elif selected_region.assault_unlocked:
+            hint_text = "Enter: enter region | C: start assault"
 
         hint_surface = self.font.render(hint_text, True, self.TEXT_COLOR)
         screen.blit(hint_surface, (40, settings.SCREEN_HEIGHT - 64))

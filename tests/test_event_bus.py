@@ -1,7 +1,7 @@
 import unittest
 
 from src.core.event_bus import EventBus
-from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent
+from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent, QuestCompletedEvent
 
 
 class TestEventBus(unittest.TestCase):
@@ -49,6 +49,20 @@ class TestEventBus(unittest.TestCase):
 
         event_bus.subscribe(OutpostClearedEvent, received.append)
         event = OutpostClearedEvent(outpost_id=1, region_id="old_ruins")
+        event_bus.publish(event)
+
+        self.assertEqual(received, [event])
+
+    def test_quest_completed_event_is_delivered_to_subscriber(self):
+        event_bus = EventBus()
+        received = []
+
+        event_bus.subscribe(QuestCompletedEvent, received.append)
+        event = QuestCompletedEvent(
+            quest_id="clear_old_ruins_outpost",
+            npc_id=1,
+            region_id="old_ruins",
+        )
         event_bus.publish(event)
 
         self.assertEqual(received, [event])

@@ -4,6 +4,7 @@ from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.core.input_manager import InputManager
 from src.core.scene_manager import SceneManager
+from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
@@ -27,6 +28,10 @@ class Game:
         scene_registry = {
             settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),
             settings.REGION_SCENE: lambda: RegionScene(self.game_state, self.event_bus),
+            settings.CASTLE_ASSAULT_SCENE: lambda: CastleAssaultScene(
+                self.game_state,
+                self.event_bus,
+            ),
         }
         self.scene_manager = SceneManager()
         self.scene_manager.register_scenes(scene_registry)

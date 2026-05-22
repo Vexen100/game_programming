@@ -5,13 +5,14 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    NPC,
     Outpost,
     PlayerControlled,
     Position,
     Renderable,
     Velocity,
 )
-from src.entities.entities_settings import EnemySettings, OutpostSettings, PlayerSettings
+from src.entities.entities_settings import EnemySettings, NPCSettings, OutpostSettings, PlayerSettings
 
 
 class EntityFactory:
@@ -132,3 +133,28 @@ class EntityFactory:
         )
 
         return outpost
+
+    def create_npc(self, x, y, quest_id, required_outpost_id=None):
+        """Создаёт ECS-сущность NPC с простым заданием"""
+        npc = self.ecm.create_entity(tag="npc")
+
+        self.ecm.add_component(npc, Position(x, y))
+        self.ecm.add_component(
+            npc,
+            Renderable(
+                width=NPCSettings.SIZE,
+                height=NPCSettings.SIZE,
+                color=NPCSettings.ACTIVE_COLOR,
+            ),
+        )
+        self.ecm.add_component(
+            npc,
+            NPC(
+                interaction_radius=NPCSettings.INTERACTION_RADIUS,
+                quest_id=quest_id,
+                required_outpost_id=required_outpost_id,
+                quest_completed=False,
+            ),
+        )
+
+        return npc

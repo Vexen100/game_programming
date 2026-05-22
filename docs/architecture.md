@@ -35,6 +35,7 @@
 - `src/core/scene_manager.py`
 - `src/scenes/world_map_scene.py`
 - `src/scenes/region_scene.py`
+- `src/scenes/castle_assault_scene.py`
 - `src/ecs/entity_component_manager.py`
 - `src/components/components.py`
 - `src/entities/entity_factory.py`
@@ -60,7 +61,7 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `WorldMapScene` и `RegionScene`, затем запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `WorldMapScene`, `RegionScene` и `CastleAssaultScene`, затем запускает цикл `handle_events -> update -> draw`.
 
 Стартовая сцена — `WorldMapScene`.
 
@@ -88,11 +89,13 @@
 
 ### `src/scenes/region_scene.py`
 
-Создаёт тестовую карту, ECS-слой, игрока, врага, системы, HUD и debug overlay.
+Создаёт тестовую карту, ECS-слой, игрока, врага, аванпост, одного тестового NPC, системы, HUD и debug overlay.
 
 Может получать `GameState` и показывает название текущего региона в HUD.
 
 По `M` может запросить возврат на `WorldMapScene`. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
+
+NPC завершает простое задание после зачистки аванпоста и взаимодействия по `E`.
 
 ### `src/scenes/world_map_scene.py`
 
@@ -102,19 +105,33 @@
 
 Показывает influence выбранного региона и текстовый статус `assault_unlocked`.
 
+Если выбранный регион открыт и `assault_unlocked == True`, по `C` можно перейти в `CastleAssaultScene`.
+
+### `src/scenes/castle_assault_scene.py`
+
+Статическая сцена штурма замка.
+
+Создаёт простую ручную карту замка, ECS-слой, игрока, одного врага, базовые gameplay-системы, HUD и debug overlay.
+
+По `M` может запросить возврат на `WorldMapScene`.
+
+Если игрок побеждён, по `R` сцена локально перезапускает штурм.
+
+`CastleAssaultScene` не освобождает регион, не содержит точек захвата и не знает про `InfluenceSystem`.
+
 ### `src/ecs/entity_component_manager.py`
 
 Хранит сущности, теги и компоненты по типам.
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack` и простой аванпост.
+Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост и NPC с простым заданием.
 
 ### `src/entities/entities_settings.py`
 
@@ -132,16 +149,17 @@
 - `MeleeAttackSystem`;
 - `EnemyDeathSystem`;
 - `OutpostSystem`;
+- `NPCInteractionSystem`;
 - `EnemyAttackSystem`;
 - `PlayerDeathSystem`;
 - `CleanupSystem`;
 - `RenderSystem`.
 
-Также содержит `InfluenceSystem`, который слушает игровые события и меняет глобальное влияние регионов через `GameState`.
+Также содержит `InfluenceSystem`, который слушает `EnemyKilledEvent`, `OutpostClearedEvent`, `QuestCompletedEvent` и меняет глобальное влияние регионов через `GameState`.
 
 ### `src/events/`
 
-Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent` и `OutpostClearedEvent`.
+Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`, `OutpostClearedEvent` и `QuestCompletedEvent`.
 
 ### `src/ui/`
 
@@ -171,9 +189,13 @@
 - MainMenuScene;
 - PauseScene;
 - камера;
-- NPC;
-- CastleAssaultScene;
+- полноценный QuestSystem;
+- диалоги;
+- CapturePoint;
 - точки захвата в замке;
+- RegionLiberatedEvent;
+- освобождение региона;
+- BSP-генерация замка;
 - связи и дороги между регионами;
 - автоматическое открытие соседних регионов;
 - сохранения.

@@ -55,6 +55,14 @@ class Outpost:
 
 
 @dataclass
+class NPC:
+    interaction_radius: float
+    quest_id: str
+    required_outpost_id: int | None = None
+    quest_completed: bool = False
+
+
+@dataclass
 class Dead:
     pass
 

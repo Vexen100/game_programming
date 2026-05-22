@@ -1,6 +1,6 @@
 import pygame
 import settings
-from src.components.components import Health, NPC, Outpost, PlayerDefeated, Position
+from src.components.components import Health, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -11,8 +11,6 @@ from src.systems.enemy_chase_system import EnemyChaseSystem
 from src.systems.enemy_death_system import EnemyDeathSystem
 from src.systems.melee_attack_system import MeleeAttackSystem
 from src.systems.movement_system import MovementSystem
-from src.systems.npc_interaction_system import NPCInteractionSystem
-from src.systems.outpost_system import OutpostSystem
 from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
@@ -23,10 +21,8 @@ from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
 
 
-class RegionScene(BaseScene):
-    """
-    Стандартная сцена региона. Поле, где бегает игрок и происходит сама игра.
-    """
+class CastleAssaultScene(BaseScene):
+    """Статическая сцена штурма замка"""
 
     def __init__(self, game_state=None, event_bus=None) -> None:
         self.game_state = game_state
@@ -38,8 +34,6 @@ class RegionScene(BaseScene):
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
         self.enemy_death_system = EnemyDeathSystem(self.event_bus)
-        self.outpost_system = OutpostSystem(self.event_bus)
-        self.npc_interaction_system = NPCInteractionSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
         self.cleanup_system = CleanupSystem()
@@ -48,7 +42,7 @@ class RegionScene(BaseScene):
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
-        self.restart_region()
+        self.restart_castle()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
         """Проверяет, что сущность создана с нужными компонентами"""
@@ -59,8 +53,8 @@ class RegionScene(BaseScene):
                     f"{entity_name} was created without {component_type.__name__} component"
                 )
 
-    def create_test_map(self):
-        """Создаёт простую тестовую карту региона"""
+    def create_test_castle_map(self):
+        """Создаёт простую статическую карту замка"""
         width = settings.SCREEN_WIDTH // settings.TILE_SIZE
         height = settings.SCREEN_HEIGHT // settings.TILE_SIZE + 1
         matrix = []
@@ -70,10 +64,11 @@ class RegionScene(BaseScene):
             for tile in range(width):
                 is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
                 is_inner_wall = (
-                    (tile == 10 and 4 <= row <= 14)
-                    or (row == 8 and 15 <= tile <= 25)
-                    or (tile == 28 and 3 <= row <= 10)
-                    or (row == 15 and 18 <= tile <= 30)
+                    (tile == 8 and 2 <= row <= 10 and row != 5)
+                    or (row == 6 and 12 <= tile <= 28 and tile != 20)
+                    or (tile == 25 and 10 <= row <= 20 and row != 15)
+                    or (row == 16 and 3 <= tile <= 18 and tile != 11)
+                    or (row == 11 and 28 <= tile <= 36 and tile != 32)
                 )
                 if is_border or is_inner_wall:
                     map_row.append(WALL)
@@ -93,50 +88,39 @@ class RegionScene(BaseScene):
         if self.manager is not None:
             self.manager.request_change(settings.WORLD_MAP_SCENE)
 
-    def get_region_title(self):
-        if self.game_state is None:
-            return "Region"
-
-        region = self.game_state.get_region(self.game_state.current_region_id)
-
-        if region is None:
-            return "Region"
-
-        return region.name
-
     def get_current_region_id(self):
         if self.game_state is None:
             return None
 
         return self.game_state.current_region_id
 
-    def restart_region(self):
-        self.tile_map = TileMap(self.create_test_map())
+    def get_castle_title(self):
+        if self.game_state is None:
+            return "Castle Assault"
+
+        region = self.game_state.get_region(self.game_state.current_region_id)
+
+        if region is None:
+            return "Castle Assault"
+
+        return f"{region.name} Assault"
+
+    def restart_castle(self):
+        self.tile_map = TileMap(self.create_test_castle_map())
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
 
-        self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
+        self.ecs_player_id = self.entity_factory.create_player(
+            x=settings.TILE_SIZE * 3,
+            y=settings.TILE_SIZE * 3,
+        )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
         self.enemy_id = self.entity_factory.create_enemy(
-            x=settings.TILE_SIZE * 6,
-            y=settings.TILE_SIZE * 6,
+            x=settings.TILE_SIZE * 32,
+            y=settings.TILE_SIZE * 15,
         )
         self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
-
-        self.outpost_id = self.entity_factory.create_outpost(
-            x=settings.TILE_SIZE * 8,
-            y=settings.TILE_SIZE * 6,
-        )
-        self.check_entity_components(self.outpost_id, "ECS outpost", Position, Outpost)
-
-        self.npc_id = self.entity_factory.create_npc(
-            x=settings.TILE_SIZE * 4,
-            y=settings.TILE_SIZE * 6,
-            quest_id="clear_old_ruins_outpost",
-            required_outpost_id=self.outpost_id,
-        )
-        self.check_entity_components(self.npc_id, "NPC", Position, NPC)
 
     def update(self, dt, input_manager):
         self.current_dt = dt
@@ -150,7 +134,7 @@ class RegionScene(BaseScene):
 
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
-                self.restart_region()
+                self.restart_castle()
             return
 
         self.player_input_system.update(self.ecm, input_manager)
@@ -162,21 +146,12 @@ class RegionScene(BaseScene):
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
-
-        if not self.is_player_defeated():
-            self.outpost_system.update(self.ecm, self.get_current_region_id())
-            self.npc_interaction_system.update(
-                self.ecm,
-                input_manager,
-                self.get_current_region_id(),
-            )
-
         self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
         self.render_system.draw(self.ecm, screen)
-        self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_region_title())
+        self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

@@ -18,8 +18,10 @@ MOVE_RIGHT = "right"
 PAUSE = "pause"
 DEBUG = "debug"
 ATTACK = "attack"
+INTERACT = "interact"
 RESTART = "restart"
 SELECT = "select"
+START_ASSAULT = "start_assault"
 OPEN_WORLD_MAP = "open_world_map"
 
 # Размер тайлов для карты
@@ -28,6 +30,7 @@ TILE_SIZE = 32
 # Константы для сцен (названия сцен)
 WORLD_MAP_SCENE = "world_map"
 REGION_SCENE = "region"
+CASTLE_ASSAULT_SCENE = "castle_assault"
 
 # Пути к данным
 REGIONS_DATA_PATH = "data/regions/regions.json"

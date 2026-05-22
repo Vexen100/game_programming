@@ -9,6 +9,7 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    NPC,
     Outpost,
     PlayerControlled,
     PlayerDefeated,
@@ -61,6 +62,14 @@ class FakeWorldMapInputManager:
         return pygame.Vector2(0, 0)
 
 
+class FakeInteractInputManager:
+    def was_pressed(self, action):
+        return action == settings.INTERACT
+
+    def get_velocity_direction(self):
+        return pygame.Vector2(0, 0)
+
+
 class TestRegionScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -76,10 +85,12 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "melee_attack_system"))
         self.assertTrue(hasattr(scene, "enemy_death_system"))
         self.assertTrue(hasattr(scene, "outpost_system"))
+        self.assertTrue(hasattr(scene, "npc_interaction_system"))
         self.assertTrue(hasattr(scene, "enemy_attack_system"))
         self.assertTrue(hasattr(scene, "player_death_system"))
         self.assertTrue(hasattr(scene, "cleanup_system"))
-        self.assertEqual(len(scene.ecm.alive_entities), 3)
+        self.assertTrue(hasattr(scene, "npc_id"))
+        self.assertEqual(len(scene.ecm.alive_entities), 4)
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerControlled))
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
@@ -89,12 +100,14 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, MeleeAttack))
         self.assertTrue(scene.ecm.has_component(scene.outpost_id, Outpost))
+        self.assertTrue(scene.ecm.has_component(scene.npc_id, NPC))
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Health))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Health))
         self.assertTrue(scene.ecm.has_component(scene.outpost_id, Position))
+        self.assertTrue(scene.ecm.has_component(scene.npc_id, Position))
 
     def test_region_scene_update_moves_enemy_towards_player(self):
         scene = RegionScene()
@@ -213,7 +226,7 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
         self.assertEqual(new_player_health.current, new_player_health.maximum)
-        self.assertEqual(len(scene.ecm.alive_entities), 3)
+        self.assertEqual(len(scene.ecm.alive_entities), 4)
 
     def test_region_scene_uses_current_region_name_from_game_state(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -379,6 +392,77 @@ class TestRegionScene(unittest.TestCase):
         self.assertFalse(outpost.cleared)
         self.assertEqual(region.player_influence, 0)
         self.assertEqual(region.enemy_influence, 100)
+
+    def test_region_scene_completes_npc_quest_after_outpost_cleared(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        influence_system = InfluenceSystem(game_state)
+        influence_system.subscribe(event_bus)
+        scene = RegionScene(game_state, event_bus)
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        npc_position = scene.ecm.get_component(scene.npc_id, Position)
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+
+        outpost.cleared = True
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+
+        scene.update(0.1, FakeInteractInputManager())
+        region = game_state.get_region("old_ruins")
+
+        self.assertTrue(npc.quest_completed)
+        self.assertEqual(region.player_influence, 25)
+        self.assertEqual(region.enemy_influence, 75)
+
+    def test_region_scene_npc_quest_does_not_complete_before_outpost_cleared(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        influence_system = InfluenceSystem(game_state)
+        influence_system.subscribe(event_bus)
+        scene = RegionScene(game_state, event_bus)
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        npc_position = scene.ecm.get_component(scene.npc_id, Position)
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+
+        scene.update(0.1, FakeInteractInputManager())
+        region = game_state.get_region("old_ruins")
+
+        self.assertFalse(npc.quest_completed)
+        self.assertEqual(region.player_influence, 0)
+        self.assertEqual(region.enemy_influence, 100)
+
+    def test_region_scene_npc_quest_does_not_complete_when_player_defeated(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        influence_system = InfluenceSystem(game_state)
+        influence_system.subscribe(event_bus)
+        scene = RegionScene(game_state, event_bus)
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        npc_position = scene.ecm.get_component(scene.npc_id, Position)
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+
+        outpost.cleared = True
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+        player_health.current = 0
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeInteractInputManager())
+
+        self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
+        self.assertFalse(npc.quest_completed)
 
 
 if __name__ == "__main__":

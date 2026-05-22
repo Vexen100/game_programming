@@ -24,3 +24,10 @@ class OutpostSettings:
     SIZE = 28
     ENEMY_COLOR = (110, 70, 40)
     CLEARED_COLOR = (220, 190, 40)
+
+
+class NPCSettings:
+    INTERACTION_RADIUS = 48
+    SIZE = 26
+    ACTIVE_COLOR = (120, 120, 180)
+    COMPLETED_COLOR = (220, 190, 40)

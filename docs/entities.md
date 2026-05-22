@@ -93,6 +93,31 @@ Outpost = entity_id + Position + Renderable + Outpost
 
 Аванпост не является `CapturePoint`. Точки захвата относятся к будущей `CastleAssaultScene`.
 
+## NPC
+
+NPC — ECS-сущность, создаваемая через `EntityFactory.create_npc()`.
+
+Текущий набор компонентов:
+
+```text
+NPC = entity_id + Position + Renderable + NPC
+```
+
+На текущем этапе NPC:
+
+- создаётся в `RegionScene`;
+- не блокирует движение, потому что у него нет `Collider`;
+- не имеет здоровья;
+- хранит простой `quest_id`;
+- хранит id аванпоста, который должен быть зачищен;
+- завершает задание при взаимодействии по `E`, если игрок рядом и аванпост зачищен;
+- меняет цвет после завершения задания;
+- публикует `QuestCompletedEvent` при первом завершении задания.
+
+`QuestCompletedEvent` может менять влияние региона через `InfluenceSystem`.
+
+NPC не является полноценным `QuestSystem`. Диалоги пока не реализованы.
+
 ---
 
 ## TileMap
@@ -135,9 +160,13 @@ Outpost = entity_id + Position + Renderable + Outpost
 
 Возврат из `RegionScene` на карту не пересоздаёт `GameState`.
 
-`InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent` и `OutpostClearedEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
+`InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent`, `OutpostClearedEvent` и `QuestCompletedEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
 
-`assault_unlocked` пока только флаг. `CastleAssaultScene` ещё не реализована.
+Если `assault_unlocked == True`, `WorldMapScene` может открыть `CastleAssaultScene` по `C`.
+
+Сам флаг `assault_unlocked` не освобождает регион.
+
+Освобождение региона и точки захвата будут отдельным шагом.
 
 `RegionState` не является игровой ECS-сущностью, не содержит компонентов и не рисуется через `RenderSystem`.
 
@@ -156,6 +185,7 @@ Outpost = entity_id + Position + Renderable + Outpost
 - атака врага;
 - поражение игрока;
 - зачистка аванпоста;
+- взаимодействие с NPC;
 - cleanup мёртвых сущностей;
 - столкновения;
 - отрисовка.
@@ -169,6 +199,8 @@ Outpost = entity_id + Position + Renderable + Outpost
 Позже отдельными шагами могут быть добавлены:
 
 - GameState поражения;
-- точки захвата;
-- NPC;
-- CastleAssaultScene.
+- полноценный QuestSystem;
+- диалоги;
+- CapturePoint;
+- точки захвата в замке;
+- освобождение региона.

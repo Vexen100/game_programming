@@ -22,6 +22,11 @@ class FakeInputManager:
         return action == self.pressed_action
 
 
+class FakeStartAssaultInputManager:
+    def was_pressed(self, action):
+        return action == settings.START_ASSAULT
+
+
 class TestWorldMapScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -70,6 +75,46 @@ class TestWorldMapScene(unittest.TestCase):
         self.assertEqual(scene.game_state.current_region_id, "border_forest")
         self.assertIsNone(scene.manager.requested_scene_id)
 
+    def test_start_assault_on_unlocked_region_requests_castle_assault_scene(self):
+        scene = self.create_scene()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+        region = scene.game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+
+        scene.update(0.1, FakeStartAssaultInputManager())
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.CASTLE_ASSAULT_SCENE)
+
+    def test_start_assault_sets_current_region(self):
+        scene = self.create_scene()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+        region = scene.game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+
+        scene.update(0.1, FakeStartAssaultInputManager())
+
+        self.assertEqual(scene.game_state.current_region_id, "old_ruins")
+
+    def test_start_assault_locked_by_influence_does_not_change_scene(self):
+        scene = self.create_scene()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+
+        scene.update(0.1, FakeStartAssaultInputManager())
+
+        self.assertEqual(scene.game_state.current_region_id, "border_forest")
+        self.assertIsNone(scene.manager.requested_scene_id)
+
+    def test_start_assault_on_locked_region_does_not_change_scene(self):
+        scene = self.create_scene()
+        scene.selected_index = scene.region_ids.index("mountain_mines")
+        region = scene.game_state.get_region("mountain_mines")
+        region.assault_unlocked = True
+
+        scene.update(0.1, FakeStartAssaultInputManager())
+
+        self.assertEqual(scene.game_state.current_region_id, "border_forest")
+        self.assertIsNone(scene.manager.requested_scene_id)
+
     def test_draw_does_not_crash(self):
         scene = self.create_scene()
         surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
@@ -104,6 +149,15 @@ class TestWorldMapScene(unittest.TestCase):
         surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
 
         scene.draw(surface)
+
+    def test_draw_hint_with_assault_unlocked_does_not_crash(self):
+        scene = self.create_scene()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+        region = scene.game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+        surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
+
+        scene.draw_hint(surface)
 
 
 if __name__ == "__main__":
