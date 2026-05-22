@@ -17,3 +17,10 @@ class EnemySettings:
     DAMAGE = 8
     ATTACK_RANGE = 40
     ATTACK_COOLDOWN = 0.8
+
+
+class OutpostSettings:
+    RADIUS = 96
+    SIZE = 28
+    ENEMY_COLOR = (110, 70, 40)
+    CLEARED_COLOR = (220, 190, 40)

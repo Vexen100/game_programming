@@ -7,13 +7,14 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    Outpost,
     PlayerControlled,
     Position,
     Renderable,
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
-from src.entities.entities_settings import EnemySettings, PlayerSettings
+from src.entities.entities_settings import EnemySettings, OutpostSettings, PlayerSettings
 from src.entities.entity_factory import EntityFactory
 
 
@@ -79,6 +80,25 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(melee_attack.damage, EnemySettings.DAMAGE)
         self.assertEqual(melee_attack.attack_range, EnemySettings.ATTACK_RANGE)
         self.assertEqual(melee_attack.cooldown, EnemySettings.ATTACK_COOLDOWN)
+
+    def test_create_outpost(self):
+        outpost = self.entity_factory.create_outpost(x=300, y=200)
+
+        self.assertIn(outpost, self.ecm.alive_entities)
+        self.assertTrue(self.ecm.has_component(outpost, Position))
+        self.assertTrue(self.ecm.has_component(outpost, Renderable))
+        self.assertTrue(self.ecm.has_component(outpost, Outpost))
+        self.assertFalse(self.ecm.has_component(outpost, Collider))
+        self.assertFalse(self.ecm.has_component(outpost, Health))
+
+        renderable = self.ecm.get_component(outpost, Renderable)
+        outpost_component = self.ecm.get_component(outpost, Outpost)
+
+        self.assertEqual(renderable.width, OutpostSettings.SIZE)
+        self.assertEqual(renderable.height, OutpostSettings.SIZE)
+        self.assertEqual(renderable.color, OutpostSettings.ENEMY_COLOR)
+        self.assertEqual(outpost_component.radius, OutpostSettings.RADIUS)
+        self.assertFalse(outpost_component.cleared)
 
 
 if __name__ == "__main__":

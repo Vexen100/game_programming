@@ -49,6 +49,12 @@ class Enemy:
 
 
 @dataclass
+class Outpost:
+    radius: float
+    cleared: bool = False
+
+
+@dataclass
 class Dead:
     pass
 

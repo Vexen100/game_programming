@@ -76,6 +76,35 @@ class TestWorldMapScene(unittest.TestCase):
 
         scene.draw(surface)
 
+    def test_world_map_scene_status_text_shows_influence(self):
+        scene = self.create_scene()
+        region = scene.game_state.get_region("old_ruins")
+        region.player_influence = 25
+        region.enemy_influence = 75
+
+        status = scene.get_region_status_text(region)
+
+        self.assertIn("player 25", status)
+        self.assertIn("enemy 75", status)
+
+    def test_world_map_scene_status_text_shows_assault_unlocked(self):
+        scene = self.create_scene()
+        region = scene.game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+
+        status = scene.get_region_status_text(region)
+
+        self.assertIn("assault unlocked", status)
+
+    def test_world_map_scene_draw_after_influence_change_does_not_crash(self):
+        scene = self.create_scene()
+        region = scene.game_state.get_region("old_ruins")
+        region.player_influence = 25
+        region.enemy_influence = 75
+        surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
+
+        scene.draw(surface)
+
 
 if __name__ == "__main__":
     unittest.main()

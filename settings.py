@@ -20,6 +20,7 @@ DEBUG = "debug"
 ATTACK = "attack"
 RESTART = "restart"
 SELECT = "select"
+OPEN_WORLD_MAP = "open_world_map"
 
 # Размер тайлов для карты
 TILE_SIZE = 32

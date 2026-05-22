@@ -1,6 +1,6 @@
 import pygame
 import settings
-from src.components.components import Health, PlayerDefeated, Position
+from src.components.components import Health, Outpost, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -11,6 +11,7 @@ from src.systems.enemy_chase_system import EnemyChaseSystem
 from src.systems.enemy_death_system import EnemyDeathSystem
 from src.systems.melee_attack_system import MeleeAttackSystem
 from src.systems.movement_system import MovementSystem
+from src.systems.outpost_system import OutpostSystem
 from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
@@ -36,6 +37,7 @@ class RegionScene(BaseScene):
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
         self.enemy_death_system = EnemyDeathSystem(self.event_bus)
+        self.outpost_system = OutpostSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
         self.cleanup_system = CleanupSystem()
@@ -85,6 +87,10 @@ class RegionScene(BaseScene):
     def is_player_defeated(self):
         return self.ecm.has_component(self.ecs_player_id, PlayerDefeated)
 
+    def request_world_map(self):
+        if self.manager is not None:
+            self.manager.request_change(settings.WORLD_MAP_SCENE)
+
     def get_region_title(self):
         if self.game_state is None:
             return "Region"
@@ -116,11 +122,21 @@ class RegionScene(BaseScene):
         )
         self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
 
+        self.outpost_id = self.entity_factory.create_outpost(
+            x=settings.TILE_SIZE * 8,
+            y=settings.TILE_SIZE * 6,
+        )
+        self.check_entity_components(self.outpost_id, "ECS outpost", Position, Outpost)
+
     def update(self, dt, input_manager):
         self.current_dt = dt
 
         if input_manager.was_pressed(settings.DEBUG):
             self.debug_overlay.toggle()
+
+        if input_manager.was_pressed(settings.OPEN_WORLD_MAP):
+            self.request_world_map()
+            return
 
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
@@ -136,6 +152,10 @@ class RegionScene(BaseScene):
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
+
+        if not self.is_player_defeated():
+            self.outpost_system.update(self.ecm, self.get_current_region_id())
+
         self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):

@@ -92,11 +92,15 @@
 
 Может получать `GameState` и показывает название текущего региона в HUD.
 
+По `M` может запросить возврат на `WorldMapScene`. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
+
 ### `src/scenes/world_map_scene.py`
 
 Показывает простую placeholder-карту регионов из `GameState`.
 
 Позволяет выбрать открытый регион и запросить переход в `RegionScene`.
+
+Показывает influence выбранного региона и текстовый статус `assault_unlocked`.
 
 ### `src/ecs/entity_component_manager.py`
 
@@ -104,13 +108,13 @@
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack` и базового врага с `ChaseBehavior`/`MeleeAttack`.
+Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack` и простой аванпост.
 
 ### `src/entities/entities_settings.py`
 
@@ -127,6 +131,7 @@
 - `CollisionSystem`;
 - `MeleeAttackSystem`;
 - `EnemyDeathSystem`;
+- `OutpostSystem`;
 - `EnemyAttackSystem`;
 - `PlayerDeathSystem`;
 - `CleanupSystem`;
@@ -136,7 +141,7 @@
 
 ### `src/events/`
 
-Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`.
+Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent` и `OutpostClearedEvent`.
 
 ### `src/ui/`
 
@@ -163,11 +168,12 @@
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
 - GameState поражения и глобальная логика смерти игрока;
-- меню;
+- MainMenuScene;
+- PauseScene;
 - камера;
 - NPC;
-- аванпосты;
 - CastleAssaultScene;
 - точки захвата в замке;
 - связи и дороги между регионами;
+- автоматическое открытие соседних регионов;
 - сохранения.

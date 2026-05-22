@@ -5,12 +5,13 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    Outpost,
     PlayerControlled,
     Position,
     Renderable,
     Velocity,
 )
-from src.entities.entities_settings import EnemySettings, PlayerSettings
+from src.entities.entities_settings import EnemySettings, OutpostSettings, PlayerSettings
 
 
 class EntityFactory:
@@ -108,3 +109,26 @@ class EntityFactory:
         )
 
         return enemy
+
+    def create_outpost(self, x, y):
+        """Создаёт ECS-сущность аванпоста"""
+        outpost = self.ecm.create_entity(tag="outpost")
+
+        self.ecm.add_component(outpost, Position(x, y))
+        self.ecm.add_component(
+            outpost,
+            Renderable(
+                width=OutpostSettings.SIZE,
+                height=OutpostSettings.SIZE,
+                color=OutpostSettings.ENEMY_COLOR,
+            ),
+        )
+        self.ecm.add_component(
+            outpost,
+            Outpost(
+                radius=OutpostSettings.RADIUS,
+                cleared=False,
+            ),
+        )
+
+        return outpost

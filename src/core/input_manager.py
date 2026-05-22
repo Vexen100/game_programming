@@ -22,6 +22,7 @@ class InputManager:
             settings.ATTACK: pygame.K_SPACE,
             settings.RESTART: pygame.K_r,
             settings.SELECT: pygame.K_RETURN,
+            settings.OPEN_WORLD_MAP: pygame.K_m,
         }
 
     def update_events(self, event):

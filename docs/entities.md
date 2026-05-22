@@ -70,6 +70,31 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 ---
 
+## Outpost
+
+Аванпост — ECS-сущность, создаваемая через `EntityFactory.create_outpost()`.
+
+Текущий набор компонентов:
+
+```text
+Outpost = entity_id + Position + Renderable + Outpost
+```
+
+На текущем этапе аванпост:
+
+- создаётся в `RegionScene`;
+- не блокирует движение, потому что у него нет `Collider`;
+- не имеет здоровья;
+- считается зачищенным, если игрок находится рядом и рядом нет живых врагов;
+- меняет цвет после зачистки;
+- публикует `OutpostClearedEvent` при первой зачистке.
+
+`OutpostClearedEvent` может менять влияние региона через `InfluenceSystem`.
+
+Аванпост не является `CapturePoint`. Точки захвата относятся к будущей `CastleAssaultScene`.
+
+---
+
 ## TileMap
 
 Карта хранится как двумерный список тайлов.
@@ -106,7 +131,11 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 `WorldMapScene` отображает регионы из `GameState`. Выбор открытого региона меняет `current_region_id`. Закрытый регион выбрать для входа нельзя.
 
-`InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
+`WorldMapScene` отображает `player_influence`, `enemy_influence` и `assault_unlocked` выбранного региона.
+
+Возврат из `RegionScene` на карту не пересоздаёт `GameState`.
+
+`InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent` и `OutpostClearedEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
 
 `assault_unlocked` пока только флаг. `CastleAssaultScene` ещё не реализована.
 
@@ -126,6 +155,7 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - атака игрока;
 - атака врага;
 - поражение игрока;
+- зачистка аванпоста;
 - cleanup мёртвых сущностей;
 - столкновения;
 - отрисовка.
@@ -141,4 +171,4 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - GameState поражения;
 - точки захвата;
 - NPC;
-- регионы и влияние.
+- CastleAssaultScene.

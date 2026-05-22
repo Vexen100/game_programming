@@ -3,7 +3,7 @@ import unittest
 import settings
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
-from src.events.game_events import EnemyKilledEvent
+from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent
 from src.systems.influence_system import InfluenceSystem
 
 
@@ -45,6 +45,23 @@ class TestInfluenceSystem(unittest.TestCase):
     def test_unknown_region_raises_value_error(self):
         with self.assertRaises(ValueError):
             self.event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="missing"))
+
+    def test_outpost_cleared_changes_influence(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertEqual(region.player_influence, 50)
+        self.assertEqual(region.enemy_influence, 50)
+
+    def test_outpost_cleared_unlocks_assault(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertTrue(region.assault_unlocked)
+
+    def test_outpost_cleared_unknown_region_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="missing"))
 
 
 if __name__ == "__main__":

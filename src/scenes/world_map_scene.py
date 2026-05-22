@@ -55,6 +55,7 @@ class WorldMapScene(BaseScene):
         screen.fill(self.BACKGROUND_COLOR)
         self.draw_title(screen)
         self.draw_regions(screen)
+        self.draw_selected_region_info(screen)
         self.draw_hint(screen)
 
     def draw_title(self, screen):
@@ -84,6 +85,27 @@ class WorldMapScene(BaseScene):
 
         hint_surface = self.font.render(hint_text, True, self.TEXT_COLOR)
         screen.blit(hint_surface, (40, settings.SCREEN_HEIGHT - 64))
+
+    def draw_selected_region_info(self, screen):
+        selected_region = self.get_selected_region()
+        name_surface = self.font.render(selected_region.name, True, self.TEXT_COLOR)
+        status_surface = self.font.render(
+            self.get_region_status_text(selected_region),
+            True,
+            self.TEXT_COLOR,
+        )
+
+        screen.blit(name_surface, (40, settings.SCREEN_HEIGHT - 132))
+        screen.blit(status_surface, (40, settings.SCREEN_HEIGHT - 104))
+
+    def get_region_status_text(self, region):
+        assault_status = "assault unlocked" if region.assault_unlocked else "assault locked"
+
+        return (
+            f"Control: {region.control_state} | "
+            f"Influence: player {region.player_influence} / enemy {region.enemy_influence} | "
+            f"{assault_status}"
+        )
 
     def get_region_color(self, region):
         if region.control_state == PLAYER_CONTROL:
