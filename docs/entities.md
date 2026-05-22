@@ -64,6 +64,8 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`.
 
+При первом переходе врага в `Dead` публикуется `EnemyKilledEvent`. Это событие может менять влияние региона через `InfluenceSystem`.
+
 Враг не является отдельным классом `Enemy`.
 
 ---
@@ -103,6 +105,10 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 `RegionState` используется глобальным `GameState`.
 
 `WorldMapScene` отображает регионы из `GameState`. Выбор открытого региона меняет `current_region_id`. Закрытый регион выбрать для входа нельзя.
+
+`InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
+
+`assault_unlocked` пока только флаг. `CastleAssaultScene` ещё не реализована.
 
 `RegionState` не является игровой ECS-сущностью, не содержит компонентов и не рисуется через `RenderSystem`.
 

@@ -1,10 +1,12 @@
 import pygame
 import settings
+from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.core.input_manager import InputManager
 from src.core.scene_manager import SceneManager
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
+from src.systems.influence_system import InfluenceSystem
 
 
 class Game:
@@ -19,9 +21,12 @@ class Game:
         self.dt = 0
         self.input_manager = InputManager()
         self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        self.event_bus = EventBus()
+        self.influence_system = InfluenceSystem(self.game_state)
+        self.influence_system.subscribe(self.event_bus)
         scene_registry = {
             settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),
-            settings.REGION_SCENE: lambda: RegionScene(self.game_state),
+            settings.REGION_SCENE: lambda: RegionScene(self.game_state, self.event_bus),
         }
         self.scene_manager = SceneManager()
         self.scene_manager.register_scenes(scene_registry)

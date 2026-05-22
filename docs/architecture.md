@@ -29,6 +29,7 @@
 - `main.py`
 - `settings.py`
 - `src/core/game.py`
+- `src/core/event_bus.py`
 - `src/core/game_state.py`
 - `src/core/input_manager.py`
 - `src/core/scene_manager.py`
@@ -39,6 +40,7 @@
 - `src/entities/entity_factory.py`
 - `src/entities/entities_settings.py`
 - `src/systems/`
+- `src/events/`
 - `src/ui/`
 - `src/world/`
 - `data/regions/regions.json`
@@ -58,9 +60,15 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `GameState`, `SceneManager`, регистрирует `WorldMapScene` и `RegionScene`, затем запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `WorldMapScene` и `RegionScene`, затем запускает цикл `handle_events -> update -> draw`.
 
 Стартовая сцена — `WorldMapScene`.
+
+`InfluenceSystem` подписывается на игровые события через `EventBus`.
+
+### `src/core/event_bus.py`
+
+Содержит простую шину игровых событий. `EventBus` хранит подписчиков и публикует события, но не знает про ECS, сцены или `GameState`.
 
 ### `src/core/game_state.py`
 
@@ -124,6 +132,12 @@
 - `CleanupSystem`;
 - `RenderSystem`.
 
+Также содержит `InfluenceSystem`, который слушает игровые события и меняет глобальное влияние регионов через `GameState`.
+
+### `src/events/`
+
+Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`.
+
 ### `src/ui/`
 
 Содержит простой `HUD` и `DebugOverlay`.
@@ -148,8 +162,6 @@
 
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
-- EventBus;
-- InfluenceSystem;
 - GameState поражения и глобальная логика смерти игрока;
 - меню;
 - камера;
@@ -157,4 +169,5 @@
 - аванпосты;
 - CastleAssaultScene;
 - точки захвата в замке;
-- связи и дороги между регионами.
+- связи и дороги между регионами;
+- сохранения.

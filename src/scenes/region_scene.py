@@ -26,15 +26,16 @@ class RegionScene(BaseScene):
     Стандартная сцена региона. Поле, где бегает игрок и происходит сама игра.
     """
 
-    def __init__(self, game_state=None) -> None:
+    def __init__(self, game_state=None, event_bus=None) -> None:
         self.game_state = game_state
+        self.event_bus = event_bus
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
-        self.enemy_death_system = EnemyDeathSystem()
+        self.enemy_death_system = EnemyDeathSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
         self.cleanup_system = CleanupSystem()
@@ -95,6 +96,12 @@ class RegionScene(BaseScene):
 
         return region.name
 
+    def get_current_region_id(self):
+        if self.game_state is None:
+            return None
+
+        return self.game_state.current_region_id
+
     def restart_region(self):
         self.tile_map = TileMap(self.create_test_map())
         self.ecm = EntityComponentManager()
@@ -126,7 +133,7 @@ class RegionScene(BaseScene):
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
         self.melee_attack_system.update(self.ecm, dt)
-        self.enemy_death_system.update(self.ecm)
+        self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
         self.cleanup_system.update(self.ecm)

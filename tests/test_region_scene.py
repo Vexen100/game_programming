@@ -13,8 +13,10 @@ from src.components.components import (
     PlayerDefeated,
     Position,
 )
+from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.scenes.region_scene import RegionScene
+from src.systems.influence_system import InfluenceSystem
 
 
 class FakeInputManager:
@@ -200,6 +202,30 @@ class TestRegionScene(unittest.TestCase):
         scene = RegionScene()
 
         self.assertEqual(scene.get_region_title(), "Region")
+
+    def test_region_scene_enemy_death_publishes_influence_event(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        influence_system = InfluenceSystem(game_state)
+        influence_system.subscribe(event_bus)
+        scene = RegionScene(game_state, event_bus)
+
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        enemy_health = scene.ecm.get_component(scene.enemy_id, Health)
+
+        player_position.x = settings.TILE_SIZE * 5
+        player_position.y = settings.TILE_SIZE * 6
+        enemy_position.x = settings.TILE_SIZE * 6
+        enemy_position.y = settings.TILE_SIZE * 6
+        enemy_health.current = 10
+
+        scene.update(0.1, FakeAttackInputManager())
+        region = game_state.get_region("old_ruins")
+
+        self.assertEqual(region.player_influence, 25)
+        self.assertEqual(region.enemy_influence, 75)
 
 
 if __name__ == "__main__":

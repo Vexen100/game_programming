@@ -2,7 +2,16 @@ import unittest
 
 from src.components.components import Dead, Enemy, Health, PlayerControlled
 from src.ecs.entity_component_manager import EntityComponentManager
+from src.events.game_events import EnemyKilledEvent
 from src.systems.enemy_death_system import EnemyDeathSystem
+
+
+class FakeEventBus:
+    def __init__(self):
+        self.events = []
+
+    def publish(self, event):
+        self.events.append(event)
 
 
 class TestEnemyDeathSystem(unittest.TestCase):
@@ -48,6 +57,19 @@ class TestEnemyDeathSystem(unittest.TestCase):
         self.system.update(self.ecm)
 
         self.assertFalse(self.ecm.has_component(player, Dead))
+
+    def test_enemy_death_system_publishes_enemy_killed_event_once(self):
+        event_bus = FakeEventBus()
+        system = EnemyDeathSystem(event_bus)
+        enemy = self.create_enemy(0)
+
+        system.update(self.ecm, region_id="old_ruins")
+        system.update(self.ecm, region_id="old_ruins")
+
+        self.assertEqual(len(event_bus.events), 1)
+        self.assertIsInstance(event_bus.events[0], EnemyKilledEvent)
+        self.assertEqual(event_bus.events[0].enemy_id, enemy)
+        self.assertEqual(event_bus.events[0].region_id, "old_ruins")
 
 
 if __name__ == "__main__":
