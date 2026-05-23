@@ -63,6 +63,14 @@ class NPC:
 
 
 @dataclass
+class CapturePoint:
+    radius: float
+    progress: float = 0
+    owner: str = "enemy"
+    captured: bool = False
+
+
+@dataclass
 class Dead:
     pass
 

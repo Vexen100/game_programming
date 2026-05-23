@@ -10,6 +10,7 @@ from src.scenes.pause_scene import PauseScene
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
+from src.systems.region_liberation_system import RegionLiberationSystem
 
 
 class Game:
@@ -27,6 +28,8 @@ class Game:
         self.event_bus = EventBus()
         self.influence_system = InfluenceSystem(self.game_state)
         self.influence_system.subscribe(self.event_bus)
+        self.region_liberation_system = RegionLiberationSystem(self.game_state)
+        self.region_liberation_system.subscribe(self.event_bus)
         scene_registry = {
             settings.MAIN_MENU_SCENE: lambda: MainMenuScene(),
             settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),

@@ -2,6 +2,7 @@ import unittest
 
 from src.components.components import (
     AttackIntent,
+    CapturePoint,
     ChaseBehavior,
     Collider,
     Enemy,
@@ -15,7 +16,13 @@ from src.components.components import (
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
-from src.entities.entities_settings import EnemySettings, NPCSettings, OutpostSettings, PlayerSettings
+from src.entities.entities_settings import (
+    CapturePointSettings,
+    EnemySettings,
+    NPCSettings,
+    OutpostSettings,
+    PlayerSettings,
+)
 from src.entities.entity_factory import EntityFactory
 
 
@@ -127,6 +134,27 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(npc_component.quest_id, "clear_old_ruins_outpost")
         self.assertEqual(npc_component.required_outpost_id, outpost_id)
         self.assertFalse(npc_component.quest_completed)
+
+    def test_create_capture_point(self):
+        capture_point = self.entity_factory.create_capture_point(x=180, y=220)
+
+        self.assertIn(capture_point, self.ecm.alive_entities)
+        self.assertTrue(self.ecm.has_component(capture_point, Position))
+        self.assertTrue(self.ecm.has_component(capture_point, Renderable))
+        self.assertTrue(self.ecm.has_component(capture_point, CapturePoint))
+        self.assertFalse(self.ecm.has_component(capture_point, Collider))
+        self.assertFalse(self.ecm.has_component(capture_point, Health))
+
+        renderable = self.ecm.get_component(capture_point, Renderable)
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(renderable.width, CapturePointSettings.SIZE)
+        self.assertEqual(renderable.height, CapturePointSettings.SIZE)
+        self.assertEqual(renderable.color, CapturePointSettings.ENEMY_COLOR)
+        self.assertEqual(capture_point_component.radius, CapturePointSettings.RADIUS)
+        self.assertEqual(capture_point_component.progress, 0)
+        self.assertEqual(capture_point_component.owner, "enemy")
+        self.assertFalse(capture_point_component.captured)
 
 
 if __name__ == "__main__":

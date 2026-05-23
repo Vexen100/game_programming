@@ -1,5 +1,6 @@
 from src.components.components import (
     AttackIntent,
+    CapturePoint,
     ChaseBehavior,
     Collider,
     Enemy,
@@ -12,7 +13,13 @@ from src.components.components import (
     Renderable,
     Velocity,
 )
-from src.entities.entities_settings import EnemySettings, NPCSettings, OutpostSettings, PlayerSettings
+from src.entities.entities_settings import (
+    CapturePointSettings,
+    EnemySettings,
+    NPCSettings,
+    OutpostSettings,
+    PlayerSettings,
+)
 
 
 class EntityFactory:
@@ -158,3 +165,28 @@ class EntityFactory:
         )
 
         return npc
+
+    def create_capture_point(self, x, y):
+        """Создаёт ECS-сущность точки захвата"""
+        capture_point = self.ecm.create_entity(tag="capture_point")
+
+        self.ecm.add_component(capture_point, Position(x, y))
+        self.ecm.add_component(
+            capture_point,
+            Renderable(
+                width=CapturePointSettings.SIZE,
+                height=CapturePointSettings.SIZE,
+                color=CapturePointSettings.ENEMY_COLOR,
+            ),
+        )
+        self.ecm.add_component(
+            capture_point,
+            CapturePoint(
+                radius=CapturePointSettings.RADIUS,
+                progress=0,
+                owner="enemy",
+                captured=False,
+            ),
+        )
+
+        return capture_point

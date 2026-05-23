@@ -1,7 +1,13 @@
 import unittest
 
 from src.core.event_bus import EventBus
-from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent, QuestCompletedEvent
+from src.events.game_events import (
+    CapturePointTakenEvent,
+    EnemyKilledEvent,
+    OutpostClearedEvent,
+    QuestCompletedEvent,
+    RegionLiberatedEvent,
+)
 
 
 class TestEventBus(unittest.TestCase):
@@ -63,6 +69,26 @@ class TestEventBus(unittest.TestCase):
             npc_id=1,
             region_id="old_ruins",
         )
+        event_bus.publish(event)
+
+        self.assertEqual(received, [event])
+
+    def test_capture_point_taken_event_is_delivered_to_subscriber(self):
+        event_bus = EventBus()
+        received = []
+
+        event_bus.subscribe(CapturePointTakenEvent, received.append)
+        event = CapturePointTakenEvent(capture_point_id=1, region_id="old_ruins")
+        event_bus.publish(event)
+
+        self.assertEqual(received, [event])
+
+    def test_region_liberated_event_is_delivered_to_subscriber(self):
+        event_bus = EventBus()
+        received = []
+
+        event_bus.subscribe(RegionLiberatedEvent, received.append)
+        event = RegionLiberatedEvent(region_id="old_ruins")
         event_bus.publish(event)
 
         self.assertEqual(received, [event])

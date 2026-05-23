@@ -63,11 +63,13 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `MainMenuScene`, `WorldMapScene`, `RegionScene`, `CastleAssaultScene` и `PauseScene`, затем запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `RegionLiberationSystem`, `SceneManager`, регистрирует `MainMenuScene`, `WorldMapScene`, `RegionScene`, `CastleAssaultScene` и `PauseScene`, затем запускает цикл `handle_events -> update -> draw`.
 
 Стартовая сцена — `MainMenuScene`.
 
 `InfluenceSystem` подписывается на игровые события через `EventBus`.
+
+`RegionLiberationSystem` подписывается на `RegionLiberatedEvent` через `EventBus`.
 
 ### `src/core/event_bus.py`
 
@@ -135,7 +137,7 @@ NPC завершает простое задание после зачистки
 
 Статическая сцена штурма замка.
 
-Создаёт простую ручную карту замка, ECS-слой, игрока, одного врага, базовые gameplay-системы, HUD и debug overlay.
+Создаёт простую ручную карту замка, ECS-слой, игрока, одного врага, две точки захвата, базовые gameplay-системы, HUD и debug overlay.
 
 По `M` может запросить возврат на `WorldMapScene`.
 
@@ -143,7 +145,9 @@ NPC завершает простое задание после зачистки
 
 Если игрок побеждён, по `R` сцена локально перезапускает штурм.
 
-`CastleAssaultScene` не освобождает регион, не содержит точек захвата и не знает про `InfluenceSystem`.
+`CastleAssaultScene` не освобождает регион напрямую и не знает про `InfluenceSystem`.
+
+Точки захвата обрабатывает `CaptureSystem`. После захвата всех точек публикуется `RegionLiberatedEvent`.
 
 ### `src/ecs/entity_component_manager.py`
 
@@ -151,13 +155,13 @@ NPC завершает простое задание после зачистки
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `CapturePoint`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост и NPC с простым заданием.
+Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост, NPC с простым заданием и точку захвата.
 
 ### `src/entities/entities_settings.py`
 
@@ -176,6 +180,7 @@ NPC завершает простое задание после зачистки
 - `EnemyDeathSystem`;
 - `OutpostSystem`;
 - `NPCInteractionSystem`;
+- `CaptureSystem`;
 - `EnemyAttackSystem`;
 - `PlayerDeathSystem`;
 - `CleanupSystem`;
@@ -183,9 +188,13 @@ NPC завершает простое задание после зачистки
 
 Также содержит `InfluenceSystem`, который слушает `EnemyKilledEvent`, `OutpostClearedEvent`, `QuestCompletedEvent` и меняет глобальное влияние регионов через `GameState`.
 
+`CaptureSystem` работает только с ECS и `EventBus`: захватывает точки и публикует события.
+
+`RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
+
 ### `src/events/`
 
-Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`, `OutpostClearedEvent` и `QuestCompletedEvent`.
+Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`, `OutpostClearedEvent`, `QuestCompletedEvent`, `CapturePointTakenEvent` и `RegionLiberatedEvent`.
 
 ### `src/ui/`
 
@@ -219,11 +228,10 @@ NPC завершает простое задание после зачистки
 - камера;
 - полноценный QuestSystem;
 - диалоги;
-- CapturePoint;
-- точки захвата в замке;
-- RegionLiberatedEvent;
-- освобождение региона;
 - BSP-генерация замка;
 - связи и дороги между регионами;
 - автоматическое открытие соседних регионов;
+- A*;
+- Behavior Tree;
+- Spatial Grid;
 - сохранения.

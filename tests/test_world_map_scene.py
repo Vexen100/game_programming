@@ -159,6 +159,26 @@ class TestWorldMapScene(unittest.TestCase):
 
         scene.draw_hint(surface)
 
+    def test_liberated_region_is_drawn_as_player_controlled(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.mark_liberated("old_ruins")
+        scene = WorldMapScene(game_state)
+        region = game_state.get_region("old_ruins")
+
+        self.assertEqual(scene.get_region_color(region), scene.PLAYER_COLOR)
+
+    def test_liberated_region_status_text_shows_player_control(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.mark_liberated("old_ruins")
+        scene = WorldMapScene(game_state)
+        region = game_state.get_region("old_ruins")
+
+        status = scene.get_region_status_text(region)
+
+        self.assertIn("Control: player", status)
+        self.assertIn("player 100", status)
+        self.assertIn("enemy 0", status)
+
 
 if __name__ == "__main__":
     unittest.main()

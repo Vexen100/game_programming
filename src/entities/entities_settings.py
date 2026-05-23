@@ -31,3 +31,11 @@ class NPCSettings:
     SIZE = 26
     ACTIVE_COLOR = (120, 120, 180)
     COMPLETED_COLOR = (220, 190, 40)
+
+
+class CapturePointSettings:
+    RADIUS = 72
+    SIZE = 24
+    CAPTURE_SPEED = 50
+    ENEMY_COLOR = (120, 40, 40)
+    PLAYER_COLOR = (220, 190, 40)

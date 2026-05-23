@@ -1,9 +1,10 @@
 import pygame
 import settings
-from src.components.components import Health, PlayerDefeated, Position
+from src.components.components import CapturePoint, Health, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
+from src.systems.capture_system import CaptureSystem
 from src.systems.cleanup_system import CleanupSystem
 from src.systems.collision_system import CollisionSystem
 from src.systems.enemy_attack_system import EnemyAttackSystem
@@ -34,6 +35,7 @@ class CastleAssaultScene(BaseScene):
         self.collision_system = CollisionSystem()
         self.melee_attack_system = MeleeAttackSystem()
         self.enemy_death_system = EnemyDeathSystem(self.event_bus)
+        self.capture_system = CaptureSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
         self.cleanup_system = CleanupSystem()
@@ -126,6 +128,22 @@ class CastleAssaultScene(BaseScene):
         )
         self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
 
+        self.capture_point_ids = [
+            self.entity_factory.create_capture_point(
+                x=settings.TILE_SIZE * 4,
+                y=settings.TILE_SIZE * 2,
+            ),
+            self.entity_factory.create_capture_point(
+                x=settings.TILE_SIZE * 10,
+                y=settings.TILE_SIZE * 6,
+            ),
+        ]
+
+        for capture_point_id in self.capture_point_ids:
+            self.check_entity_components(capture_point_id, "CapturePoint", Position, CapturePoint)
+
+        self.capture_system.reset()
+
     def update(self, dt, input_manager):
         self.current_dt = dt
 
@@ -154,6 +172,10 @@ class CastleAssaultScene(BaseScene):
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
+
+        if not self.is_player_defeated():
+            self.capture_system.update(self.ecm, dt, self.get_current_region_id())
+
         self.cleanup_system.update(self.ecm)
 
     def draw(self, screen: pygame.Surface):
