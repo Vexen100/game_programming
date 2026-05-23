@@ -5,6 +5,8 @@ from src.core.game_state import GameState
 from src.core.input_manager import InputManager
 from src.core.scene_manager import SceneManager
 from src.scenes.castle_assault_scene import CastleAssaultScene
+from src.scenes.main_menu_scene import MainMenuScene
+from src.scenes.pause_scene import PauseScene
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
@@ -26,16 +28,18 @@ class Game:
         self.influence_system = InfluenceSystem(self.game_state)
         self.influence_system.subscribe(self.event_bus)
         scene_registry = {
+            settings.MAIN_MENU_SCENE: lambda: MainMenuScene(),
             settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),
             settings.REGION_SCENE: lambda: RegionScene(self.game_state, self.event_bus),
             settings.CASTLE_ASSAULT_SCENE: lambda: CastleAssaultScene(
                 self.game_state,
                 self.event_bus,
             ),
+            settings.PAUSE_SCENE: lambda: PauseScene(),
         }
         self.scene_manager = SceneManager()
         self.scene_manager.register_scenes(scene_registry)
-        self.scene_manager.request_change(settings.WORLD_MAP_SCENE)
+        self.scene_manager.request_change(settings.MAIN_MENU_SCENE)
         self.scene_manager.process_scene_change()
 
     def run(self):

@@ -88,6 +88,10 @@ class CastleAssaultScene(BaseScene):
         if self.manager is not None:
             self.manager.request_change(settings.WORLD_MAP_SCENE)
 
+    def request_pause(self):
+        if self.manager is not None:
+            self.manager.request_pause(settings.PAUSE_SCENE)
+
     def get_current_region_id(self):
         if self.game_state is None:
             return None
@@ -127,6 +131,10 @@ class CastleAssaultScene(BaseScene):
 
         if input_manager.was_pressed(settings.DEBUG):
             self.debug_overlay.toggle()
+
+        if input_manager.was_pressed(settings.PAUSE):
+            self.request_pause()
+            return
 
         if input_manager.was_pressed(settings.OPEN_WORLD_MAP):
             self.request_world_map()

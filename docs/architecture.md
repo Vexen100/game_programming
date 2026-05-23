@@ -33,6 +33,8 @@
 - `src/core/game_state.py`
 - `src/core/input_manager.py`
 - `src/core/scene_manager.py`
+- `src/scenes/main_menu_scene.py`
+- `src/scenes/pause_scene.py`
 - `src/scenes/world_map_scene.py`
 - `src/scenes/region_scene.py`
 - `src/scenes/castle_assault_scene.py`
@@ -61,9 +63,9 @@
 
 ### `src/core/game.py`
 
-Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `WorldMapScene`, `RegionScene` и `CastleAssaultScene`, затем запускает цикл `handle_events -> update -> draw`.
+Создаёт окно, `InputManager`, `GameState`, `EventBus`, `InfluenceSystem`, `SceneManager`, регистрирует `MainMenuScene`, `WorldMapScene`, `RegionScene`, `CastleAssaultScene` и `PauseScene`, затем запускает цикл `handle_events -> update -> draw`.
 
-Стартовая сцена — `WorldMapScene`.
+Стартовая сцена — `MainMenuScene`.
 
 `InfluenceSystem` подписывается на игровые события через `EventBus`.
 
@@ -87,6 +89,26 @@
 
 `SceneManager` сам не импортирует конкретные сцены. Текущая сцена создаётся через зарегистрированную фабрику.
 
+Также умеет временно сохранить текущую gameplay-сцену в `paused_scene` и восстановить её через `resume_scene()`.
+
+Это минимальная пауза без полноценного stack-сцен и без overlay-rendering.
+
+### `src/scenes/main_menu_scene.py`
+
+Минимальное главное меню.
+
+Содержит пункты `Start Game`, `Continue (not available)`, `Settings (not available)` и `Exit`.
+
+На текущем этапе `Start Game` открывает `WorldMapScene`, а `Continue` и `Settings` являются заглушками.
+
+### `src/scenes/pause_scene.py`
+
+Минимальное меню паузы.
+
+Содержит пункты `Resume`, `World Map` и `Main Menu`.
+
+`Resume` возвращает сохранённую gameplay-сцену через `SceneManager.resume_scene()`.
+
 ### `src/scenes/region_scene.py`
 
 Создаёт тестовую карту, ECS-слой, игрока, врага, аванпост, одного тестового NPC, системы, HUD и debug overlay.
@@ -94,6 +116,8 @@
 Может получать `GameState` и показывает название текущего региона в HUD.
 
 По `M` может запросить возврат на `WorldMapScene`. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
+
+По `Esc` может запросить `PauseScene`.
 
 NPC завершает простое задание после зачистки аванпоста и взаимодействия по `E`.
 
@@ -114,6 +138,8 @@ NPC завершает простое задание после зачистки
 Создаёт простую ручную карту замка, ECS-слой, игрока, одного врага, базовые gameplay-системы, HUD и debug overlay.
 
 По `M` может запросить возврат на `WorldMapScene`.
+
+По `Esc` может запросить `PauseScene`.
 
 Если игрок побеждён, по `R` сцена локально перезапускает штурм.
 
@@ -186,8 +212,10 @@ NPC завершает простое задание после зачистки
 Следующие механики ещё не являются существующей архитектурой и должны добавляться отдельными шагами:
 
 - GameState поражения и глобальная логика смерти игрока;
-- MainMenuScene;
-- PauseScene;
+- SettingsScene;
+- SettingsManager;
+- SaveManager;
+- Continue и реальные сохранения;
 - камера;
 - полноценный QuestSystem;
 - диалоги;

@@ -25,9 +25,13 @@ from src.systems.influence_system import InfluenceSystem
 class FakeSceneManager:
     def __init__(self):
         self.requested_scene_id = None
+        self.pause_requested_scene_id = None
 
     def request_change(self, scene_id):
         self.requested_scene_id = scene_id
+
+    def request_pause(self, scene_id):
+        self.pause_requested_scene_id = scene_id
 
 
 class FakeInputManager:
@@ -65,6 +69,14 @@ class FakeWorldMapInputManager:
 class FakeInteractInputManager:
     def was_pressed(self, action):
         return action == settings.INTERACT
+
+    def get_velocity_direction(self):
+        return pygame.Vector2(0, 0)
+
+
+class FakePauseInputManager:
+    def was_pressed(self, action):
+        return action == settings.PAUSE
 
     def get_velocity_direction(self):
         return pygame.Vector2(0, 0)
@@ -306,6 +318,32 @@ class TestRegionScene(unittest.TestCase):
         scene.update(0.1, FakeWorldMapInputManager())
 
         self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_region_scene_pause_requests_pause_scene(self):
+        scene = RegionScene()
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakePauseInputManager())
+
+        self.assertEqual(scene.manager.pause_requested_scene_id, settings.PAUSE_SCENE)
+
+    def test_region_scene_pause_skips_gameplay_update(self):
+        scene = RegionScene()
+        scene.manager = FakeSceneManager()
+
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        old_x = enemy_position.x
+        old_y = enemy_position.y
+
+        scene.update(0.1, FakePauseInputManager())
+
+        self.assertEqual(enemy_position.x, old_x)
+        self.assertEqual(enemy_position.y, old_y)
+
+    def test_region_scene_pause_without_manager_does_not_crash(self):
+        scene = RegionScene()
+
+        scene.update(0.1, FakePauseInputManager())
 
     def test_region_influence_is_preserved_when_returning_to_world_map(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

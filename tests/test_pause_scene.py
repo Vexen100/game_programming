@@ -1,0 +1,105 @@
+import unittest
+
+import pygame
+import settings
+from src.scenes.pause_scene import PauseScene
+
+
+class FakeSceneManager:
+    def __init__(self):
+        self.requested_scene_id = None
+        self.resumed = False
+
+    def request_change(self, scene_id):
+        self.requested_scene_id = scene_id
+
+    def resume_scene(self):
+        self.resumed = True
+
+
+class FakeInputManager:
+    def __init__(self, pressed_action=None):
+        self.pressed_action = pressed_action
+
+    def was_pressed(self, action):
+        return action == self.pressed_action
+
+
+class TestPauseScene(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.font.init()
+
+    def test_pause_scene_creates(self):
+        scene = PauseScene()
+
+        self.assertEqual(scene.items[0], ("Resume", "resume"))
+        self.assertEqual(scene.selected_index, 0)
+
+    def test_move_down_changes_selected_item(self):
+        scene = PauseScene()
+
+        scene.update(0.1, FakeInputManager(settings.MOVE_DOWN))
+
+        self.assertEqual(scene.selected_index, 1)
+
+    def test_move_up_changes_selected_item(self):
+        scene = PauseScene()
+
+        scene.update(0.1, FakeInputManager(settings.MOVE_UP))
+
+        self.assertEqual(scene.selected_index, len(scene.items) - 1)
+
+    def test_select_resume_calls_resume_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertTrue(scene.manager.resumed)
+
+    def test_pause_key_calls_resume_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakeInputManager(settings.PAUSE))
+
+        self.assertTrue(scene.manager.resumed)
+
+    def test_select_world_map_requests_world_map_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+        scene.selected_index = 1
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_select_main_menu_requests_main_menu_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+        scene.selected_index = 2
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.MAIN_MENU_SCENE)
+
+    def test_pause_scene_without_manager_does_not_crash(self):
+        scene = PauseScene()
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+        scene.selected_index = 1
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+        scene.selected_index = 2
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+        scene.update(0.1, FakeInputManager(settings.PAUSE))
+
+    def test_draw_does_not_crash(self):
+        scene = PauseScene()
+        surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
+
+        scene.draw(surface)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -28,9 +28,11 @@ OPEN_WORLD_MAP = "open_world_map"
 TILE_SIZE = 32
 
 # Константы для сцен (названия сцен)
+MAIN_MENU_SCENE = "main_menu"
 WORLD_MAP_SCENE = "world_map"
 REGION_SCENE = "region"
 CASTLE_ASSAULT_SCENE = "castle_assault"
+PAUSE_SCENE = "pause"
 
 # Пути к данным
 REGIONS_DATA_PATH = "data/regions/regions.json"

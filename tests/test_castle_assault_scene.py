@@ -19,9 +19,13 @@ from src.world.tile_types import FLOOR
 class FakeSceneManager:
     def __init__(self):
         self.requested_scene_id = None
+        self.pause_requested_scene_id = None
 
     def request_change(self, scene_id):
         self.requested_scene_id = scene_id
+
+    def request_pause(self, scene_id):
+        self.pause_requested_scene_id = scene_id
 
 
 class FakeInputManager:
@@ -51,6 +55,14 @@ class FakeWorldMapInputManager:
 class FakeAttackInputManager:
     def was_pressed(self, action):
         return action == settings.ATTACK
+
+    def get_velocity_direction(self):
+        return pygame.Vector2(0, 0)
+
+
+class FakePauseInputManager:
+    def was_pressed(self, action):
+        return action == settings.PAUSE
 
     def get_velocity_direction(self):
         return pygame.Vector2(0, 0)
@@ -139,6 +151,32 @@ class TestCastleAssaultScene(unittest.TestCase):
         scene = CastleAssaultScene()
 
         scene.update(0.1, FakeWorldMapInputManager())
+
+    def test_pause_requests_pause_scene(self):
+        scene = CastleAssaultScene()
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakePauseInputManager())
+
+        self.assertEqual(scene.manager.pause_requested_scene_id, settings.PAUSE_SCENE)
+
+    def test_pause_skips_gameplay_update(self):
+        scene = CastleAssaultScene()
+        scene.manager = FakeSceneManager()
+
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        old_x = enemy_position.x
+        old_y = enemy_position.y
+
+        scene.update(0.1, FakePauseInputManager())
+
+        self.assertEqual(enemy_position.x, old_x)
+        self.assertEqual(enemy_position.y, old_y)
+
+    def test_pause_without_manager_does_not_crash(self):
+        scene = CastleAssaultScene()
+
+        scene.update(0.1, FakePauseInputManager())
 
     def test_restart_after_defeat_resets_castle(self):
         scene = CastleAssaultScene()
