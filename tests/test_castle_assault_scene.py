@@ -17,7 +17,7 @@ from src.core.game_state import GameState
 from src.events.game_events import RegionLiberatedEvent
 from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.systems.region_liberation_system import RegionLiberationSystem
-from src.world.tile_types import FLOOR
+from src.world.tile_types import FLOOR, WALL
 
 
 class FakeSceneManager:
@@ -162,6 +162,40 @@ class TestCastleAssaultScene(unittest.TestCase):
             )
 
             self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
+
+    def test_validate_castle_layout_does_not_fail_on_static_map(self):
+        scene = CastleAssaultScene()
+
+        scene.validate_castle_layout()
+
+    def test_get_entity_tile_returns_player_tile_coordinates(self):
+        scene = CastleAssaultScene()
+
+        self.assertEqual(scene.get_entity_tile(scene.ecs_player_id), (3, 3))
+
+    def test_validate_castle_layout_raises_if_capture_point_is_unreachable(self):
+        scene = CastleAssaultScene()
+        capture_point_id = scene.capture_point_ids[0]
+        tile_x, tile_y = scene.get_entity_tile(capture_point_id)
+
+        for wall_x, wall_y in (
+            (tile_x + 1, tile_y),
+            (tile_x - 1, tile_y),
+            (tile_x, tile_y + 1),
+            (tile_x, tile_y - 1),
+        ):
+            scene.tile_map.matrix[wall_y][wall_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_castle_layout()
+
+    def test_validate_castle_layout_raises_if_player_spawn_is_blocked(self):
+        scene = CastleAssaultScene()
+        tile_x, tile_y = scene.get_entity_tile(scene.ecs_player_id)
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_castle_layout()
 
     def test_get_castle_title_without_game_state(self):
         scene = CastleAssaultScene()

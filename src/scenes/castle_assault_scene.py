@@ -1,5 +1,6 @@
 import pygame
 import settings
+from src.algorithms.flood_fill import are_tiles_reachable
 from src.components.components import CapturePoint, Health, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
@@ -111,6 +112,22 @@ class CastleAssaultScene(BaseScene):
 
         return f"{region.name} Assault"
 
+    def get_entity_tile(self, entity_id):
+        position = self.ecm.get_component(entity_id, Position)
+        return self.tile_map.coord_pixels_to_tile(position.x, position.y)
+
+    def validate_castle_layout(self):
+        start_tile = self.get_entity_tile(self.ecs_player_id)
+        target_tiles = [
+            self.get_entity_tile(self.enemy_id),
+        ]
+
+        for capture_point_id in self.capture_point_ids:
+            target_tiles.append(self.get_entity_tile(capture_point_id))
+
+        if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
+            raise ValueError("Castle layout has unreachable important tiles")
+
     def restart_castle(self):
         self.tile_map = TileMap(self.create_test_castle_map())
         self.ecm = EntityComponentManager()
@@ -142,6 +159,7 @@ class CastleAssaultScene(BaseScene):
         for capture_point_id in self.capture_point_ids:
             self.check_entity_components(capture_point_id, "CapturePoint", Position, CapturePoint)
 
+        self.validate_castle_layout()
         self.capture_system.reset()
 
     def update(self, dt, input_manager):
