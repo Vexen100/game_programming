@@ -11,8 +11,7 @@ DIRECTIONS_4 = (
 
 def is_blocked(tile_map, tile):
     tile_x, tile_y = tile
-    x, y = tile_map.coord_tile_to_pixels(tile_x, tile_y)
-    return tile_map.is_blocked(x, y)
+    return tile_map.is_tile_blocked(tile_x, tile_y)
 
 
 def get_reachable_tiles(tile_map, start_tile):

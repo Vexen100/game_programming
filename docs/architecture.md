@@ -182,6 +182,8 @@ NPC завершает простое задание после зачистки
 
 Сейчас алгоритм используется в `CastleAssaultScene` для проверки, что важные тайлы статического замка достижимы.
 
+Алгоритм использует tile-coordinate API `TileMap.is_tile_blocked()`.
+
 Он не является A* и не управляет движением врагов.
 
 ### `src/systems/`
@@ -222,6 +224,14 @@ NPC завершает простое задание после зачистки
 ### `src/world/`
 
 Содержит тайловую карту и типы тайлов.
+
+`TileMap.is_tile_blocked(tile_x, tile_y)` проверяет блокировку по tile coordinates.
+
+`TileMap.is_point_blocked(x, y)` проверяет блокировку по pixel coordinates.
+
+`TileMap.is_blocked(x, y)` оставлен как compatibility alias для старого pixel-coordinate API.
+
+Алгоритмы вроде Flood fill используют tile-coordinate API.
 
 Также содержит `RegionState` — модель глобального состояния региона, которая не является ECS-сущностью.
 

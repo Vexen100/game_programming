@@ -22,7 +22,28 @@ class TestTileMap(unittest.TestCase):
         self.assertEqual(self.tile_map.coord_pixels_to_tile(0, 0), (0, 0))
         self.assertEqual(self.tile_map.coord_pixels_to_tile(33, 65), (1, 2))
 
-    def test_is_blocked(self):
+    def test_is_tile_blocked_returns_false_for_floor(self):
+        self.assertFalse(self.tile_map.is_tile_blocked(1, 1))
+
+    def test_is_tile_blocked_returns_true_for_wall(self):
+        self.assertTrue(self.tile_map.is_tile_blocked(0, 0))
+        self.assertTrue(self.tile_map.is_tile_blocked(2, 2))
+
+    def test_is_tile_blocked_returns_true_for_out_of_bounds(self):
+        self.assertTrue(self.tile_map.is_tile_blocked(-1, 1))
+        self.assertTrue(self.tile_map.is_tile_blocked(4, 1))
+
+    def test_is_point_blocked_returns_false_for_point_inside_floor(self):
+        self.assertFalse(self.tile_map.is_point_blocked(33, 33))
+
+    def test_is_point_blocked_returns_true_for_point_inside_wall(self):
+        self.assertTrue(self.tile_map.is_point_blocked(0, 0))
+        self.assertTrue(self.tile_map.is_point_blocked(65, 65))
+
+    def test_is_point_blocked_returns_true_for_out_of_bounds(self):
+        self.assertTrue(self.tile_map.is_point_blocked(-1, 0))
+
+    def test_is_blocked_remains_pixel_coordinate_alias(self):
         self.assertTrue(self.tile_map.is_blocked(0, 0))
         self.assertFalse(self.tile_map.is_blocked(33, 33))
         self.assertTrue(self.tile_map.is_blocked(-1, 0))

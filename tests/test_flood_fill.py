@@ -46,6 +46,17 @@ class TestFloodFill(unittest.TestCase):
     def test_is_tile_reachable_returns_false_for_blocked_target(self):
         self.assertFalse(is_tile_reachable(self.tile_map, self.start_tile, (3, 1)))
 
+    def test_flood_fill_uses_tile_coordinates(self):
+        matrix = [
+            [WALL, WALL, WALL, WALL],
+            [WALL, FLOOR, WALL, WALL],
+            [WALL, FLOOR, FLOOR, WALL],
+            [WALL, WALL, WALL, WALL],
+        ]
+        tile_map = TileMap(matrix)
+
+        self.assertFalse(is_tile_reachable(tile_map, (1, 1), (2, 1)))
+
     def test_get_reachable_tiles_returns_empty_set_for_blocked_start(self):
         reachable_tiles = get_reachable_tiles(self.tile_map, (0, 0))
 
