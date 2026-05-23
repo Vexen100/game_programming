@@ -179,6 +179,39 @@ class TestWorldMapScene(unittest.TestCase):
         self.assertIn("player 100", status)
         self.assertIn("enemy 0", status)
 
+    def test_region_unlocked_after_liberation_is_drawn_as_enemy(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.mark_liberated("old_ruins")
+        scene = WorldMapScene(game_state)
+        region = game_state.get_region("mountain_mines")
+
+        self.assertTrue(region.unlocked)
+        self.assertEqual(scene.get_region_color(region), scene.ENEMY_COLOR)
+
+    def test_region_unlocked_after_liberation_can_be_selected(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.mark_liberated("old_ruins")
+        scene = WorldMapScene(game_state)
+        scene.manager = FakeSceneManager()
+        scene.selected_index = scene.region_ids.index("mountain_mines")
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(game_state.current_region_id, "mountain_mines")
+        self.assertEqual(scene.manager.requested_scene_id, settings.REGION_SCENE)
+
+    def test_locked_region_still_does_not_open_after_partial_progression(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.mark_liberated("old_ruins")
+        scene = WorldMapScene(game_state)
+        scene.manager = FakeSceneManager()
+        scene.selected_index = scene.region_ids.index("swamp_lands")
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertNotEqual(game_state.current_region_id, "swamp_lands")
+        self.assertIsNone(scene.manager.requested_scene_id)
+
 
 if __name__ == "__main__":
     unittest.main()

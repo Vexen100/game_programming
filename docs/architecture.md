@@ -81,6 +81,8 @@
 
 Загружает стартовые данные из `data/regions/regions.json`.
 
+`GameState.mark_liberated()` открывает регионы из списка `unlocks_on_liberation` освобождённого региона.
+
 ### `src/core/input_manager.py`
 
 Обрабатывает клавиатуру и отдаёт действия через строковые action-константы.
@@ -192,6 +194,8 @@ NPC завершает простое задание после зачистки
 
 `RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
 
+`RegionLiberationSystem` не знает конкретные связи регионов и только вызывает `GameState.mark_liberated()`.
+
 ### `src/events/`
 
 Содержит dataclass-события игры. Сейчас есть `EnemyKilledEvent`, `OutpostClearedEvent`, `QuestCompletedEvent`, `CapturePointTakenEvent` и `RegionLiberatedEvent`.
@@ -205,6 +209,8 @@ NPC завершает простое задание после зачистки
 Содержит тайловую карту и типы тайлов.
 
 Также содержит `RegionState` — модель глобального состояния региона, которая не является ECS-сущностью.
+
+`RegionState` хранит `unlocks_on_liberation` — явный список регионов, которые нужно открыть после освобождения текущего региона.
 
 ### `data/regions/regions.json`
 
@@ -229,8 +235,8 @@ NPC завершает простое задание после зачистки
 - полноценный QuestSystem;
 - диалоги;
 - BSP-генерация замка;
-- связи и дороги между регионами;
-- автоматическое открытие соседних регионов;
+- полноценные связи и дороги между регионами;
+- граф регионов;
 - A*;
 - Behavior Tree;
 - Spatial Grid;

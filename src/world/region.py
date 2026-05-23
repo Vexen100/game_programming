@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 PLAYER_CONTROL = "player"
@@ -16,6 +16,7 @@ class RegionState:
     enemy_influence: int
     assault_unlocked: bool
     liberated: bool
+    unlocks_on_liberation: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data):
@@ -28,4 +29,5 @@ class RegionState:
             enemy_influence=data["enemy_influence"],
             assault_unlocked=data["assault_unlocked"],
             liberated=data["liberated"],
+            unlocks_on_liberation=data.get("unlocks_on_liberation", []),
         )

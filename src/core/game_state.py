@@ -65,6 +65,9 @@ class GameState:
         region.enemy_influence = 0
         region.assault_unlocked = False
 
+        for next_region_id in region.unlocks_on_liberation:
+            self.unlock_region(next_region_id)
+
     def get_unlocked_regions(self):
         return [region for region in self.regions.values() if region.unlocked]
 

@@ -2,7 +2,7 @@ import unittest
 
 import settings
 from src.core.game_state import GameState
-from src.world.region import ENEMY_CONTROL, LOCKED_CONTROL, PLAYER_CONTROL
+from src.world.region import ENEMY_CONTROL, LOCKED_CONTROL, PLAYER_CONTROL, RegionState
 
 
 class TestGameState(unittest.TestCase):
@@ -19,6 +19,39 @@ class TestGameState(unittest.TestCase):
         self.assertTrue(region.unlocked)
         self.assertTrue(region.liberated)
         self.assertEqual(region.control_state, PLAYER_CONTROL)
+
+    def test_region_state_from_dict_reads_unlocks_on_liberation(self):
+        region = RegionState.from_dict(
+            {
+                "id": "old_ruins",
+                "name": "Old Ruins",
+                "unlocked": True,
+                "control_state": ENEMY_CONTROL,
+                "player_influence": 0,
+                "enemy_influence": 100,
+                "assault_unlocked": False,
+                "liberated": False,
+                "unlocks_on_liberation": ["mountain_mines"],
+            }
+        )
+
+        self.assertEqual(region.unlocks_on_liberation, ["mountain_mines"])
+
+    def test_region_state_from_dict_uses_empty_unlocks_default(self):
+        region = RegionState.from_dict(
+            {
+                "id": "old_ruins",
+                "name": "Old Ruins",
+                "unlocked": True,
+                "control_state": ENEMY_CONTROL,
+                "player_influence": 0,
+                "enemy_influence": 100,
+                "assault_unlocked": False,
+                "liberated": False,
+            }
+        )
+
+        self.assertEqual(region.unlocks_on_liberation, [])
 
     def test_current_region_is_first_unlocked_region_after_loading(self):
         self.assertEqual(self.game_state.current_region_id, "border_forest")
@@ -69,6 +102,59 @@ class TestGameState(unittest.TestCase):
         self.assertEqual(region.player_influence, 100)
         self.assertEqual(region.enemy_influence, 0)
         self.assertFalse(region.assault_unlocked)
+
+    def test_mark_liberated_unlocks_next_region(self):
+        self.game_state.mark_liberated("old_ruins")
+        region = self.game_state.get_region("mountain_mines")
+
+        self.assertTrue(region.unlocked)
+
+    def test_unlocked_after_liberation_region_becomes_enemy_controlled(self):
+        self.game_state.mark_liberated("old_ruins")
+        region = self.game_state.get_region("mountain_mines")
+
+        self.assertEqual(region.control_state, ENEMY_CONTROL)
+
+    def test_mark_liberated_mountain_mines_unlocks_swamp_lands(self):
+        self.game_state.unlock_region("mountain_mines")
+        self.game_state.mark_liberated("mountain_mines")
+        region = self.game_state.get_region("swamp_lands")
+
+        self.assertTrue(region.unlocked)
+        self.assertEqual(region.control_state, ENEMY_CONTROL)
+
+    def test_mark_liberated_swamp_lands_unlocks_capital_fortress(self):
+        self.game_state.unlock_region("swamp_lands")
+        self.game_state.mark_liberated("swamp_lands")
+        region = self.game_state.get_region("capital_fortress")
+
+        self.assertTrue(region.unlocked)
+        self.assertEqual(region.control_state, ENEMY_CONTROL)
+
+    def test_mark_liberated_capital_fortress_does_not_crash(self):
+        self.game_state.unlock_region("capital_fortress")
+
+        self.game_state.mark_liberated("capital_fortress")
+        region = self.game_state.get_region("capital_fortress")
+
+        self.assertTrue(region.liberated)
+
+    def test_mark_liberated_raises_for_unknown_unlock_region(self):
+        region = RegionState(
+            id="test_region",
+            name="Test Region",
+            unlocked=True,
+            control_state=ENEMY_CONTROL,
+            player_influence=0,
+            enemy_influence=100,
+            assault_unlocked=False,
+            liberated=False,
+            unlocks_on_liberation=["missing"],
+        )
+        game_state = GameState([region])
+
+        with self.assertRaises(ValueError):
+            game_state.mark_liberated("test_region")
 
     def test_get_unlocked_regions_returns_only_unlocked_regions(self):
         unlocked_regions = self.game_state.get_unlocked_regions()

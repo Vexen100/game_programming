@@ -40,6 +40,14 @@ class TestRegionLiberationSystem(unittest.TestCase):
 
         self.assertTrue(region.liberated)
 
+    def test_region_liberated_event_unlocks_next_regions(self):
+        self.system.subscribe(self.event_bus)
+
+        self.event_bus.publish(RegionLiberatedEvent(region_id="old_ruins"))
+        region = self.game_state.get_region("mountain_mines")
+
+        self.assertTrue(region.unlocked)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -179,6 +179,7 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 - `enemy_influence`;
 - `assault_unlocked`;
 - `liberated`.
+- `unlocks_on_liberation`.
 
 `RegionState` используется глобальным `GameState`.
 
@@ -195,6 +196,10 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 Сам флаг `assault_unlocked` не освобождает регион.
 
 Регион освобождается после `RegionLiberatedEvent`, который публикуется при захвате всех точек в `CastleAssaultScene`.
+
+После освобождения регион может открыть следующие регионы из `unlocks_on_liberation`.
+
+Это явный список в данных, а не граф маршрутов, дороги или система распространения влияния.
 
 `RegionState` не является игровой ECS-сущностью, не содержит компонентов и не рисуется через `RenderSystem`.
 
@@ -231,5 +236,6 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 - полноценный QuestSystem;
 - диалоги;
 - открытие соседних регионов;
-- связи регионов;
+- полноценные связи и дороги регионов;
+- граф регионов;
 - генерация замка.
