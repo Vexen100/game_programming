@@ -64,6 +64,18 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
+В обычной `RegionScene` враг пока использует простое прямое преследование по направлению к игроку.
+
+В `CastleAssaultScene` враг использует LOS по тайлам, last seen memory и A* pathfinding.
+
+В замке враг начинает A* преследование только если игрок находится в радиусе обнаружения и есть line of sight.
+
+Если игрок пропал за стеной после обнаружения, враг короткое время идёт к last seen tile.
+
+Last seen memory хранится внутри `EnemyChaseSystem`.
+
+Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
+
 Системы работают с врагами через ECS-запросы, а не через один общий `enemy_id`.
 
 Подкрепление в замке — это всё ещё обычные Enemy ECS-сущности.

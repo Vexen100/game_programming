@@ -210,6 +210,10 @@ NPC завершает простое задание после зачистки
 
 `pathfinding.py` не зависит от PyGame, ECS и сцен.
 
+`src/algorithms/line_of_sight.py` содержит проверку line of sight по tile coordinates.
+
+`line_of_sight.py` не зависит от PyGame, ECS, компонентов и сцен.
+
 ### `src/systems/`
 
 Содержит текущие ECS-системы:
@@ -238,11 +242,19 @@ NPC завершает простое задание после зачистки
 
 `EnemyChaseSystem` сохраняет прямое преследование без `tile_map`.
 
-В `CastleAssaultScene` враги используют A* через `EnemyChaseSystem.update(ecm, tile_map, dt)`.
+В `CastleAssaultScene` враги используют LOS + A* через `EnemyChaseSystem.update(ecm, tile_map, dt)`.
+
+Перед построением A* враг проверяет, находится ли игрок в радиусе обнаружения и есть ли line of sight по тайлам.
+
+Если враг видел игрока, а потом потерял прямую видимость, он короткое время идёт к last seen tile.
 
 Cache путей хранится внутри `EnemyChaseSystem`.
 
 Cache не является компонентом и не хранится в `ChaseBehavior`.
+
+Last seen memory тоже хранится внутри `EnemyChaseSystem`.
+
+Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
 
 В обычной `RegionScene` пока остаётся простое прямое преследование.
 
@@ -300,7 +312,9 @@ Cache не является компонентом и не хранится в `
 - полноценные связи и дороги между регионами;
 - граф регионов;
 - расширение A* за пределы CastleAssaultScene;
+- расширение LOS / last seen за пределы CastleAssaultScene;
 - дальнейшая оптимизация pathfinding при необходимости;
+- патрулирование врагов;
 - Behavior Tree;
 - Spatial Grid;
 - сохранения.

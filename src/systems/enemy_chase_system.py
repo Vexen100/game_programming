@@ -1,5 +1,6 @@
 import pygame
 
+from src.algorithms.line_of_sight import has_line_of_sight
 from src.algorithms.pathfinding import find_path
 from src.components.components import (
     ChaseBehavior,
@@ -13,11 +14,14 @@ from src.components.components import (
 class EnemyChaseSystem:
     """Записывает врагам скорость преследования игрока"""
 
-    def __init__(self, path_rebuild_interval=0.25):
+    def __init__(self, path_rebuild_interval=0.25, last_seen_memory_duration=1.0):
         self.path_rebuild_interval = path_rebuild_interval
+        self.last_seen_memory_duration = last_seen_memory_duration
         self.cached_paths = {}
         self.cached_goal_tiles = {}
         self.path_rebuild_timers = {}
+        self.last_seen_player_tiles = {}
+        self.last_seen_timers = {}
 
     def update(self, ecm, tile_map=None, dt=0):
         player_entities = ecm.get_entities_with(PlayerControlled, Position)
@@ -26,6 +30,7 @@ class EnemyChaseSystem:
 
         if not player_entities:
             self.clear_path_cache()
+            self.clear_ai_memory()
             self.stop_enemies(ecm)
             return
 
@@ -39,11 +44,11 @@ class EnemyChaseSystem:
 
             distance = self.get_distance(enemy_position, player_position)
 
-            if distance == 0 or distance > chase.detection_radius:
-                self.stop_enemy(enemy_velocity)
-                continue
-
             if tile_map is None:
+                if distance == 0 or distance > chase.detection_radius:
+                    self.stop_enemy(enemy_velocity)
+                    continue
+
                 self.move_towards_position(
                     enemy_velocity,
                     enemy_position,
@@ -58,9 +63,10 @@ class EnemyChaseSystem:
                 enemy_velocity,
                 enemy_position,
                 player_position,
-                chase.speed,
+                chase,
                 tile_map,
                 dt,
+                distance,
             )
 
     def update_enemy_with_pathfinding(
@@ -69,21 +75,45 @@ class EnemyChaseSystem:
         enemy_velocity,
         enemy_position,
         player_position,
-        speed,
+        chase,
         tile_map,
         dt,
+        distance,
     ):
         enemy_tile = tile_map.coord_pixels_to_tile(enemy_position.x, enemy_position.y)
         player_tile = tile_map.coord_pixels_to_tile(player_position.x, player_position.y)
+        can_see_player = (
+            distance <= chase.detection_radius
+            and has_line_of_sight(tile_map, enemy_tile, player_tile)
+        )
 
-        if enemy_tile == player_tile:
-            self.move_towards_position(
-                enemy_velocity,
-                enemy_position,
-                player_position.x,
-                player_position.y,
-                speed,
-            )
+        if can_see_player:
+            self.last_seen_player_tiles[enemy_id] = player_tile
+            self.last_seen_timers[enemy_id] = self.last_seen_memory_duration
+            target_tile = player_tile
+        else:
+            target_tile = self.get_active_last_seen_tile(enemy_id, dt)
+
+        if target_tile is None:
+            self.clear_enemy_ai_memory(enemy_id)
+            self.clear_enemy_path_cache(enemy_id)
+            self.stop_enemy(enemy_velocity)
+            return
+
+        if enemy_tile == target_tile:
+            if can_see_player:
+                self.move_towards_position(
+                    enemy_velocity,
+                    enemy_position,
+                    player_position.x,
+                    player_position.y,
+                    chase.speed,
+                )
+                return
+
+            self.clear_enemy_ai_memory(enemy_id)
+            self.clear_enemy_path_cache(enemy_id)
+            self.stop_enemy(enemy_velocity)
             return
 
         self.path_rebuild_timers[enemy_id] = self.path_rebuild_timers.get(enemy_id, 0) - dt
@@ -91,7 +121,7 @@ class EnemyChaseSystem:
             enemy_id,
             tile_map,
             enemy_tile,
-            player_tile,
+            target_tile,
         )
 
         if len(path) < 2:
@@ -101,14 +131,12 @@ class EnemyChaseSystem:
         next_tile = self.get_next_tile_from_path(path, enemy_tile)
 
         if next_tile is None:
-            self.cached_paths.pop(enemy_id, None)
-            self.cached_goal_tiles.pop(enemy_id, None)
-            self.path_rebuild_timers[enemy_id] = 0
+            self.clear_enemy_path_cache(enemy_id)
             path = self.get_cached_or_rebuilt_path(
                 enemy_id,
                 tile_map,
                 enemy_tile,
-                player_tile,
+                target_tile,
             )
 
             if len(path) < 2:
@@ -123,8 +151,36 @@ class EnemyChaseSystem:
             enemy_position,
             target_x,
             target_y,
-            speed,
+            chase.speed,
         )
+
+    def get_active_last_seen_tile(self, enemy_id, dt):
+        last_seen_tile = self.last_seen_player_tiles.get(enemy_id)
+        timer = self.last_seen_timers.get(enemy_id, 0)
+
+        if last_seen_tile is None or timer <= 0:
+            return None
+
+        timer -= dt
+
+        if timer <= 0:
+            return None
+
+        self.last_seen_timers[enemy_id] = timer
+        return last_seen_tile
+
+    def clear_enemy_path_cache(self, enemy_id):
+        self.cached_paths.pop(enemy_id, None)
+        self.cached_goal_tiles.pop(enemy_id, None)
+        self.path_rebuild_timers.pop(enemy_id, None)
+
+    def clear_ai_memory(self):
+        self.last_seen_player_tiles.clear()
+        self.last_seen_timers.clear()
+
+    def clear_enemy_ai_memory(self, enemy_id):
+        self.last_seen_player_tiles.pop(enemy_id, None)
+        self.last_seen_timers.pop(enemy_id, None)
 
     def clear_path_cache(self):
         self.cached_paths.clear()
@@ -133,12 +189,18 @@ class EnemyChaseSystem:
 
     def remove_stale_path_cache(self, active_enemy_ids):
         active_enemy_ids = set(active_enemy_ids)
+        remembered_enemy_ids = (
+            set(self.cached_paths)
+            | set(self.cached_goal_tiles)
+            | set(self.path_rebuild_timers)
+            | set(self.last_seen_player_tiles)
+            | set(self.last_seen_timers)
+        )
 
-        for enemy_id in list(self.cached_paths.keys()):
+        for enemy_id in remembered_enemy_ids:
             if enemy_id not in active_enemy_ids:
-                self.cached_paths.pop(enemy_id, None)
-                self.cached_goal_tiles.pop(enemy_id, None)
-                self.path_rebuild_timers.pop(enemy_id, None)
+                self.clear_enemy_path_cache(enemy_id)
+                self.clear_enemy_ai_memory(enemy_id)
 
     def should_rebuild_path(self, enemy_id, goal_tile):
         if enemy_id not in self.cached_paths:

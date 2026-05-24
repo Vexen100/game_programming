@@ -168,15 +168,49 @@
 
 `EnemyChaseSystem` не пересчитывает путь каждый кадр: для замка используется простой path cache и rebuild interval.
 
+Перед A* в замке проверяется line of sight по тайлам.
+
 В обычной `RegionScene` враги пока используют простое движение по направлению к игроку.
 
 A* не отвечает за поведение, приоритеты или состояния врага.
 
-Это не Behavior Tree и не LOS/hysteresis.
+LOS и last seen / hysteresis реализованы отдельно: алгоритм обзора находится в `src/algorithms/line_of_sight.py`, а простая память последнего видимого тайла хранится внутри `EnemyChaseSystem`.
 
 Behavior Tree ещё не реализован.
 
 Сложность: сложная.
+
+---
+
+## Line of Sight по тайлам
+
+Используется для проверки, видит ли враг игрока через стены.
+
+Сейчас реализован модуль `src/algorithms/line_of_sight.py`.
+
+Алгоритм работает по tile coordinates и использует Bresenham-style line.
+
+Линия включает start tile и end tile.
+
+Если start, end или любой промежуточный tile заблокирован через `TileMap.is_tile_blocked()`, line of sight считается закрытым.
+
+Алгоритм не зависит от PyGame, ECS, компонентов и сцен.
+
+В `CastleAssaultScene` враги используют LOS через `EnemyChaseSystem` перед построением A* пути.
+
+Если враг видит игрока, он обновляет last seen tile.
+
+Если игрок пропал за стеной, враг короткое время идёт к последнему видимому tile.
+
+Last seen / hysteresis реализованы как простая память внутри `EnemyChaseSystem`.
+
+Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
+
+В обычной `RegionScene` враги пока используют простое прямое преследование.
+
+LOS не является Behavior Tree, patrol-системой, FOV-системой или lighting.
+
+Сложность: средняя.
 
 ---
 
@@ -262,7 +296,8 @@ Behavior Tree ещё не реализован.
 
 На раннем этапе не нужно реализовывать:
 
-- дальнейшее развитие A*: LOS/hysteresis, подключение за пределами `CastleAssaultScene`, более сложная оптимизация pathfinding при необходимости;
+- дальнейшее развитие A*: подключение за пределами `CastleAssaultScene`, более сложная оптимизация pathfinding при необходимости;
+- расширение LOS / last seen за пределы `CastleAssaultScene`;
 - полноценную симуляцию фронта;
 - сложную процедурную генерацию;
 - умный выбор атак врага;
