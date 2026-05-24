@@ -235,7 +235,7 @@ class CastleAssaultScene(BaseScene):
 
         self.player_input_system.update(self.ecm, input_manager)
         self.player_attack_input_system.update(self.ecm, input_manager)
-        self.enemy_chase_system.update(self.ecm)
+        self.enemy_chase_system.update(self.ecm, self.tile_map)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
         self.melee_attack_system.update(self.ecm, dt)

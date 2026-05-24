@@ -322,6 +322,11 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         scene.update(0.1, FakePauseInputManager())
 
+    def test_update_with_pathfinding_does_not_crash(self):
+        scene = CastleAssaultScene()
+
+        scene.update(0.1, FakeInputManager())
+
     def test_player_near_capture_point_increases_progress(self):
         scene = CastleAssaultScene()
         capture_point_id = scene.capture_point_ids[0]

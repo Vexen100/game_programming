@@ -206,6 +206,10 @@ NPC завершает простое задание после зачистки
 
 Он не является A* и не управляет движением врагов.
 
+`src/algorithms/pathfinding.py` содержит A* по tile coordinates.
+
+`pathfinding.py` не зависит от PyGame, ECS и сцен.
+
 ### `src/systems/`
 
 Содержит текущие ECS-системы:
@@ -231,6 +235,12 @@ NPC завершает простое задание после зачистки
 `CaptureSystem` работает только с ECS и `EventBus`: захватывает точки и публикует события.
 
 `CastleWaveSystem` работает локально в `CastleAssaultScene`: после захвата не финальной точки создаёт небольшое подкрепление обычных врагов.
+
+`EnemyChaseSystem` сохраняет прямое преследование без `tile_map`.
+
+В `CastleAssaultScene` враги используют A* через `EnemyChaseSystem.update(ecm, tile_map)`.
+
+В обычной `RegionScene` пока остаётся простое прямое преследование.
 
 `RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
 
@@ -285,7 +295,7 @@ NPC завершает простое задание после зачистки
 - BSP-генерация замка;
 - полноценные связи и дороги между регионами;
 - граф регионов;
-- A*;
+- расширение A* за пределы CastleAssaultScene, path cache и оптимизация пересчёта пути;
 - Behavior Tree;
 - Spatial Grid;
 - сохранения.
