@@ -52,6 +52,8 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 На текущем этапе враг:
 
 - создаётся в `RegionScene`;
+- может существовать в нескольких экземплярах в одной сцене;
+- в замке может появляться как подкрепление после захвата точки;
 - замечает игрока в радиусе обнаружения;
 - двигается к игроку через `EnemyChaseSystem`, `MovementSystem` и `CollisionSystem`;
 - наносит урон игроку через `EnemyAttackSystem`;
@@ -61,6 +63,10 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - учитывается в `DebugOverlay` как живая сущность.
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
+
+Системы работают с врагами через ECS-запросы, а не через один общий `enemy_id`.
+
+Подкрепление в замке — это всё ещё обычные Enemy ECS-сущности.
 
 Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`.
 

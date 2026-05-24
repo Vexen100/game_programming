@@ -6,6 +6,7 @@ from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.systems.capture_system import CaptureSystem
+from src.systems.castle_wave_system import CastleWaveSystem
 from src.systems.cleanup_system import CleanupSystem
 from src.systems.collision_system import CollisionSystem
 from src.systems.enemy_attack_system import EnemyAttackSystem
@@ -45,6 +46,10 @@ class CastleAssaultScene(BaseScene):
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
+        self.castle_wave_spawn_tiles = [
+            (4, 3),
+            (20, 6),
+        ]
         self.restart_castle()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
@@ -118,12 +123,16 @@ class CastleAssaultScene(BaseScene):
 
     def validate_castle_layout(self):
         start_tile = self.get_entity_tile(self.ecs_player_id)
-        target_tiles = [
-            self.get_entity_tile(self.enemy_id),
-        ]
+        target_tiles = []
+
+        for enemy_id in self.enemy_ids:
+            target_tiles.append(self.get_entity_tile(enemy_id))
 
         for capture_point_id in self.capture_point_ids:
             target_tiles.append(self.get_entity_tile(capture_point_id))
+
+        for spawn_tile in self.castle_wave_spawn_tiles:
+            target_tiles.append(spawn_tile)
 
         if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
             raise ValueError("Castle layout has unreachable important tiles")
@@ -132,6 +141,10 @@ class CastleAssaultScene(BaseScene):
         self.tile_map = TileMap(self.create_test_castle_map())
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
+        self.castle_wave_system = CastleWaveSystem(
+            spawn_tiles=self.castle_wave_spawn_tiles,
+            enemies_per_wave=2,
+        )
 
         self.ecs_player_id = self.entity_factory.create_player(
             x=settings.TILE_SIZE * 3,
@@ -139,11 +152,24 @@ class CastleAssaultScene(BaseScene):
         )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
-        self.enemy_id = self.entity_factory.create_enemy(
-            x=settings.TILE_SIZE * 32,
-            y=settings.TILE_SIZE * 15,
-        )
-        self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
+        self.enemy_ids = [
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 10,
+                y=settings.TILE_SIZE * 3,
+            ),
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 7,
+                y=settings.TILE_SIZE * 6,
+            ),
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 11,
+                y=settings.TILE_SIZE * 6,
+            ),
+        ]
+        self.enemy_id = self.enemy_ids[0]
+
+        for enemy_id in self.enemy_ids:
+            self.check_entity_components(enemy_id, "ECS enemy", Position, Health)
 
         self.capture_point_ids = [
             self.entity_factory.create_capture_point(
@@ -161,6 +187,7 @@ class CastleAssaultScene(BaseScene):
 
         self.validate_castle_layout()
         self.capture_system.reset()
+        self.castle_wave_system.reset()
 
     def update(self, dt, input_manager):
         self.current_dt = dt
@@ -193,6 +220,13 @@ class CastleAssaultScene(BaseScene):
 
         if not self.is_player_defeated():
             self.capture_system.update(self.ecm, dt, self.get_current_region_id())
+            spawned_enemy_ids = self.castle_wave_system.update(
+                self.ecm,
+                self.entity_factory,
+                self.tile_map,
+                self.capture_point_ids,
+            )
+            self.enemy_ids.extend(spawned_enemy_ids)
 
         self.cleanup_system.update(self.ecm)
 

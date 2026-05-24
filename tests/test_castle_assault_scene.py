@@ -94,23 +94,39 @@ class TestCastleAssaultScene(unittest.TestCase):
         scene = CastleAssaultScene()
 
         self.assertTrue(hasattr(scene, "ecs_player_id"))
+        self.assertTrue(hasattr(scene, "enemy_ids"))
         self.assertTrue(hasattr(scene, "enemy_id"))
-        self.assertEqual(len(scene.ecm.alive_entities), 4)
+        self.assertEqual(len(scene.enemy_ids), 3)
+        self.assertEqual(scene.enemy_id, scene.enemy_ids[0])
+        self.assertEqual(len(scene.ecm.alive_entities), 6)
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerControlled))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Health))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, MeleeAttack))
-        self.assertTrue(scene.ecm.has_component(scene.enemy_id, Enemy))
-        self.assertTrue(scene.ecm.has_component(scene.enemy_id, Position))
-        self.assertTrue(scene.ecm.has_component(scene.enemy_id, Health))
-        self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
-        self.assertTrue(scene.ecm.has_component(scene.enemy_id, MeleeAttack))
+
+        for enemy_id in scene.enemy_ids:
+            self.assertTrue(scene.ecm.has_component(enemy_id, Enemy))
+            self.assertTrue(scene.ecm.has_component(enemy_id, Position))
+            self.assertTrue(scene.ecm.has_component(enemy_id, Health))
+            self.assertTrue(scene.ecm.has_component(enemy_id, ChaseBehavior))
+            self.assertTrue(scene.ecm.has_component(enemy_id, MeleeAttack))
 
     def test_castle_assault_scene_has_capture_system(self):
         scene = CastleAssaultScene()
 
         self.assertTrue(hasattr(scene, "capture_system"))
+
+    def test_castle_assault_scene_has_castle_wave_system(self):
+        scene = CastleAssaultScene()
+
+        self.assertTrue(hasattr(scene, "castle_wave_system"))
+
+    def test_castle_assault_scene_has_wave_spawn_tiles(self):
+        scene = CastleAssaultScene()
+
+        self.assertTrue(hasattr(scene, "castle_wave_spawn_tiles"))
+        self.assertGreater(len(scene.castle_wave_spawn_tiles), 0)
 
     def test_castle_assault_scene_creates_capture_points(self):
         scene = CastleAssaultScene()
@@ -137,19 +153,36 @@ class TestCastleAssaultScene(unittest.TestCase):
     def test_player_and_enemy_spawn_on_floor(self):
         scene = CastleAssaultScene()
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
-        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
 
         player_tile_x, player_tile_y = scene.tile_map.coord_pixels_to_tile(
             player_position.x,
             player_position.y,
         )
-        enemy_tile_x, enemy_tile_y = scene.tile_map.coord_pixels_to_tile(
-            enemy_position.x,
-            enemy_position.y,
-        )
 
         self.assertEqual(scene.tile_map.matrix[player_tile_y][player_tile_x], FLOOR)
-        self.assertEqual(scene.tile_map.matrix[enemy_tile_y][enemy_tile_x], FLOOR)
+
+        for enemy_id in scene.enemy_ids:
+            enemy_position = scene.ecm.get_component(enemy_id, Position)
+            enemy_tile_x, enemy_tile_y = scene.tile_map.coord_pixels_to_tile(
+                enemy_position.x,
+                enemy_position.y,
+            )
+
+            self.assertEqual(scene.tile_map.matrix[enemy_tile_y][enemy_tile_x], FLOOR)
+
+    def test_enemies_do_not_spawn_on_player_or_capture_points(self):
+        scene = CastleAssaultScene()
+        player_tile = scene.get_entity_tile(scene.ecs_player_id)
+        capture_point_tiles = {
+            scene.get_entity_tile(capture_point_id)
+            for capture_point_id in scene.capture_point_ids
+        }
+
+        for enemy_id in scene.enemy_ids:
+            enemy_tile = scene.get_entity_tile(enemy_id)
+
+            self.assertNotEqual(enemy_tile, player_tile)
+            self.assertNotIn(enemy_tile, capture_point_tiles)
 
     def test_capture_points_spawn_on_floor(self):
         scene = CastleAssaultScene()
@@ -165,6 +198,14 @@ class TestCastleAssaultScene(unittest.TestCase):
 
     def test_validate_castle_layout_does_not_fail_on_static_map(self):
         scene = CastleAssaultScene()
+
+        scene.validate_castle_layout()
+
+    def test_validate_castle_layout_does_not_fail_on_wave_spawn_tiles(self):
+        scene = CastleAssaultScene()
+
+        for tile_x, tile_y in scene.castle_wave_spawn_tiles:
+            self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
         scene.validate_castle_layout()
 
@@ -185,6 +226,30 @@ class TestCastleAssaultScene(unittest.TestCase):
             (tile_x, tile_y - 1),
         ):
             scene.tile_map.matrix[wall_y][wall_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_castle_layout()
+
+    def test_validate_castle_layout_raises_if_enemy_is_unreachable(self):
+        scene = CastleAssaultScene()
+        enemy_id = scene.enemy_ids[0]
+        tile_x, tile_y = scene.get_entity_tile(enemy_id)
+
+        for wall_x, wall_y in (
+            (tile_x + 1, tile_y),
+            (tile_x - 1, tile_y),
+            (tile_x, tile_y + 1),
+            (tile_x, tile_y - 1),
+        ):
+            scene.tile_map.matrix[wall_y][wall_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_castle_layout()
+
+    def test_validate_castle_layout_raises_if_wave_spawn_tile_is_blocked(self):
+        scene = CastleAssaultScene()
+        tile_x, tile_y = scene.castle_wave_spawn_tiles[0]
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
 
         with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
             scene.validate_castle_layout()
@@ -277,6 +342,65 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         self.assertEqual(capture_point.progress, 0)
 
+    def test_captured_non_final_capture_point_spawns_reinforcements(self):
+        scene = CastleAssaultScene()
+        capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        capture_point.captured = True
+        capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+
+        self.assertEqual(len(scene.enemy_ids), 5)
+        for enemy_id in scene.enemy_ids:
+            self.assertTrue(scene.ecm.has_component(enemy_id, Enemy))
+
+    def test_repeated_update_does_not_spawn_second_wave_for_same_capture_point(self):
+        scene = CastleAssaultScene()
+        capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        capture_point.captured = True
+        capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+        scene.update(0, FakeInputManager())
+
+        self.assertEqual(len(scene.enemy_ids), 5)
+
+    def test_all_capture_points_captured_before_update_do_not_spawn_wave(self):
+        scene = CastleAssaultScene()
+
+        for capture_point_id in scene.capture_point_ids:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+            capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+
+        self.assertEqual(len(scene.enemy_ids), 3)
+
+    def test_restart_resets_castle_wave_state(self):
+        scene = CastleAssaultScene()
+        first_capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        first_capture_point.captured = True
+        first_capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+
+        self.assertEqual(len(scene.enemy_ids), 5)
+
+        scene.restart_castle()
+        second_first_capture_point = scene.ecm.get_component(
+            scene.capture_point_ids[0],
+            CapturePoint,
+        )
+        second_first_capture_point.captured = True
+        second_first_capture_point.owner = "player"
+
+        self.assertEqual(len(scene.enemy_ids), 3)
+
+        scene.update(0, FakeInputManager())
+
+        self.assertEqual(len(scene.enemy_ids), 5)
+
     def test_all_capture_points_publish_region_liberated_event(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         game_state.set_current_region("old_ruins")
@@ -326,7 +450,9 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertIsNot(scene.ecm, old_ecm)
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
         self.assertEqual(new_player_health.current, new_player_health.maximum)
-        self.assertEqual(len(scene.ecm.alive_entities), 4)
+        self.assertEqual(len(scene.enemy_ids), 3)
+        self.assertEqual(scene.enemy_id, scene.enemy_ids[0])
+        self.assertEqual(len(scene.ecm.alive_entities), 6)
 
     def test_draw_does_not_crash(self):
         scene = CastleAssaultScene()

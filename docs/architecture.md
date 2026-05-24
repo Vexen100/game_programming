@@ -140,11 +140,23 @@ NPC завершает простое задание после зачистки
 
 Статическая сцена штурма замка.
 
-Создаёт простую ручную карту замка, ECS-слой, игрока, одного врага, две точки захвата, базовые gameplay-системы, HUD и debug overlay.
+Создаёт простую ручную карту замка, ECS-слой, игрока, несколько врагов, две точки захвата, базовые gameplay-системы, HUD и debug overlay.
 
-При создании и локальном restart проверяет достижимость игрока, врага и всех точек захвата через `src/algorithms/flood_fill.py`.
+`CastleAssaultScene` хранит список `enemy_ids`.
+
+`enemy_id` оставлен только как alias первого врага для совместимости старого кода и тестов.
+
+Существующие ECS-системы работают со всеми врагами через компоненты и ECS-запросы.
+
+При создании и локальном restart проверяет достижимость игрока, всех врагов и всех точек захвата через `src/algorithms/flood_fill.py`.
 
 Эта проверка нужна только для validation карты замка и не используется для движения врагов.
+
+`CastleWaveSystem` локально используется внутри `CastleAssaultScene`.
+
+Он не подписывается на глобальный `EventBus`, не хранит `GameState` и создаёт обычных врагов через `EntityFactory`.
+
+Это минимальная локальная механика подкреплений, а не полноценный `EnemySpawner` или `WaveManager`.
 
 По `M` может запросить возврат на `WorldMapScene`.
 
@@ -200,6 +212,7 @@ NPC завершает простое задание после зачистки
 - `OutpostSystem`;
 - `NPCInteractionSystem`;
 - `CaptureSystem`;
+- `CastleWaveSystem`;
 - `EnemyAttackSystem`;
 - `PlayerDeathSystem`;
 - `CleanupSystem`;
@@ -208,6 +221,8 @@ NPC завершает простое задание после зачистки
 Также содержит `InfluenceSystem`, который слушает `EnemyKilledEvent`, `OutpostClearedEvent`, `QuestCompletedEvent` и меняет глобальное влияние регионов через `GameState`.
 
 `CaptureSystem` работает только с ECS и `EventBus`: захватывает точки и публикует события.
+
+`CastleWaveSystem` работает локально в `CastleAssaultScene`: после захвата не финальной точки создаёт небольшое подкрепление обычных врагов.
 
 `RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
 

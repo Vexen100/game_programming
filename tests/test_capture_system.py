@@ -105,6 +105,53 @@ class TestCaptureSystem(unittest.TestCase):
 
         self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)
 
+    def test_one_living_enemy_from_many_near_capture_point_blocks_progress(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        self.create_enemy(x=CapturePointSettings.RADIUS + 50, y=0)
+        self.create_enemy(x=0, y=0)
+        self.create_enemy(x=CapturePointSettings.RADIUS + 80, y=0, dead=True)
+
+        self.system.update(self.ecm, dt=1, region_id="old_ruins")
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, 0)
+
+    def test_many_dead_enemies_near_capture_point_do_not_block_progress(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        self.create_enemy(x=0, y=0, dead=True)
+        self.create_enemy(x=20, y=0, dead=True)
+        self.create_enemy(x=0, y=20, dead=True)
+
+        self.system.update(self.ecm, dt=1, region_id="old_ruins")
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)
+
+    def test_near_enemy_blocks_progress_even_if_another_enemy_is_far(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        self.create_enemy(x=CapturePointSettings.RADIUS + 100, y=0)
+        self.create_enemy(x=0, y=0)
+
+        self.system.update(self.ecm, dt=1, region_id="old_ruins")
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, 0)
+
+    def test_many_far_enemies_do_not_block_progress(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        self.create_enemy(x=CapturePointSettings.RADIUS + 20, y=0)
+        self.create_enemy(x=0, y=CapturePointSettings.RADIUS + 20)
+        self.create_enemy(x=CapturePointSettings.RADIUS + 30, y=CapturePointSettings.RADIUS + 30)
+
+        self.system.update(self.ecm, dt=1, region_id="old_ruins")
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)
+
     def test_capture_point_becomes_captured_at_full_progress(self):
         capture_point = self.create_capture_point(progress=90)
         self.create_player()
