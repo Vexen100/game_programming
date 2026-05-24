@@ -322,10 +322,13 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         scene.update(0.1, FakePauseInputManager())
 
-    def test_update_with_pathfinding_does_not_crash(self):
+    def test_update_with_pathfinding_cache_does_not_crash(self):
         scene = CastleAssaultScene()
 
         scene.update(0.1, FakeInputManager())
+
+        self.assertTrue(hasattr(scene.enemy_chase_system, "cached_paths"))
+        self.assertGreaterEqual(len(scene.enemy_chase_system.cached_paths), 1)
 
     def test_player_near_capture_point_increases_progress(self):
         scene = CastleAssaultScene()

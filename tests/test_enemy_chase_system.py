@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from src.components.components import (
     ChaseBehavior,
@@ -97,6 +98,19 @@ class TestEnemyChaseSystem(unittest.TestCase):
 
         self.assertEqual(velocity.x, 50)
         self.assertEqual(velocity.y, 0)
+
+    def test_update_without_tile_map_does_not_use_pathfinding(self):
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=100)
+        self.create_player(100, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            self.system.update(self.ecm)
+
+        velocity = self.ecm.get_component(enemy, Velocity)
+
+        self.assertEqual(velocity.x, 50)
+        self.assertEqual(velocity.y, 0)
+        mock_find_path.assert_not_called()
 
     def test_enemy_same_position_as_player_stops(self):
         enemy = self.create_enemy(x=10, y=10, speed=50, detection_radius=100)
@@ -211,6 +225,127 @@ class TestEnemyChaseSystem(unittest.TestCase):
 
         self.assertEqual(velocity.x, 0)
         self.assertEqual(velocity.y, 0)
+
+    def test_first_update_with_tile_map_builds_path(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = [(0, 0), (1, 0), (2, 0)]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.assertEqual(self.system.cached_paths[enemy], [(0, 0), (1, 0), (2, 0)])
+        self.assertEqual(self.system.cached_goal_tiles[enemy], (2, 0))
+        self.assertEqual(mock_find_path.call_count, 1)
+
+    def test_repeated_update_with_same_goal_before_interval_reuses_cached_path(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = [(0, 0), (1, 0), (2, 0)]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.assertEqual(mock_find_path.call_count, 1)
+
+    def test_path_rebuilds_after_rebuild_interval(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = [(0, 0), (1, 0), (2, 0)]
+            self.system.update(self.ecm, tile_map, dt=0)
+            self.system.update(self.ecm, tile_map, dt=0.3)
+
+        self.assertEqual(mock_find_path.call_count, 2)
+
+    def test_path_rebuilds_when_player_tile_changes(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR, FLOOR]])
+        self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        player = self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.side_effect = [
+                [(0, 0), (1, 0), (2, 0)],
+                [(0, 0), (1, 0), (2, 0), (3, 0)],
+            ]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+            player_position = self.ecm.get_component(player, Position)
+            player_position.x = 96
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.assertEqual(mock_find_path.call_count, 2)
+
+    def test_path_rebuilds_when_enemy_tile_is_not_in_cached_path(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR, FLOOR]])
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.side_effect = [
+                [(0, 0), (1, 0), (2, 0)],
+                [(3, 0), (2, 0)],
+            ]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+            enemy_position = self.ecm.get_component(enemy, Position)
+            enemy_position.x = 96
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.assertEqual(mock_find_path.call_count, 2)
+
+    def test_update_without_player_stops_enemies_and_clears_path_cache(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        player = self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = [(0, 0), (1, 0), (2, 0)]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.ecm.destroy_entity(player)
+        self.system.update(self.ecm, tile_map, dt=0.1)
+        velocity = self.ecm.get_component(enemy, Velocity)
+
+        self.assertEqual(velocity.x, 0)
+        self.assertEqual(velocity.y, 0)
+        self.assertEqual(self.system.cached_paths, {})
+        self.assertEqual(self.system.cached_goal_tiles, {})
+        self.assertEqual(self.system.path_rebuild_timers, {})
+
+    def test_removed_enemy_clears_stale_path_cache(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = [(0, 0), (1, 0), (2, 0)]
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.ecm.destroy_entity(enemy)
+        self.system.update(self.ecm, tile_map, dt=0.1)
+
+        self.assertNotIn(enemy, self.system.cached_paths)
+        self.assertNotIn(enemy, self.system.cached_goal_tiles)
+        self.assertNotIn(enemy, self.system.path_rebuild_timers)
+
+    def test_update_with_tile_map_stops_enemy_if_cached_path_is_empty(self):
+        tile_map = FakeTileMap([[FLOOR, FLOOR, FLOOR]])
+        enemy = self.create_enemy(x=0, y=0, speed=50, detection_radius=200)
+        self.create_player(64, 0)
+
+        with patch("src.systems.enemy_chase_system.find_path") as mock_find_path:
+            mock_find_path.return_value = []
+            self.system.update(self.ecm, tile_map, dt=0.1)
+
+        velocity = self.ecm.get_component(enemy, Velocity)
+
+        self.assertEqual(velocity.x, 0)
+        self.assertEqual(velocity.y, 0)
+        self.assertEqual(self.system.cached_paths[enemy], [])
 
 
 if __name__ == "__main__":

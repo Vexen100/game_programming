@@ -238,7 +238,11 @@ NPC завершает простое задание после зачистки
 
 `EnemyChaseSystem` сохраняет прямое преследование без `tile_map`.
 
-В `CastleAssaultScene` враги используют A* через `EnemyChaseSystem.update(ecm, tile_map)`.
+В `CastleAssaultScene` враги используют A* через `EnemyChaseSystem.update(ecm, tile_map, dt)`.
+
+Cache путей хранится внутри `EnemyChaseSystem`.
+
+Cache не является компонентом и не хранится в `ChaseBehavior`.
 
 В обычной `RegionScene` пока остаётся простое прямое преследование.
 
@@ -295,7 +299,8 @@ NPC завершает простое задание после зачистки
 - BSP-генерация замка;
 - полноценные связи и дороги между регионами;
 - граф регионов;
-- расширение A* за пределы CastleAssaultScene, path cache и оптимизация пересчёта пути;
+- расширение A* за пределы CastleAssaultScene;
+- дальнейшая оптимизация pathfinding при необходимости;
 - Behavior Tree;
 - Spatial Grid;
 - сохранения.
