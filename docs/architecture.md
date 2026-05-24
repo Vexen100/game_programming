@@ -158,6 +158,12 @@ NPC завершает простое задание после зачистки
 
 Это минимальная локальная механика подкреплений, а не полноценный `EnemySpawner` или `WaveManager`.
 
+После захвата всех точек сцена переходит в локальное состояние `assault_completed`.
+
+В состоянии `assault_completed` gameplay-системы больше не обновляются.
+
+`M` продолжает возвращать на `WorldMapScene`, а `Esc` продолжает открывать `PauseScene`.
+
 По `M` может запросить возврат на `WorldMapScene`.
 
 По `Esc` может запросить `PauseScene`.
@@ -167,6 +173,8 @@ NPC завершает простое задание после зачистки
 `CastleAssaultScene` не освобождает регион напрямую и не знает про `InfluenceSystem`.
 
 Точки захвата обрабатывает `CaptureSystem`. После захвата всех точек публикуется `RegionLiberatedEvent`.
+
+Глобальное liberation региона по-прежнему идёт через `RegionLiberatedEvent` и `RegionLiberationSystem`.
 
 ### `src/ecs/entity_component_manager.py`
 

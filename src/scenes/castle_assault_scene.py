@@ -137,7 +137,29 @@ class CastleAssaultScene(BaseScene):
         if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
             raise ValueError("Castle layout has unreachable important tiles")
 
+    def are_all_capture_points_captured(self):
+        if not self.capture_point_ids:
+            return False
+
+        for capture_point_id in self.capture_point_ids:
+            capture_point = self.ecm.get_component(capture_point_id, CapturePoint)
+
+            if not capture_point.captured:
+                return False
+
+        return True
+
+    def complete_assault_if_ready(self):
+        if self.assault_completed:
+            return
+
+        if not self.are_all_capture_points_captured():
+            return
+
+        self.assault_completed = True
+
     def restart_castle(self):
+        self.assault_completed = False
         self.tile_map = TileMap(self.create_test_castle_map())
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
@@ -203,6 +225,9 @@ class CastleAssaultScene(BaseScene):
             self.request_world_map()
             return
 
+        if self.assault_completed:
+            return
+
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
                 self.restart_castle()
@@ -227,8 +252,24 @@ class CastleAssaultScene(BaseScene):
                 self.capture_point_ids,
             )
             self.enemy_ids.extend(spawned_enemy_ids)
+            self.complete_assault_if_ready()
 
         self.cleanup_system.update(self.ecm)
+
+    def draw_assault_completed_message(self, screen):
+        font = pygame.font.Font(None, 36)
+        text_surface = font.render(
+            "Region liberated. Press M to return to world map.",
+            True,
+            (255, 255, 255),
+        )
+        screen.blit(
+            text_surface,
+            (
+                settings.SCREEN_WIDTH // 2 - text_surface.get_width() // 2,
+                settings.SCREEN_HEIGHT - 96,
+            ),
+        )
 
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
@@ -236,4 +277,6 @@ class CastleAssaultScene(BaseScene):
         self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen)
+        if self.assault_completed:
+            self.draw_assault_completed_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

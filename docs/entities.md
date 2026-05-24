@@ -150,6 +150,8 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 
 Если все точки захвата в замке захвачены, `CaptureSystem` публикует `RegionLiberatedEvent`.
 
+После захвата всех точек `CastleAssaultScene` локально завершает штурм через `assault_completed`.
+
 `CaptureSystem` не знает про `GameState`. `RegionLiberationSystem` получает `RegionLiberatedEvent` через `EventBus` и вызывает `GameState.mark_liberated()`.
 
 ---

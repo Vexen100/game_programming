@@ -89,6 +89,7 @@ class TestCastleAssaultScene(unittest.TestCase):
         scene = CastleAssaultScene()
 
         self.assertEqual(scene.get_castle_title(), "Castle Assault")
+        self.assertFalse(scene.assault_completed)
 
     def test_castle_assault_scene_creates_player_and_enemy(self):
         scene = CastleAssaultScene()
@@ -149,6 +150,14 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "player_death_system"))
         self.assertTrue(hasattr(scene, "cleanup_system"))
         self.assertTrue(hasattr(scene, "render_system"))
+
+    def test_restart_castle_resets_assault_completed(self):
+        scene = CastleAssaultScene()
+        scene.assault_completed = True
+
+        scene.restart_castle()
+
+        self.assertFalse(scene.assault_completed)
 
     def test_player_and_enemy_spawn_on_floor(self):
         scene = CastleAssaultScene()
@@ -342,6 +351,56 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         self.assertEqual(capture_point.progress, 0)
 
+    def test_complete_assault_if_ready_sets_assault_completed(self):
+        scene = CastleAssaultScene()
+
+        for capture_point_id in scene.capture_point_ids:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+
+        scene.complete_assault_if_ready()
+
+        self.assertTrue(scene.assault_completed)
+
+    def test_complete_assault_if_ready_does_not_complete_with_one_capture_point(self):
+        scene = CastleAssaultScene()
+        capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        capture_point.captured = True
+
+        scene.complete_assault_if_ready()
+
+        self.assertFalse(scene.assault_completed)
+
+    def test_update_skips_gameplay_when_assault_completed(self):
+        scene = CastleAssaultScene()
+        scene.assault_completed = True
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        old_x = enemy_position.x
+        old_y = enemy_position.y
+
+        scene.update(1, FakeInputManager())
+
+        self.assertEqual(enemy_position.x, old_x)
+        self.assertEqual(enemy_position.y, old_y)
+
+    def test_world_map_request_works_when_assault_completed(self):
+        scene = CastleAssaultScene()
+        scene.assault_completed = True
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakeWorldMapInputManager())
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_pause_request_works_when_assault_completed(self):
+        scene = CastleAssaultScene()
+        scene.assault_completed = True
+        scene.manager = FakeSceneManager()
+
+        scene.update(0.1, FakePauseInputManager())
+
+        self.assertEqual(scene.manager.pause_requested_scene_id, settings.PAUSE_SCENE)
+
     def test_captured_non_final_capture_point_spawns_reinforcements(self):
         scene = CastleAssaultScene()
         capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
@@ -376,6 +435,7 @@ class TestCastleAssaultScene(unittest.TestCase):
         scene.update(0, FakeInputManager())
 
         self.assertEqual(len(scene.enemy_ids), 3)
+        self.assertTrue(scene.assault_completed)
 
     def test_restart_resets_castle_wave_state(self):
         scene = CastleAssaultScene()
@@ -417,6 +477,23 @@ class TestCastleAssaultScene(unittest.TestCase):
             any(isinstance(event, RegionLiberatedEvent) for event in event_bus.events)
         )
 
+    def test_final_capture_update_completes_assault_and_publishes_liberation_event(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = FakeEventBus()
+        scene = CastleAssaultScene(game_state, event_bus)
+
+        for capture_point_id in scene.capture_point_ids:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+
+        scene.update(0, FakeInputManager())
+
+        self.assertTrue(scene.assault_completed)
+        self.assertTrue(
+            any(isinstance(event, RegionLiberatedEvent) for event in event_bus.events)
+        )
+
     def test_region_liberation_event_updates_game_state(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         game_state.set_current_region("old_ruins")
@@ -433,6 +510,43 @@ class TestCastleAssaultScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(region.liberated)
+
+    def test_final_capture_update_completes_assault_and_updates_game_state(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        region_liberation_system = RegionLiberationSystem(game_state)
+        region_liberation_system.subscribe(event_bus)
+        scene = CastleAssaultScene(game_state, event_bus)
+
+        for capture_point_id in scene.capture_point_ids:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+
+        scene.update(0, FakeInputManager())
+        region = game_state.get_region("old_ruins")
+
+        self.assertTrue(scene.assault_completed)
+        self.assertTrue(region.liberated)
+
+    def test_update_after_victory_does_not_spawn_new_wave(self):
+        scene = CastleAssaultScene()
+        first_capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        first_capture_point.captured = True
+        first_capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+
+        second_capture_point = scene.ecm.get_component(scene.capture_point_ids[1], CapturePoint)
+        second_capture_point.captured = True
+        second_capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+        enemy_count_after_victory = len(scene.enemy_ids)
+        scene.update(0, FakeInputManager())
+
+        self.assertTrue(scene.assault_completed)
+        self.assertEqual(len(scene.enemy_ids), enemy_count_after_victory)
 
     def test_restart_after_defeat_resets_castle(self):
         scene = CastleAssaultScene()
@@ -456,6 +570,13 @@ class TestCastleAssaultScene(unittest.TestCase):
 
     def test_draw_does_not_crash(self):
         scene = CastleAssaultScene()
+        surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
+
+        scene.draw(surface)
+
+    def test_draw_does_not_crash_when_assault_completed(self):
+        scene = CastleAssaultScene()
+        scene.assault_completed = True
         surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
 
         scene.draw(surface)
