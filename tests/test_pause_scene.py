@@ -25,6 +25,17 @@ class FakeInputManager:
         return action == self.pressed_action
 
 
+class FakeMouseInputManager:
+    def __init__(self, mouse_position):
+        self.mouse_position = mouse_position
+
+    def was_pressed(self, action):
+        return False
+
+    def was_mouse_pressed(self, button=1):
+        return button == 1
+
+
 class TestPauseScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -57,6 +68,33 @@ class TestPauseScene(unittest.TestCase):
         scene.update(0.1, FakeInputManager(settings.SELECT))
 
         self.assertTrue(scene.manager.resumed)
+
+    def test_click_resume_calls_resume_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+        mouse_position = scene.get_item_rect(0).center
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position))
+
+        self.assertTrue(scene.manager.resumed)
+
+    def test_click_outside_items_does_not_resume_scene(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+        scene.selected_index = 0
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position=(5, 5)))
+
+        self.assertFalse(scene.manager.resumed)
+
+    def test_click_outside_items_does_not_request_scene_change(self):
+        scene = PauseScene()
+        scene.manager = FakeSceneManager()
+        scene.selected_index = 1
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position=(5, 5)))
+
+        self.assertIsNone(scene.manager.requested_scene_id)
 
     def test_pause_key_calls_resume_scene(self):
         scene = PauseScene()

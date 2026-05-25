@@ -35,8 +35,56 @@ class PauseScene(BaseScene):
             self.resume()
             return
 
+        self.update_mouse_selection(input_manager)
+
         if input_manager.was_pressed(settings.SELECT):
             self.select_current_item()
+            return
+
+        clicked_index = self.get_clicked_item_index(input_manager)
+
+        if clicked_index is not None:
+            self.selected_index = clicked_index
+            self.select_current_item()
+
+    def update_mouse_selection(self, input_manager):
+        mouse_position = getattr(input_manager, "mouse_position", None)
+        if mouse_position is None:
+            return
+
+        for index in range(len(self.items)):
+            if self.get_item_rect(index).collidepoint(mouse_position):
+                self.selected_index = index
+                return
+
+    def get_clicked_item_index(self, input_manager):
+        if not hasattr(input_manager, "was_mouse_pressed"):
+            return None
+
+        if not input_manager.was_mouse_pressed(1):
+            return None
+
+        mouse_position = getattr(input_manager, "mouse_position", None)
+
+        if mouse_position is None:
+            return None
+
+        for index in range(len(self.items)):
+            if self.get_item_rect(index).collidepoint(mouse_position):
+                return index
+
+        return None
+
+    def get_item_rect(self, index, screen_width=settings.SCREEN_WIDTH):
+        return pygame.Rect(
+            0,
+            0,
+            360,
+            42,
+        ).move(
+            screen_width // 2 - 180,
+            260 + index * 48 - 21,
+        )
 
     def select_current_item(self):
         label, action = self.items[self.selected_index]
@@ -73,3 +121,7 @@ class PauseScene(BaseScene):
             item_surface = self.font.render(prefix + label, True, color)
             item_rect = item_surface.get_rect(center=(screen.get_width() // 2, start_y + index * 48))
             screen.blit(item_surface, item_rect)
+
+        hint_surface = self.font.render("Enter / click: select", True, self.TEXT_COLOR)
+        hint_rect = hint_surface.get_rect(center=(screen.get_width() // 2, settings.SCREEN_HEIGHT - 72))
+        screen.blit(hint_surface, hint_rect)

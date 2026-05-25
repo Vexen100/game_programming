@@ -23,6 +23,7 @@ RESTART = "restart"
 SELECT = "select"
 START_ASSAULT = "start_assault"
 OPEN_WORLD_MAP = "open_world_map"
+TOGGLE_FULLSCREEN = "toggle_fullscreen"
 
 # Размер тайлов для карты
 TILE_SIZE = 32

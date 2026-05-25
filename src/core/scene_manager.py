@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+import settings
 from src.scenes.base_scene import BaseScene
 
 
@@ -15,6 +16,7 @@ class SceneManager:
         self.next_scene_id: str | None = None
         self.paused_scene: BaseScene | None = None
         self.pause_scene_id: str | None = None
+        self.world_map_return_scene: BaseScene | None = None
 
     def register_scenes(self, scene_registry):
         self.scene_registry = scene_registry
@@ -26,6 +28,10 @@ class SceneManager:
         """
         if new_scene_id not in self.scene_registry:
             raise ValueError(f"Сцена с id '{new_scene_id}' не зарегистрирована")
+
+        if new_scene_id != settings.WORLD_MAP_SCENE:
+            self.world_map_return_scene = None
+
         self.next_scene_id = new_scene_id
 
     def request_pause(self, pause_scene_id):
@@ -50,6 +56,25 @@ class SceneManager:
         self.current_scene.manager = self
         self.paused_scene = None
         self.pause_scene_id = None
+        self.next_scene_id = None
+
+    def open_world_map(self, return_scene=None):
+        if settings.WORLD_MAP_SCENE not in self.scene_registry:
+            raise ValueError(f"Сцена с id '{settings.WORLD_MAP_SCENE}' не зарегистрирована")
+
+        self.world_map_return_scene = return_scene
+        self.next_scene_id = settings.WORLD_MAP_SCENE
+
+    def has_world_map_return_scene(self):
+        return self.world_map_return_scene is not None
+
+    def return_from_world_map(self):
+        if self.world_map_return_scene is None:
+            return
+
+        self.current_scene = self.world_map_return_scene
+        self.current_scene.manager = self
+        self.world_map_return_scene = None
         self.next_scene_id = None
 
     def process_scene_change(self):

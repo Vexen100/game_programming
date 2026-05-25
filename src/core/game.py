@@ -22,6 +22,7 @@ class Game:
         pygame.display.set_caption(settings.WINDOW_TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
+        self.fullscreen = False
         self.dt = 0
         self.input_manager = InputManager()
         self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -70,7 +71,18 @@ class Game:
                 self.running = False
             self.input_manager.update_events(event)
 
+        if self.input_manager.was_pressed(settings.TOGGLE_FULLSCREEN):
+            self.toggle_fullscreen()
+
         self.scene_manager.handle_events(events)
+
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        flags = pygame.FULLSCREEN if self.fullscreen else 0
+        self.screen = pygame.display.set_mode(
+            (settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT),
+            flags,
+        )
 
     def update(self):
         """

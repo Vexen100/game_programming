@@ -9,9 +9,19 @@ from src.scenes.world_map_scene import WorldMapScene
 class FakeSceneManager:
     def __init__(self):
         self.requested_scene_id = None
+        self.world_map_return_scene = None
+        self.returned_from_world_map = False
 
     def request_change(self, scene_id):
         self.requested_scene_id = scene_id
+        self.world_map_return_scene = None
+
+    def has_world_map_return_scene(self):
+        return self.world_map_return_scene is not None
+
+    def return_from_world_map(self):
+        self.returned_from_world_map = True
+        self.world_map_return_scene = None
 
 
 class FakeInputManager:
@@ -25,6 +35,18 @@ class FakeInputManager:
 class FakeStartAssaultInputManager:
     def was_pressed(self, action):
         return action == settings.START_ASSAULT
+
+
+class FakeMouseInputManager:
+    def __init__(self, mouse_position, mouse_pressed=True):
+        self.mouse_position = mouse_position
+        self.mouse_pressed = mouse_pressed
+
+    def was_pressed(self, action):
+        return False
+
+    def was_mouse_pressed(self, button=1):
+        return button == 1 and self.mouse_pressed
 
 
 class TestWorldMapScene(unittest.TestCase):
@@ -66,6 +88,23 @@ class TestWorldMapScene(unittest.TestCase):
         self.assertEqual(scene.game_state.current_region_id, "old_ruins")
         self.assertEqual(scene.manager.requested_scene_id, settings.REGION_SCENE)
 
+    def test_click_unselected_region_selects_it(self):
+        scene = self.create_scene()
+        mouse_position = scene.region_positions["old_ruins"]
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position))
+
+        self.assertEqual(scene.get_selected_region().id, "old_ruins")
+        self.assertIsNone(scene.manager.requested_scene_id)
+
+    def test_click_selected_unlocked_region_enters_region(self):
+        scene = self.create_scene()
+        mouse_position = scene.region_positions[scene.get_selected_region().id]
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position))
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.REGION_SCENE)
+
     def test_select_locked_region_does_not_change_scene(self):
         scene = self.create_scene()
         scene.selected_index = scene.region_ids.index("mountain_mines")
@@ -94,6 +133,26 @@ class TestWorldMapScene(unittest.TestCase):
         scene.update(0.1, FakeStartAssaultInputManager())
 
         self.assertEqual(scene.game_state.current_region_id, "old_ruins")
+
+    def test_start_assault_clears_world_map_return_scene(self):
+        scene = self.create_scene()
+        scene.manager.world_map_return_scene = object()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+        region = scene.game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+
+        scene.update(0.1, FakeStartAssaultInputManager())
+
+        self.assertIsNone(scene.manager.world_map_return_scene)
+
+    def test_enter_region_clears_world_map_return_scene(self):
+        scene = self.create_scene()
+        scene.manager.world_map_return_scene = object()
+        scene.selected_index = scene.region_ids.index("old_ruins")
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertIsNone(scene.manager.world_map_return_scene)
 
     def test_start_assault_locked_by_influence_does_not_change_scene(self):
         scene = self.create_scene()
@@ -158,6 +217,22 @@ class TestWorldMapScene(unittest.TestCase):
         surface = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
 
         scene.draw_hint(surface)
+
+    def test_back_from_world_map_returns_to_gameplay_with_escape(self):
+        scene = self.create_scene()
+        scene.manager.world_map_return_scene = object()
+
+        scene.update(0.1, FakeInputManager(settings.PAUSE))
+
+        self.assertTrue(scene.manager.returned_from_world_map)
+
+    def test_back_from_world_map_returns_to_gameplay_with_map_key(self):
+        scene = self.create_scene()
+        scene.manager.world_map_return_scene = object()
+
+        scene.update(0.1, FakeInputManager(settings.OPEN_WORLD_MAP))
+
+        self.assertTrue(scene.manager.returned_from_world_map)
 
     def test_liberated_region_is_drawn_as_player_controlled(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

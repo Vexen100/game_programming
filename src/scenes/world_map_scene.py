@@ -38,25 +38,93 @@ class WorldMapScene(BaseScene):
         return self.game_state.get_region(self.region_ids[self.selected_index])
 
     def update(self, dt, input_manager):
+        if self.should_return_to_gameplay(input_manager):
+            self.manager.return_from_world_map()
+            return
+
         if input_manager.was_pressed(settings.MOVE_LEFT) or input_manager.was_pressed(settings.MOVE_UP):
             self.selected_index = (self.selected_index - 1) % len(self.region_ids)
 
         if input_manager.was_pressed(settings.MOVE_RIGHT) or input_manager.was_pressed(settings.MOVE_DOWN):
             self.selected_index = (self.selected_index + 1) % len(self.region_ids)
 
-        if input_manager.was_pressed(settings.SELECT):
-            selected_region = self.get_selected_region()
+        self.update_mouse_selection(input_manager)
 
-            if selected_region.unlocked:
-                self.game_state.set_current_region(selected_region.id)
-                self.manager.request_change(settings.REGION_SCENE)
+        if input_manager.was_pressed(settings.SELECT):
+            self.enter_selected_region()
 
         if input_manager.was_pressed(settings.START_ASSAULT):
-            selected_region = self.get_selected_region()
+            self.start_selected_assault()
 
-            if selected_region.unlocked and selected_region.assault_unlocked:
-                self.game_state.set_current_region(selected_region.id)
-                self.manager.request_change(settings.CASTLE_ASSAULT_SCENE)
+    def should_return_to_gameplay(self, input_manager):
+        if self.manager is None:
+            return False
+
+        if not hasattr(self.manager, "has_world_map_return_scene"):
+            return False
+
+        if not self.manager.has_world_map_return_scene():
+            return False
+
+        return (
+            input_manager.was_pressed(settings.PAUSE)
+            or input_manager.was_pressed(settings.OPEN_WORLD_MAP)
+        )
+
+    def update_mouse_selection(self, input_manager):
+        if not hasattr(input_manager, "was_mouse_pressed"):
+            return
+
+        if not input_manager.was_mouse_pressed(1):
+            return
+
+        mouse_position = getattr(input_manager, "mouse_position", None)
+        clicked_index = self.get_region_index_at_position(mouse_position)
+
+        if clicked_index is None:
+            return
+
+        if clicked_index == self.selected_index:
+            self.enter_selected_region()
+            return
+
+        self.selected_index = clicked_index
+
+    def get_region_index_at_position(self, mouse_position):
+        if mouse_position is None:
+            return None
+
+        mouse_x, mouse_y = mouse_position
+
+        for index, region_id in enumerate(self.region_ids):
+            x, y = self.region_positions[region_id]
+            dx = mouse_x - x
+            dy = mouse_y - y
+
+            if (dx ** 2 + dy ** 2) ** 0.5 <= 34:
+                return index
+
+        return None
+
+    def enter_selected_region(self):
+        selected_region = self.get_selected_region()
+
+        if self.manager is None:
+            return
+
+        if selected_region.unlocked:
+            self.game_state.set_current_region(selected_region.id)
+            self.manager.request_change(settings.REGION_SCENE)
+
+    def start_selected_assault(self):
+        selected_region = self.get_selected_region()
+
+        if self.manager is None:
+            return
+
+        if selected_region.unlocked and selected_region.assault_unlocked:
+            self.game_state.set_current_region(selected_region.id)
+            self.manager.request_change(settings.CASTLE_ASSAULT_SCENE)
 
     def draw(self, screen):
         screen.fill(self.BACKGROUND_COLOR)
@@ -85,12 +153,16 @@ class WorldMapScene(BaseScene):
 
     def draw_hint(self, screen):
         selected_region = self.get_selected_region()
-        hint_text = "Enter: enter region"
+        hint_text = "Enter / click: enter region"
 
         if not selected_region.unlocked:
             hint_text = "Locked"
         elif selected_region.assault_unlocked:
-            hint_text = "Enter: enter region | C: start assault"
+            hint_text = "Enter / click: enter region | C: start assault"
+
+        if self.manager is not None and hasattr(self.manager, "has_world_map_return_scene"):
+            if self.manager.has_world_map_return_scene():
+                hint_text = f"{hint_text} | Esc/M: Back"
 
         hint_surface = self.font.render(hint_text, True, self.TEXT_COLOR)
         screen.blit(hint_surface, (40, settings.SCREEN_HEIGHT - 64))

@@ -20,6 +20,10 @@ class FakeWorldScene(BaseScene):
     pass
 
 
+class FakeWorldMapScene(BaseScene):
+    pass
+
+
 class TestSceneManager(unittest.TestCase):
     def test_scene_manager_creates_scene_from_factory(self):
         manager = SceneManager()
@@ -138,6 +142,45 @@ class TestSceneManager(unittest.TestCase):
         manager.request_pause("pause")
 
         self.assertIs(manager.paused_scene, paused_scene)
+
+    def test_open_world_map_saves_return_scene(self):
+        manager = SceneManager()
+        manager.register_scenes({
+            "world_map": lambda: FakeWorldMapScene(),
+        })
+        gameplay_scene = FakeGameplayScene()
+
+        manager.open_world_map(return_scene=gameplay_scene)
+
+        self.assertIs(manager.world_map_return_scene, gameplay_scene)
+        self.assertEqual(manager.next_scene_id, "world_map")
+
+    def test_return_from_world_map_restores_return_scene(self):
+        manager = SceneManager()
+        manager.register_scenes({
+            "world_map": lambda: FakeWorldMapScene(),
+        })
+        gameplay_scene = FakeGameplayScene()
+        manager.open_world_map(return_scene=gameplay_scene)
+        manager.process_scene_change()
+
+        manager.return_from_world_map()
+
+        self.assertIs(manager.current_scene, gameplay_scene)
+        self.assertIs(manager.current_scene.manager, manager)
+        self.assertIsNone(manager.world_map_return_scene)
+
+    def test_request_change_clears_world_map_return_scene(self):
+        manager = SceneManager()
+        manager.register_scenes({
+            "gameplay": lambda: FakeGameplayScene(),
+            "world_map": lambda: FakeWorldMapScene(),
+        })
+        manager.world_map_return_scene = FakeGameplayScene()
+
+        manager.request_change("gameplay")
+
+        self.assertIsNone(manager.world_map_return_scene)
 
 
 if __name__ == "__main__":

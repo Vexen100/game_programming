@@ -10,11 +10,13 @@ class TileMap:
         self.height = len(matrix)
         self.width = len(matrix[0])
 
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, camera=None):
         """Рисует тайлы карты (по сути рисует саму карту)"""
         for row in range(self.height):
             for tile in range(self.width):
                 x, y = self.coord_tile_to_pixels(tile, row)
+                if camera is not None:
+                    x, y = camera.apply(x, y)
                 rect = (x, y, self.tile_size, self.tile_size)
                 if self.matrix[row][tile] == FLOOR:
                     pygame.draw.rect(screen, settings.FLOOR_COLOR, rect)

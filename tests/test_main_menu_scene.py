@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import pygame
 import settings
@@ -19,6 +20,17 @@ class FakeInputManager:
 
     def was_pressed(self, action):
         return action == self.pressed_action
+
+
+class FakeMouseInputManager:
+    def __init__(self, mouse_position):
+        self.mouse_position = mouse_position
+
+    def was_pressed(self, action):
+        return False
+
+    def was_mouse_pressed(self, button=1):
+        return button == 1
 
 
 class TestMainMenuScene(unittest.TestCase):
@@ -53,6 +65,33 @@ class TestMainMenuScene(unittest.TestCase):
         scene.update(0.1, FakeInputManager(settings.SELECT))
 
         self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_click_start_game_requests_world_map_scene(self):
+        scene = MainMenuScene()
+        scene.manager = FakeSceneManager()
+        mouse_position = scene.get_item_rect(0).center
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position))
+
+        self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_click_outside_items_does_not_request_start_game(self):
+        scene = MainMenuScene()
+        scene.manager = FakeSceneManager()
+        scene.selected_index = 0
+
+        scene.update(0.1, FakeMouseInputManager(mouse_position=(5, 5)))
+
+        self.assertIsNone(scene.manager.requested_scene_id)
+
+    def test_click_outside_items_does_not_exit(self):
+        scene = MainMenuScene()
+        scene.selected_index = 3
+
+        with patch("pygame.event.post") as mock_post:
+            scene.update(0.1, FakeMouseInputManager(mouse_position=(5, 5)))
+
+        mock_post.assert_not_called()
 
     def test_select_continue_does_not_request_scene(self):
         scene = MainMenuScene()
