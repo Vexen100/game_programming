@@ -51,7 +51,7 @@
 
 Это не A* и не поиск пути для движения врагов.
 
-В обычной `RegionScene` враги пока используют простое прямое преследование. В `CastleAssaultScene` враги уже используют A* через `EnemyChaseSystem`.
+В `RegionScene` и `CastleAssaultScene` враги используют A* через `EnemyChaseSystem`, если система получает `tile_map`.
 
 Сложность: простая.
 
@@ -77,6 +77,46 @@
 Пример применения:
 - игрок не может атаковать каждый кадр;
 - враг атакует с задержкой.
+
+Сложность: простая.
+
+---
+
+## AABB hitbox ближней атаки
+
+Используется для читаемой атаки игрока.
+
+Пример применения:
+- игрок смотрит вправо и hitbox строится справа от игрока;
+- враги внутри прямоугольника получают урон;
+- враги вне прямоугольника не получают урон;
+- active hitbox кратко рисуется через `RenderSystem`.
+
+Hitbox строится по `FacingDirection` и проверяется через AABB intersection.
+
+При попадании применяется небольшой knockback.
+
+Если в `MeleeAttackSystem` передан `tile_map`, knockback не двигает врага в стену.
+
+Это не sprite animation, не combo-system и не equipment system.
+
+Сложность: простая.
+
+---
+
+## Camera offset + clamp
+
+Используется в `RegionScene`, где карта больше viewport.
+
+Пример применения:
+- camera следует за игроком;
+- camera не выходит за края карты;
+- `TileMap.draw()` и `RenderSystem.draw()` получают optional camera;
+- HUD остаётся в screen coordinates.
+
+Если карта меньше viewport, camera остаётся в `(0, 0)`.
+
+Это не smoothing, не zoom и не minimap.
 
 Сложность: простая.
 
@@ -164,13 +204,13 @@
 
 Алгоритм работает по tile coordinates, использует 4 направления и Manhattan distance.
 
-Сейчас A* применяется в `CastleAssaultScene` для преследования игрока врагами через `EnemyChaseSystem`.
+Сейчас A* применяется в `RegionScene` и `CastleAssaultScene` для преследования игрока врагами через `EnemyChaseSystem`.
 
-`EnemyChaseSystem` не пересчитывает путь каждый кадр: для замка используется простой path cache и rebuild interval.
+`EnemyChaseSystem` не пересчитывает путь каждый кадр: используется простой path cache и rebuild interval.
 
-Перед A* в замке проверяется line of sight по тайлам.
+Перед A* проверяется line of sight по тайлам.
 
-В обычной `RegionScene` враги пока используют простое движение по направлению к игроку.
+Fallback `EnemyChaseSystem.update(ecm)` без `tile_map` всё ещё сохраняет простое прямое преследование для тестов и совместимости.
 
 A* не отвечает за поведение, приоритеты или состояния врага.
 
@@ -196,7 +236,7 @@ Behavior Tree ещё не реализован.
 
 Алгоритм не зависит от PyGame, ECS, компонентов и сцен.
 
-В `CastleAssaultScene` враги используют LOS через `EnemyChaseSystem` перед построением A* пути.
+В `RegionScene` и `CastleAssaultScene` враги используют LOS через `EnemyChaseSystem` перед построением A* пути.
 
 Если враг видит игрока, он обновляет last seen tile.
 
@@ -206,9 +246,29 @@ Last seen / hysteresis реализованы как простая память
 
 Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
 
-В обычной `RegionScene` враги пока используют простое прямое преследование.
-
 LOS не является Behavior Tree, patrol-системой, FOV-системой или lighting.
+
+Сложность: средняя.
+
+---
+
+## Patrol route + LOS + last seen
+
+Используется как простой порядок поведения врага в tile-map режиме.
+
+Порядок:
+1. Если игрок в detection radius и виден по LOS — chase target равен player tile.
+2. Если игрок не виден, но есть active last seen memory — target равен last seen tile.
+3. Если памяти нет и у врага есть `PatrolRoute` — враг идёт по patrol tiles.
+4. Если ничего из этого нет — враг останавливается.
+
+`PatrolRoute` хранит только данные маршрута.
+
+Логика выбора цели остаётся в `EnemyChaseSystem`.
+
+Маршрут из менее чем двух tile не считается валидным для движения: враг останавливается, а path cache для него очищается.
+
+Это не Behavior Tree, не FSM-компонент и не guard AI.
 
 Сложность: средняя.
 
@@ -296,8 +356,9 @@ LOS не является Behavior Tree, patrol-системой, FOV-систе
 
 На раннем этапе не нужно реализовывать:
 
-- дальнейшее развитие A*: подключение за пределами `CastleAssaultScene`, более сложная оптимизация pathfinding при необходимости;
-- расширение LOS / last seen за пределы `CastleAssaultScene`;
+- более сложную оптимизацию pathfinding при необходимости;
+- Behavior Tree;
+- SpatialIndex / Spatial Grid / Spatial Hashing;
 - полноценную симуляцию фронта;
 - сложную процедурную генерацию;
 - умный выбор атак врага;

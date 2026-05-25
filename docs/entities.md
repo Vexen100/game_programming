@@ -15,7 +15,7 @@
 Текущий набор компонентов:
 
 ```text
-Player = entity_id + Position + Velocity + Collider + Renderable + Health + PlayerControlled + AttackIntent + MeleeAttack
+Player = entity_id + Position + Velocity + Collider + Renderable + Health + PlayerControlled + AttackIntent + FacingDirection + AttackHitbox + MeleeAttack
 ```
 
 На текущем этапе игрок:
@@ -24,7 +24,10 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - двигается через `MovementSystem`;
 - сталкивается со стенами через `CollisionSystem`;
 - отправляет намерение атаки через `PlayerAttackInputSystem`;
-- наносит урон врагу через `MeleeAttackSystem`;
+- хранит последнее направление движения в `FacingDirection`;
+- наносит урон врагу через направленный `AttackHitbox` в `MeleeAttackSystem`;
+- кратко показывает active attack hitbox после атаки;
+- видит feedback cooldown атаки в `HUD`;
 - может получать урон от врага;
 - помечается `PlayerDefeated`, если `Health.current <= 0`;
 - рисуется через `RenderSystem`;
@@ -37,6 +40,8 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 
 Игрок не является отдельным классом `Player`.
 
+`AttackHitbox.width/height` у игрока — runtime-rect активного удара для отрисовки. Базовый размер атаки берётся из `PlayerSettings`.
+
 ---
 
 ## Enemy
@@ -46,13 +51,14 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 Текущий набор компонентов:
 
 ```text
-Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior + MeleeAttack
+Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior + MeleeAttack (+ PatrolRoute)
 ```
 
 На текущем этапе враг:
 
 - создаётся в `RegionScene`;
 - может существовать в нескольких экземплярах в одной сцене;
+- может иметь `PatrolRoute`;
 - в замке может появляться как подкрепление после захвата точки;
 - замечает игрока в радиусе обнаружения;
 - двигается к игроку через `EnemyChaseSystem`, `MovementSystem` и `CollisionSystem`;
@@ -60,15 +66,20 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - помечается `Dead`, если `Health.current <= 0`;
 - удаляется через `CleanupSystem`, если помечен `Dead`;
 - рисуется через `RenderSystem`;
+- отображает HP bar через `RenderSystem.draw_enemy_health_bars()`, пока не помечен `Dead`;
 - учитывается в `DebugOverlay` как живая сущность.
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
-В обычной `RegionScene` враг пока использует простое прямое преследование по направлению к игроку.
+`PatrolRoute` хранит только список patrol tiles, текущий индекс и optional wait timer.
 
-В `CastleAssaultScene` враг использует LOS по тайлам, last seen memory и A* pathfinding.
+Логика patrol находится в `EnemyChaseSystem`, а не в компоненте.
 
-В замке враг начинает A* преследование только если игрок находится в радиусе обнаружения и есть line of sight.
+Маршрут с менее чем двумя tile не считается полноценным patrol-маршрутом: враг останавливается, а path cache для него очищается.
+
+В `RegionScene` и `CastleAssaultScene` враг использует LOS по тайлам, last seen memory, A* pathfinding и patrol fallback.
+
+Враг начинает A* преследование только если игрок находится в радиусе обнаружения и есть line of sight.
 
 Если игрок пропал за стеной после обнаружения, враг короткое время идёт к last seen tile.
 
@@ -76,11 +87,17 @@ Last seen memory хранится внутри `EnemyChaseSystem`.
 
 Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
 
+Если игрок не виден и active last seen memory нет, враг с `PatrolRoute` идёт по маршруту.
+
 Системы работают с врагами через ECS-запросы, а не через один общий `enemy_id`.
 
 Подкрепление в замке — это всё ещё обычные Enemy ECS-сущности.
 
 Враг может получать урон от игрока. Если здоровье врага падает до `0`, он помечается `Dead` и удаляется через `CleanupSystem`.
+
+При попадании игрока враг может получить небольшой knockback. Если в `MeleeAttackSystem` передан `tile_map`, knockback не двигает врага в стену.
+
+Если центры игрока и врага совпали, knockback использует `FacingDirection` атаки, а не фиксированное направление вправо.
 
 При первом переходе врага в `Dead` публикуется `EnemyKilledEvent`. Это событие может менять влияние региона через `InfluenceSystem`.
 
@@ -103,7 +120,8 @@ Outpost = entity_id + Position + Renderable + Outpost
 - создаётся в `RegionScene`;
 - не блокирует движение, потому что у него нет `Collider`;
 - не имеет здоровья;
-- считается зачищенным, если игрок находится рядом и рядом нет живых врагов;
+- очищается по `E`, если игрок находится рядом и рядом нет живых врагов;
+- не очищается автоматически только из-за близости игрока;
 - меняет цвет после зачистки;
 - публикует `OutpostClearedEvent` при первой зачистке.
 
@@ -183,7 +201,8 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 - перевод пикселей в координаты тайлов;
 - проверку блокировки точки;
 - проверку блокировки прямоугольника;
-- отрисовку тайлов.
+- отрисовку тайлов;
+- отрисовку с optional camera offset.
 
 ---
 

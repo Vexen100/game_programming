@@ -30,6 +30,7 @@
 - `settings.py`
 - `src/core/game.py`
 - `src/core/event_bus.py`
+- `src/core/camera.py`
 - `src/core/game_state.py`
 - `src/core/input_manager.py`
 - `src/core/scene_manager.py`
@@ -68,6 +69,20 @@
 
 Стартовая сцена — `MainMenuScene`.
 
+По `F11` переключает windowed/fullscreen через `pygame.display.set_mode(...)`.
+
+Это минимальный fullscreen toggle без `SettingsScene`, `SettingsManager` и сохранения настройки.
+
+### `src/core/camera.py`
+
+Содержит минимальную `Camera`.
+
+Камера следует за целью, clamp-ится по границам карты и умеет смещать world coordinates в screen coordinates через `apply(x, y)`.
+
+Если карта меньше viewport, camera остаётся в `(0, 0)`.
+
+HUD и меню не смещаются камерой.
+
 `InfluenceSystem` подписывается на игровые события через `EventBus`.
 
 `RegionLiberationSystem` подписывается на `RegionLiberatedEvent` через `EventBus`.
@@ -88,6 +103,12 @@
 
 Обрабатывает клавиатуру и отдаёт действия через строковые action-константы.
 
+Также хранит `mouse_position`, одноразовые `mouse_buttons_pressed` и отдаёт `was_mouse_pressed(button=1)`.
+
+Мышь используется для кликов в `MainMenuScene`, `PauseScene` и `WorldMapScene`.
+
+Mouse aiming в gameplay не добавлялся.
+
 ### `src/core/scene_manager.py`
 
 Регистрирует scene factories и переключает текущую сцену по запросу.
@@ -98,6 +119,14 @@
 
 Это минимальная пауза без полноценного stack-сцен и без overlay-rendering.
 
+Также содержит минимальную поддержку открытия `WorldMapScene` как обзора поверх текущей gameplay-сцены:
+
+- `open_world_map(return_scene=...)`;
+- `has_world_map_return_scene()`;
+- `return_from_world_map()`.
+
+Это не полноценный stack сцен. Хранится только одна return scene для карты мира.
+
 ### `src/scenes/main_menu_scene.py`
 
 Минимальное главное меню.
@@ -105,6 +134,10 @@
 Содержит пункты `Start Game`, `Continue (not available)`, `Settings (not available)` и `Exit`.
 
 На текущем этапе `Start Game` открывает `WorldMapScene`, а `Continue` и `Settings` являются заглушками.
+
+Пункты меню можно выбирать клавиатурой или кликом мыши по конкретному пункту.
+
+Клик мышью вне пунктов меню ничего не активирует.
 
 ### `src/scenes/pause_scene.py`
 
@@ -114,17 +147,29 @@
 
 `Resume` возвращает сохранённую gameplay-сцену через `SceneManager.resume_scene()`.
 
+Пункты паузы можно выбирать клавиатурой или кликом мыши по конкретному пункту.
+
+Клик мышью вне пунктов паузы ничего не активирует.
+
 ### `src/scenes/region_scene.py`
 
-Создаёт тестовую карту, ECS-слой, игрока, врага, аванпост, одного тестового NPC, системы, HUD и debug overlay.
+Создаёт крупную ручную карту, ECS-слой, игрока, несколько врагов, аванпост, одного тестового NPC, системы, HUD, camera follow и debug overlay.
 
 Может получать `GameState` и показывает название текущего региона в HUD.
 
-По `M` может запросить возврат на `WorldMapScene`. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
+По `M` открывает `WorldMapScene` как обзор с return scene. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
 
 По `Esc` может запросить `PauseScene`.
 
+Если у текущего региона `assault_unlocked == True`, по `C` можно запросить переход в `CastleAssaultScene` прямо из региона.
+
+В обычном регионе враги теперь используют tile-map AI через `EnemyChaseSystem.update(ecm, tile_map, dt)`: detection radius, LOS, A*, path cache, last seen memory и patrol route.
+
+`CapturePoint` в обычную `RegionScene` не добавлялся.
+
 NPC завершает простое задание после зачистки аванпоста и взаимодействия по `E`.
+
+Аванпост очищается по `E`, если игрок рядом и рядом нет живых врагов.
 
 ### `src/scenes/world_map_scene.py`
 
@@ -132,9 +177,13 @@ NPC завершает простое задание после зачистки
 
 Позволяет выбрать открытый регион и запросить переход в `RegionScene`.
 
+Регион можно выбрать клавиатурой или кликом мыши.
+
 Показывает influence выбранного региона и текстовый статус `assault_unlocked`.
 
 Если выбранный регион открыт и `assault_unlocked == True`, по `C` можно перейти в `CastleAssaultScene`.
+
+Если карта открыта поверх gameplay-сцены, `Esc` или `M` возвращают к сохранённой gameplay-сцене.
 
 ### `src/scenes/castle_assault_scene.py`
 
@@ -150,6 +199,8 @@ NPC завершает простое задание после зачистки
 
 При создании и локальном restart проверяет достижимость игрока, всех врагов и всех точек захвата через `src/algorithms/flood_fill.py`.
 
+Также проверяет patrol tiles стартовых врагов.
+
 Эта проверка нужна только для validation карты замка и не используется для движения врагов.
 
 `CastleWaveSystem` локально используется внутри `CastleAssaultScene`.
@@ -164,7 +215,9 @@ NPC завершает простое задание после зачистки
 
 `M` продолжает возвращать на `WorldMapScene`, а `Esc` продолжает открывать `PauseScene`.
 
-По `M` может запросить возврат на `WorldMapScene`.
+До завершения штурма `M` открывает карту мира как обзор с return scene.
+
+После `assault_completed` `M` может вести на карту мира как финальный выход.
 
 По `Esc` может запросить `PauseScene`.
 
@@ -182,13 +235,13 @@ NPC завершает простое задание после зачистки
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `CapturePoint`, `Dead`, `ChaseBehavior`, `AttackIntent`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `CapturePoint`, `Dead`, `ChaseBehavior`, `PatrolRoute`, `AttackIntent`, `FacingDirection`, `AttackHitbox`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`/`MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост, NPC с простым заданием и точку захвата.
+Сейчас фабрика создаёт игрока с `AttackIntent`, `FacingDirection`, `AttackHitbox` и `MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост, NPC с простым заданием и точку захвата.
 
 ### `src/entities/entities_settings.py`
 
@@ -242,7 +295,7 @@ NPC завершает простое задание после зачистки
 
 `EnemyChaseSystem` сохраняет прямое преследование без `tile_map`.
 
-В `CastleAssaultScene` враги используют LOS + A* через `EnemyChaseSystem.update(ecm, tile_map, dt)`.
+В `RegionScene` и `CastleAssaultScene` враги используют LOS + A* через `EnemyChaseSystem.update(ecm, tile_map, dt)`.
 
 Перед построением A* враг проверяет, находится ли игрок в радиусе обнаружения и есть ли line of sight по тайлам.
 
@@ -256,7 +309,25 @@ Last seen memory тоже хранится внутри `EnemyChaseSystem`.
 
 Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
 
-В обычной `RegionScene` пока остаётся простое прямое преследование.
+Если игрок не виден и active last seen memory нет, враг с `PatrolRoute` идёт по patrol tiles.
+
+`PatrolRoute` хранит только данные маршрута. Логика patrol находится в `EnemyChaseSystem`.
+
+`PatrolRoute` с менее чем двумя tile не запускает pathfinding и явно останавливает врага.
+
+`MeleeAttackSystem` использует направленный AABB hitbox игрока по `FacingDirection`.
+
+`AttackHitbox` кратко активируется для визуальной обратной связи.
+
+`AttackHitbox.width/height` — runtime-rect активного удара для отрисовки, а не базовый конфиг размера атаки.
+
+При попадании `MeleeAttackSystem` может применить небольшой knockback, не проталкивая врага в стену при переданном `tile_map`.
+
+Если центры игрока и врага совпали, fallback-направление knockback берётся из `FacingDirection`.
+
+`RenderSystem` умеет рисовать сущности с camera offset, enemy HP bars живых врагов и active attack hitboxes.
+
+Сущности с `Dead` пропускаются при отрисовке enemy HP bars.
 
 `RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
 
@@ -305,16 +376,14 @@ Last seen memory не является компонентом и не храни
 - SettingsManager;
 - SaveManager;
 - Continue и реальные сохранения;
-- камера;
 - полноценный QuestSystem;
 - диалоги;
 - BSP-генерация замка;
 - полноценные связи и дороги между регионами;
 - граф регионов;
-- расширение A* за пределы CastleAssaultScene;
-- расширение LOS / last seen за пределы CastleAssaultScene;
 - дальнейшая оптимизация pathfinding при необходимости;
-- патрулирование врагов;
 - Behavior Tree;
 - Spatial Grid;
+- полноценные sprite animations;
+- sound / hit effects;
 - сохранения.
