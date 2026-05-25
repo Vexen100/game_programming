@@ -5,6 +5,7 @@ from src.algorithms.pathfinding import find_path
 from src.components.components import (
     ChaseBehavior,
     Enemy,
+    PatrolRoute,
     PlayerControlled,
     Position,
     Velocity,
@@ -41,6 +42,7 @@ class EnemyChaseSystem:
             enemy_position = ecm.get_component(enemy_id, Position)
             enemy_velocity = ecm.get_component(enemy_id, Velocity)
             chase = ecm.get_component(enemy_id, ChaseBehavior)
+            patrol_route = ecm.get_component(enemy_id, PatrolRoute)
 
             distance = self.get_distance(enemy_position, player_position)
 
@@ -64,6 +66,7 @@ class EnemyChaseSystem:
                 enemy_position,
                 player_position,
                 chase,
+                patrol_route,
                 tile_map,
                 dt,
                 distance,
@@ -76,6 +79,7 @@ class EnemyChaseSystem:
         enemy_position,
         player_position,
         chase,
+        patrol_route,
         tile_map,
         dt,
         distance,
@@ -95,6 +99,20 @@ class EnemyChaseSystem:
             target_tile = self.get_active_last_seen_tile(enemy_id, dt)
 
         if target_tile is None:
+            if patrol_route is not None:
+                self.clear_enemy_ai_memory(enemy_id)
+                self.update_enemy_patrol(
+                    enemy_id,
+                    enemy_velocity,
+                    enemy_position,
+                    enemy_tile,
+                    patrol_route,
+                    chase.speed,
+                    tile_map,
+                    dt,
+                )
+                return
+
             self.clear_enemy_ai_memory(enemy_id)
             self.clear_enemy_path_cache(enemy_id)
             self.stop_enemy(enemy_velocity)
@@ -116,6 +134,73 @@ class EnemyChaseSystem:
             self.stop_enemy(enemy_velocity)
             return
 
+        self.move_to_target_tile(
+            enemy_id,
+            enemy_velocity,
+            enemy_position,
+            enemy_tile,
+            target_tile,
+            chase.speed,
+            tile_map,
+            dt,
+        )
+
+    def update_enemy_patrol(
+        self,
+        enemy_id,
+        enemy_velocity,
+        enemy_position,
+        enemy_tile,
+        patrol_route,
+        speed,
+        tile_map,
+        dt,
+    ):
+        if len(patrol_route.patrol_tiles) < 2:
+            self.clear_enemy_path_cache(enemy_id)
+            self.stop_enemy(enemy_velocity)
+            return
+
+        target_tile = patrol_route.patrol_tiles[patrol_route.current_index]
+
+        if enemy_tile == target_tile:
+            if patrol_route.wait_duration > 0:
+                if patrol_route.wait_timer <= 0:
+                    patrol_route.wait_timer = patrol_route.wait_duration
+
+                patrol_route.wait_timer = max(0, patrol_route.wait_timer - dt)
+
+                if patrol_route.wait_timer > 0:
+                    self.stop_enemy(enemy_velocity)
+                    return
+
+            patrol_route.current_index = (
+                patrol_route.current_index + 1
+            ) % len(patrol_route.patrol_tiles)
+            target_tile = patrol_route.patrol_tiles[patrol_route.current_index]
+
+        self.move_to_target_tile(
+            enemy_id,
+            enemy_velocity,
+            enemy_position,
+            enemy_tile,
+            target_tile,
+            speed,
+            tile_map,
+            dt,
+        )
+
+    def move_to_target_tile(
+        self,
+        enemy_id,
+        enemy_velocity,
+        enemy_position,
+        enemy_tile,
+        target_tile,
+        speed,
+        tile_map,
+        dt,
+    ):
         self.path_rebuild_timers[enemy_id] = self.path_rebuild_timers.get(enemy_id, 0) - dt
         path = self.get_cached_or_rebuilt_path(
             enemy_id,
@@ -151,7 +236,7 @@ class EnemyChaseSystem:
             enemy_position,
             target_x,
             target_y,
-            chase.speed,
+            speed,
         )
 
     def get_active_last_seen_tile(self, enemy_id, dt):

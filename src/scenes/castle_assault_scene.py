@@ -1,7 +1,7 @@
 import pygame
 import settings
 from src.algorithms.flood_fill import are_tiles_reachable
-from src.components.components import CapturePoint, Health, PlayerDefeated, Position
+from src.components.components import CapturePoint, Health, PatrolRoute, PlayerDefeated, Position
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -94,7 +94,12 @@ class CastleAssaultScene(BaseScene):
 
     def request_world_map(self):
         if self.manager is not None:
-            self.manager.request_change(settings.WORLD_MAP_SCENE)
+            if self.assault_completed:
+                self.manager.request_change(settings.WORLD_MAP_SCENE)
+            elif hasattr(self.manager, "open_world_map"):
+                self.manager.open_world_map(return_scene=self)
+            else:
+                self.manager.request_change(settings.WORLD_MAP_SCENE)
 
     def request_pause(self):
         if self.manager is not None:
@@ -127,6 +132,10 @@ class CastleAssaultScene(BaseScene):
 
         for enemy_id in self.enemy_ids:
             target_tiles.append(self.get_entity_tile(enemy_id))
+            patrol_route = self.ecm.get_component(enemy_id, PatrolRoute)
+
+            if patrol_route is not None:
+                target_tiles.extend(patrol_route.patrol_tiles)
 
         for capture_point_id in self.capture_point_ids:
             target_tiles.append(self.get_entity_tile(capture_point_id))
@@ -189,6 +198,7 @@ class CastleAssaultScene(BaseScene):
             ),
         ]
         self.enemy_id = self.enemy_ids[0]
+        self.add_patrol_routes()
 
         for enemy_id in self.enemy_ids:
             self.check_entity_components(enemy_id, "ECS enemy", Position, Health)
@@ -210,6 +220,22 @@ class CastleAssaultScene(BaseScene):
         self.validate_castle_layout()
         self.capture_system.reset()
         self.castle_wave_system.reset()
+
+    def add_patrol_routes(self):
+        patrol_routes = [
+            [(10, 3), (12, 3), (12, 5), (9, 5)],
+            [(7, 6), (7, 9), (5, 9), (5, 6)],
+            [(11, 6), (11, 8), (9, 8), (9, 6)],
+        ]
+
+        for enemy_id, patrol_tiles in zip(self.enemy_ids, patrol_routes):
+            self.ecm.add_component(
+                enemy_id,
+                PatrolRoute(
+                    patrol_tiles=patrol_tiles,
+                    wait_duration=0.2,
+                ),
+            )
 
     def update(self, dt, input_manager):
         self.current_dt = dt
@@ -238,7 +264,7 @@ class CastleAssaultScene(BaseScene):
         self.enemy_chase_system.update(self.ecm, self.tile_map, dt)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
-        self.melee_attack_system.update(self.ecm, dt)
+        self.melee_attack_system.update(self.ecm, dt, self.tile_map)
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
@@ -274,6 +300,8 @@ class CastleAssaultScene(BaseScene):
     def draw(self, screen: pygame.Surface):
         self.tile_map.draw(screen)
         self.render_system.draw(self.ecm, screen)
+        self.render_system.draw_attack_hitboxes(self.ecm, screen)
+        self.render_system.draw_enemy_health_bars(self.ecm, screen)
         self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen)

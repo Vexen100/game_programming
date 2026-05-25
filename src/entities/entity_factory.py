@@ -1,9 +1,11 @@
 from src.components.components import (
     AttackIntent,
+    AttackHitbox,
     CapturePoint,
     ChaseBehavior,
     Collider,
     Enemy,
+    FacingDirection,
     Health,
     MeleeAttack,
     NPC,
@@ -59,12 +61,20 @@ class EntityFactory:
         )
         self.ecm.add_component(player, PlayerControlled())
         self.ecm.add_component(player, AttackIntent())
+        self.ecm.add_component(player, FacingDirection())
+        self.ecm.add_component(
+            player,
+            AttackHitbox(
+                duration=PlayerSettings.ATTACK_HITBOX_DURATION,
+            ),
+        )
         self.ecm.add_component(
             player,
             MeleeAttack(
                 damage=PlayerSettings.DAMAGE,
                 attack_range=PlayerSettings.ATTACK_RANGE,
                 cooldown=PlayerSettings.ATTACK_COOLDOWN,
+                knockback_distance=PlayerSettings.KNOCKBACK_DISTANCE,
             ),
         )
 

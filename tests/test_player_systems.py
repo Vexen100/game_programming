@@ -3,7 +3,11 @@ import unittest
 import pygame
 
 from src.components.components import (
+    AttackHitbox,
     Collider,
+    Enemy,
+    FacingDirection,
+    Health,
     PlayerControlled,
     Position,
     Renderable,
@@ -65,6 +69,34 @@ class TestPlayerSystems(unittest.TestCase):
         velocity = ecm.get_component(entity, Velocity)
         self.assertEqual(velocity.x, PlayerSettings.SPEED)
         self.assertEqual(velocity.y, 0)
+
+    def test_player_input_system_updates_facing_direction(self):
+        ecm, entity = self.create_ecm_with_entity()
+        ecm.add_component(entity, PlayerControlled())
+        ecm.add_component(entity, Velocity())
+        ecm.add_component(entity, FacingDirection())
+
+        system = PlayerInputSystem()
+        system.update(ecm, FakeInputManager(pygame.Vector2(0, -1)))
+
+        facing = ecm.get_component(entity, FacingDirection)
+
+        self.assertEqual(facing.x, 0)
+        self.assertEqual(facing.y, -1)
+
+    def test_player_input_system_keeps_facing_direction_without_input(self):
+        ecm, entity = self.create_ecm_with_entity()
+        ecm.add_component(entity, PlayerControlled())
+        ecm.add_component(entity, Velocity())
+        ecm.add_component(entity, FacingDirection(x=-1, y=0))
+
+        system = PlayerInputSystem()
+        system.update(ecm, FakeInputManager(pygame.Vector2(0, 0)))
+
+        facing = ecm.get_component(entity, FacingDirection)
+
+        self.assertEqual(facing.x, -1)
+        self.assertEqual(facing.y, 0)
 
     def test_movement_system_moves_entity(self):
         ecm, entity = self.create_ecm_with_entity()
@@ -130,6 +162,34 @@ class TestPlayerSystems(unittest.TestCase):
         surface = pygame.Surface((64, 64))
 
         RenderSystem().draw(ecm, surface)
+
+    def test_render_system_draws_attack_hitboxes(self):
+        ecm, entity = self.create_ecm_with_entity()
+        ecm.add_component(
+            entity,
+            AttackHitbox(
+                active=True,
+                x=10,
+                y=10,
+                width=20,
+                height=12,
+                timer=0.1,
+                hit_landed=True,
+            ),
+        )
+        surface = pygame.Surface((64, 64))
+
+        RenderSystem().draw_attack_hitboxes(ecm, surface)
+
+    def test_render_system_draws_enemy_health_bars(self):
+        ecm, entity = self.create_ecm_with_entity()
+        ecm.add_component(entity, Enemy())
+        ecm.add_component(entity, Position(10, 20))
+        ecm.add_component(entity, Renderable(width=16, height=16, color=(200, 50, 50)))
+        ecm.add_component(entity, Health(current=20, maximum=40))
+        surface = pygame.Surface((64, 64))
+
+        RenderSystem().draw_enemy_health_bars(ecm, surface)
 
 
 if __name__ == "__main__":

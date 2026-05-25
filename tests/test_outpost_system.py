@@ -13,6 +13,15 @@ from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entities_settings import OutpostSettings
 from src.events.game_events import OutpostClearedEvent
 from src.systems.outpost_system import OutpostSystem
+import settings
+
+
+class FakeInputManager:
+    def __init__(self, pressed_action=None):
+        self.pressed_action = pressed_action
+
+    def was_pressed(self, action):
+        return action == self.pressed_action
 
 
 class FakeEventBus:
@@ -59,11 +68,24 @@ class TestOutpostSystem(unittest.TestCase):
         self.ecm.add_component(outpost, Outpost(radius=radius))
         return outpost
 
-    def test_player_near_outpost_without_living_enemies_clears_outpost(self):
+    def test_player_near_outpost_without_interact_does_not_clear_outpost(self):
         outpost = self.create_outpost()
         self.create_player()
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(self.ecm, FakeInputManager(), region_id="old_ruins")
+        outpost_component = self.ecm.get_component(outpost, Outpost)
+
+        self.assertFalse(outpost_component.cleared)
+
+    def test_player_near_outpost_with_interact_clears_outpost(self):
+        outpost = self.create_outpost()
+        self.create_player()
+
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
         renderable = self.ecm.get_component(outpost, Renderable)
 
@@ -74,7 +96,11 @@ class TestOutpostSystem(unittest.TestCase):
         outpost = self.create_outpost()
         self.create_player(x=200, y=0)
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
 
         self.assertFalse(outpost_component.cleared)
@@ -84,7 +110,11 @@ class TestOutpostSystem(unittest.TestCase):
         self.create_player()
         self.create_enemy()
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
 
         self.assertFalse(outpost_component.cleared)
@@ -94,7 +124,11 @@ class TestOutpostSystem(unittest.TestCase):
         self.create_player()
         self.create_enemy(dead=True)
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
 
         self.assertTrue(outpost_component.cleared)
@@ -103,7 +137,11 @@ class TestOutpostSystem(unittest.TestCase):
         outpost = self.create_outpost()
         self.create_player(defeated=True)
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
         renderable = self.ecm.get_component(outpost, Renderable)
 
@@ -115,8 +153,16 @@ class TestOutpostSystem(unittest.TestCase):
         outpost = self.create_outpost()
         self.create_player()
 
-        self.system.update(self.ecm, region_id="old_ruins")
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
 
         self.assertEqual(len(self.event_bus.events), 1)
         self.assertIsInstance(self.event_bus.events[0], OutpostClearedEvent)
@@ -126,7 +172,11 @@ class TestOutpostSystem(unittest.TestCase):
     def test_update_without_player_does_not_crash(self):
         outpost = self.create_outpost()
 
-        self.system.update(self.ecm, region_id="old_ruins")
+        self.system.update(
+            self.ecm,
+            FakeInputManager(settings.INTERACT),
+            region_id="old_ruins",
+        )
         outpost_component = self.ecm.get_component(outpost, Outpost)
 
         self.assertFalse(outpost_component.cleared)

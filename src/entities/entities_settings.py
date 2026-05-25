@@ -6,6 +6,10 @@ class PlayerSettings:
     DAMAGE = 10
     ATTACK_RANGE = 48
     ATTACK_COOLDOWN = 0.4
+    ATTACK_HITBOX_WIDTH = 36
+    ATTACK_HITBOX_LENGTH = 48
+    ATTACK_HITBOX_DURATION = 0.12
+    KNOCKBACK_DISTANCE = 28
 
 
 class EnemySettings:

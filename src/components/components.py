@@ -82,8 +82,34 @@ class ChaseBehavior:
 
 
 @dataclass
+class PatrolRoute:
+    patrol_tiles: list[tuple[int, int]]
+    current_index: int = 0
+    wait_duration: float = 0
+    wait_timer: float = 0
+
+
+@dataclass
 class AttackIntent:
     requested: bool = False
+
+
+@dataclass
+class FacingDirection:
+    x: int = 1
+    y: int = 0
+
+
+@dataclass
+class AttackHitbox:
+    active: bool = False
+    x: float = 0
+    y: float = 0
+    width: int = 0
+    height: int = 0
+    timer: float = 0
+    duration: float = 0.12
+    hit_landed: bool = False
 
 
 @dataclass
@@ -92,3 +118,4 @@ class MeleeAttack:
     attack_range: float
     cooldown: float
     cooldown_timer: float = 0
+    knockback_distance: float = 0

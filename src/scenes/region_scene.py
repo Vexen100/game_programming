@@ -1,6 +1,7 @@
 import pygame
 import settings
-from src.components.components import Health, NPC, Outpost, PlayerDefeated, Position
+from src.components.components import Health, NPC, Outpost, PatrolRoute, PlayerDefeated, Position
+from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -60,9 +61,9 @@ class RegionScene(BaseScene):
                 )
 
     def create_test_map(self):
-        """Создаёт простую тестовую карту региона"""
-        width = settings.SCREEN_WIDTH // settings.TILE_SIZE
-        height = settings.SCREEN_HEIGHT // settings.TILE_SIZE + 1
+        """Создаёт крупную ручную карту региона"""
+        width = 60
+        height = 36
         matrix = []
 
         for row in range(height):
@@ -70,10 +71,11 @@ class RegionScene(BaseScene):
             for tile in range(width):
                 is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
                 is_inner_wall = (
-                    (tile == 10 and 4 <= row <= 14)
-                    or (row == 8 and 15 <= tile <= 25)
-                    or (tile == 28 and 3 <= row <= 10)
-                    or (row == 15 and 18 <= tile <= 30)
+                    (tile == 12 and 4 <= row <= 18 and row != 10)
+                    or (row == 14 and 18 <= tile <= 36 and tile != 26)
+                    or (tile == 34 and 6 <= row <= 24 and row != 16)
+                    or (row == 24 and 8 <= tile <= 28 and tile != 18)
+                    or (tile == 46 and 10 <= row <= 30 and row != 22)
                 )
                 if is_border or is_inner_wall:
                     map_row.append(WALL)
@@ -91,7 +93,10 @@ class RegionScene(BaseScene):
 
     def request_world_map(self):
         if self.manager is not None:
-            self.manager.request_change(settings.WORLD_MAP_SCENE)
+            if hasattr(self.manager, "open_world_map"):
+                self.manager.open_world_map(return_scene=self)
+            else:
+                self.manager.request_change(settings.WORLD_MAP_SCENE)
 
     def request_pause(self):
         if self.manager is not None:
@@ -114,19 +119,56 @@ class RegionScene(BaseScene):
 
         return self.game_state.current_region_id
 
+    def is_assault_unlocked(self):
+        if self.game_state is None:
+            return False
+
+        region = self.game_state.get_region(self.game_state.current_region_id)
+
+        if region is None:
+            return False
+
+        return region.unlocked and region.assault_unlocked
+
+    def request_castle_assault(self):
+        if not self.is_assault_unlocked():
+            return False
+
+        if self.manager is not None:
+            self.manager.request_change(settings.CASTLE_ASSAULT_SCENE)
+        return True
+
     def restart_region(self):
         self.tile_map = TileMap(self.create_test_map())
+        self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
 
-        self.ecs_player_id = self.entity_factory.create_player(x=100, y=100)
+        self.ecs_player_id = self.entity_factory.create_player(
+            x=settings.TILE_SIZE * 3,
+            y=settings.TILE_SIZE * 3,
+        )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
-        self.enemy_id = self.entity_factory.create_enemy(
-            x=settings.TILE_SIZE * 6,
-            y=settings.TILE_SIZE * 6,
-        )
-        self.check_entity_components(self.enemy_id, "ECS enemy", Position, Health)
+        self.enemy_ids = [
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 6,
+                y=settings.TILE_SIZE * 6,
+            ),
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 18,
+                y=settings.TILE_SIZE * 10,
+            ),
+            self.entity_factory.create_enemy(
+                x=settings.TILE_SIZE * 38,
+                y=settings.TILE_SIZE * 20,
+            ),
+        ]
+        self.enemy_id = self.enemy_ids[0]
+        self.add_patrol_routes()
+
+        for enemy_id in self.enemy_ids:
+            self.check_entity_components(enemy_id, "ECS enemy", Position, Health)
 
         self.outpost_id = self.entity_factory.create_outpost(
             x=settings.TILE_SIZE * 8,
@@ -141,6 +183,36 @@ class RegionScene(BaseScene):
             required_outpost_id=self.outpost_id,
         )
         self.check_entity_components(self.npc_id, "NPC", Position, NPC)
+        self.update_camera()
+
+    def add_patrol_routes(self):
+        patrol_routes = [
+            [(6, 6), (6, 9), (9, 9), (9, 6)],
+            [(18, 10), (22, 10), (22, 12), (18, 12)],
+            [(38, 20), (42, 20), (42, 22), (38, 22)],
+        ]
+
+        for enemy_id, patrol_tiles in zip(self.enemy_ids, patrol_routes):
+            self.ecm.add_component(
+                enemy_id,
+                PatrolRoute(
+                    patrol_tiles=patrol_tiles,
+                    wait_duration=0.2,
+                ),
+            )
+
+    def update_camera(self):
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+
+        if player_position is None:
+            return
+
+        self.camera.follow(
+            player_position.x + settings.TILE_SIZE / 2,
+            player_position.y + settings.TILE_SIZE / 2,
+            self.tile_map.width * self.tile_map.tile_size,
+            self.tile_map.height * self.tile_map.tile_size,
+        )
 
     def update(self, dt, input_manager):
         self.current_dt = dt
@@ -156,6 +228,12 @@ class RegionScene(BaseScene):
             self.request_world_map()
             return
 
+        if (
+            input_manager.was_pressed(settings.START_ASSAULT)
+            and self.request_castle_assault()
+        ):
+            return
+
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
                 self.restart_region()
@@ -163,16 +241,20 @@ class RegionScene(BaseScene):
 
         self.player_input_system.update(self.ecm, input_manager)
         self.player_attack_input_system.update(self.ecm, input_manager)
-        self.enemy_chase_system.update(self.ecm)
+        self.enemy_chase_system.update(self.ecm, self.tile_map, dt)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
-        self.melee_attack_system.update(self.ecm, dt)
+        self.melee_attack_system.update(self.ecm, dt, self.tile_map)
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
         self.enemy_attack_system.update(self.ecm, dt)
         self.player_death_system.update(self.ecm)
 
         if not self.is_player_defeated():
-            self.outpost_system.update(self.ecm, self.get_current_region_id())
+            self.outpost_system.update(
+                self.ecm,
+                input_manager,
+                self.get_current_region_id(),
+            )
             self.npc_interaction_system.update(
                 self.ecm,
                 input_manager,
@@ -180,11 +262,76 @@ class RegionScene(BaseScene):
             )
 
         self.cleanup_system.update(self.ecm)
+        self.update_camera()
+
+    def get_contextual_prompts(self):
+        prompts = []
+
+        if self.is_assault_unlocked():
+            prompts.append("C: Start castle assault")
+
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+
+        if player_position is None:
+            return prompts
+
+        self.add_outpost_prompt(prompts, player_position)
+        self.add_npc_prompt(prompts, player_position)
+        return prompts
+
+    def add_outpost_prompt(self, prompts, player_position):
+        outpost = self.ecm.get_component(self.outpost_id, Outpost)
+        outpost_position = self.ecm.get_component(self.outpost_id, Position)
+
+        if outpost is None or outpost_position is None or outpost.cleared:
+            return
+
+        if self.get_distance(player_position, outpost_position) > outpost.radius:
+            return
+
+        if self.outpost_system.has_living_enemy_near_outpost(
+            self.ecm,
+            outpost_position,
+            outpost.radius,
+        ):
+            prompts.append("Clear enemies near outpost")
+        else:
+            prompts.append("E: Clear outpost")
+
+    def add_npc_prompt(self, prompts, player_position):
+        npc = self.ecm.get_component(self.npc_id, NPC)
+        npc_position = self.ecm.get_component(self.npc_id, Position)
+
+        if npc is None or npc_position is None or npc.quest_completed:
+            return
+
+        if self.get_distance(player_position, npc_position) > npc.interaction_radius:
+            return
+
+        outpost = self.ecm.get_component(npc.required_outpost_id, Outpost)
+
+        if outpost is not None and outpost.cleared:
+            prompts.append("E: Report quest")
+        else:
+            prompts.append("Clear outpost first")
+
+    def get_distance(self, first_position, second_position):
+        dx = second_position.x - first_position.x
+        dy = second_position.y - first_position.y
+        return (dx ** 2 + dy ** 2) ** 0.5
 
     def draw(self, screen: pygame.Surface):
-        self.tile_map.draw(screen)
-        self.render_system.draw(self.ecm, screen)
-        self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_region_title())
+        self.tile_map.draw(screen, self.camera)
+        self.render_system.draw(self.ecm, screen, self.camera)
+        self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
+        self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)
+        self.hud.draw(
+            screen,
+            self.ecm,
+            self.ecs_player_id,
+            self.get_region_title(),
+            self.get_contextual_prompts(),
+        )
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

@@ -9,6 +9,7 @@ from src.components.components import (
 )
 from src.entities.entities_settings import OutpostSettings
 from src.events.game_events import OutpostClearedEvent
+import settings
 
 
 class OutpostSystem:
@@ -17,7 +18,10 @@ class OutpostSystem:
     def __init__(self, event_bus=None):
         self.event_bus = event_bus
 
-    def update(self, ecm, region_id=None):
+    def update(self, ecm, input_manager=None, region_id=None):
+        if input_manager is None or not input_manager.was_pressed(settings.INTERACT):
+            return
+
         player_entities = ecm.get_entities_with(PlayerControlled, Position)
 
         if not player_entities:

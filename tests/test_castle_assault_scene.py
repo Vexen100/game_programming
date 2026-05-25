@@ -8,6 +8,7 @@ from src.components.components import (
     Enemy,
     Health,
     MeleeAttack,
+    PatrolRoute,
     PlayerControlled,
     PlayerDefeated,
     Position,
@@ -112,6 +113,7 @@ class TestCastleAssaultScene(unittest.TestCase):
             self.assertTrue(scene.ecm.has_component(enemy_id, Health))
             self.assertTrue(scene.ecm.has_component(enemy_id, ChaseBehavior))
             self.assertTrue(scene.ecm.has_component(enemy_id, MeleeAttack))
+            self.assertTrue(scene.ecm.has_component(enemy_id, PatrolRoute))
 
     def test_castle_assault_scene_has_capture_system(self):
         scene = CastleAssaultScene()
@@ -217,6 +219,16 @@ class TestCastleAssaultScene(unittest.TestCase):
             self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
         scene.validate_castle_layout()
+
+    def test_castle_patrol_tiles_are_floor(self):
+        scene = CastleAssaultScene()
+
+        for enemy_id in scene.enemy_ids:
+            patrol_route = scene.ecm.get_component(enemy_id, PatrolRoute)
+            self.assertIsNotNone(patrol_route)
+
+            for tile_x, tile_y in patrol_route.patrol_tiles:
+                self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
     def test_get_entity_tile_returns_player_tile_coordinates(self):
         scene = CastleAssaultScene()

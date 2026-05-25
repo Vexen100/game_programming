@@ -2,10 +2,12 @@ import unittest
 
 from src.components.components import (
     AttackIntent,
+    AttackHitbox,
     CapturePoint,
     ChaseBehavior,
     Collider,
     Enemy,
+    FacingDirection,
     Health,
     MeleeAttack,
     NPC,
@@ -42,12 +44,15 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(player, Health))
         self.assertTrue(self.ecm.has_component(player, PlayerControlled))
         self.assertTrue(self.ecm.has_component(player, AttackIntent))
+        self.assertTrue(self.ecm.has_component(player, FacingDirection))
+        self.assertTrue(self.ecm.has_component(player, AttackHitbox))
         self.assertTrue(self.ecm.has_component(player, MeleeAttack))
 
         health = self.ecm.get_component(player, Health)
         collider = self.ecm.get_component(player, Collider)
         renderable = self.ecm.get_component(player, Renderable)
         melee_attack = self.ecm.get_component(player, MeleeAttack)
+        hitbox = self.ecm.get_component(player, AttackHitbox)
 
         self.assertEqual(health.current, PlayerSettings.HEALTH)
         self.assertEqual(health.maximum, PlayerSettings.HEALTH)
@@ -57,6 +62,10 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(melee_attack.damage, PlayerSettings.DAMAGE)
         self.assertEqual(melee_attack.attack_range, PlayerSettings.ATTACK_RANGE)
         self.assertEqual(melee_attack.cooldown, PlayerSettings.ATTACK_COOLDOWN)
+        self.assertEqual(melee_attack.knockback_distance, PlayerSettings.KNOCKBACK_DISTANCE)
+        self.assertEqual(hitbox.width, 0)
+        self.assertEqual(hitbox.height, 0)
+        self.assertEqual(hitbox.duration, PlayerSettings.ATTACK_HITBOX_DURATION)
 
     def test_create_enemy(self):
         enemy = self.entity_factory.create_enemy(x=200, y=200)
