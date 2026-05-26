@@ -230,6 +230,23 @@ class TestCastleAssaultScene(unittest.TestCase):
             for tile_x, tile_y in patrol_route.patrol_tiles:
                 self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
+    def test_castle_critical_openings_are_two_tiles_wide(self):
+        scene = CastleAssaultScene()
+
+        expected_openings = [
+            ((8, 5), (8, 6)),
+            ((20, 6), (21, 6)),
+            ((25, 15), (25, 16)),
+            ((11, 16), (12, 16)),
+            ((32, 11), (33, 11)),
+        ]
+
+        for first_tile, second_tile in expected_openings:
+            first_x, first_y = first_tile
+            second_x, second_y = second_tile
+            self.assertEqual(scene.tile_map.matrix[first_y][first_x], FLOOR)
+            self.assertEqual(scene.tile_map.matrix[second_y][second_x], FLOOR)
+
     def test_get_entity_tile_returns_player_tile_coordinates(self):
         scene = CastleAssaultScene()
 

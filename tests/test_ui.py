@@ -68,6 +68,12 @@ class TestUI(unittest.TestCase):
     def test_hud_draw_defeat_message(self):
         HUD().draw_defeat_message(self.create_surface())
 
+    def test_hud_draw_custom_defeat_message(self):
+        HUD().draw_defeat_message(
+            self.create_surface(),
+            "Defeated. Press R to recover.",
+        )
+
     def test_render_system_skips_dead_enemy_health_bar(self):
         ecm = EntityComponentManager()
         enemy = ecm.create_entity(tag="enemy")

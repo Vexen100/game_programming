@@ -18,13 +18,14 @@ from src.components.components import (
     PlayerControlled,
     PlayerDefeated,
     Position,
+    Velocity,
 )
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
-from src.world.tile_types import FLOOR
+from src.world.tile_types import FLOOR, WALL
 
 
 class FakeSceneManager:
@@ -163,7 +164,7 @@ class TestRegionScene(unittest.TestCase):
         scene.update(0.1, FakeInputManager())
 
         self.assertLess(enemy_position.x, old_enemy_x)
-        self.assertEqual(enemy_position.y, old_enemy_y)
+        self.assertGreaterEqual(enemy_position.y, old_enemy_y)
 
     def test_region_scene_update_player_attack_damages_enemy(self):
         scene = RegionScene()
@@ -248,22 +249,124 @@ class TestRegionScene(unittest.TestCase):
         self.assertEqual(player_position.x, old_x)
         self.assertEqual(player_position.y, old_y)
 
-    def test_region_scene_restart_after_defeat_resets_region(self):
+    def test_region_scene_recover_after_defeat_keeps_current_ecm(self):
         scene = RegionScene()
 
         player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
         player_health.current = 0
 
         scene.update(0.1, FakeInputManager())
+        old_ecm = scene.ecm
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
 
         scene.update(0.1, FakeRestartInputManager())
 
         new_player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
 
+        self.assertIs(scene.ecm, old_ecm)
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
         self.assertEqual(new_player_health.current, new_player_health.maximum)
-        self.assertEqual(len(scene.ecm.alive_entities), 6)
+
+    def test_region_scene_recover_after_defeat_restores_spawn_position(self):
+        scene = RegionScene()
+
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        player_health.current = 0
+        player_position.x = settings.TILE_SIZE * 20
+        player_position.y = settings.TILE_SIZE * 20
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        spawn_x, spawn_y = scene.tile_map.coord_tile_to_pixels(*scene.player_spawn_tile)
+
+        self.assertEqual(player_position.x, spawn_x)
+        self.assertEqual(player_position.y, spawn_y)
+
+    def test_region_scene_recover_after_defeat_resets_player_velocity_and_attack_state(self):
+        scene = RegionScene()
+
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        player_velocity = scene.ecm.get_component(scene.ecs_player_id, Velocity)
+        attack_intent = scene.ecm.get_component(scene.ecs_player_id, AttackIntent)
+        attack_hitbox = scene.ecm.get_component(scene.ecs_player_id, AttackHitbox)
+        player_health.current = 0
+        player_velocity.x = 10
+        player_velocity.y = 20
+        attack_intent.requested = True
+        attack_hitbox.active = True
+        attack_hitbox.timer = 0.1
+        attack_hitbox.hit_landed = True
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        self.assertEqual(player_velocity.x, 0)
+        self.assertEqual(player_velocity.y, 0)
+        self.assertFalse(attack_intent.requested)
+        self.assertFalse(attack_hitbox.active)
+        self.assertEqual(attack_hitbox.timer, 0)
+        self.assertFalse(attack_hitbox.hit_landed)
+
+    def test_region_scene_recover_after_defeat_preserves_outpost_cleared(self):
+        scene = RegionScene()
+
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        outpost.cleared = True
+        player_health.current = 0
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        self.assertTrue(outpost.cleared)
+
+    def test_region_scene_recover_after_defeat_preserves_npc_quest_completed(self):
+        scene = RegionScene()
+
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        npc.quest_completed = True
+        player_health.current = 0
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        self.assertTrue(npc.quest_completed)
+
+    def test_region_scene_recover_after_defeat_does_not_restore_removed_enemies(self):
+        scene = RegionScene()
+
+        removed_enemy_id = scene.enemy_id
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        scene.ecm.destroy_entity(removed_enemy_id)
+        player_health.current = 0
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        self.assertNotIn(removed_enemy_id, scene.ecm.alive_entities)
+
+    def test_region_scene_recover_after_defeat_clears_enemy_ai_memory(self):
+        scene = RegionScene()
+
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        player_health.current = 0
+        scene.enemy_chase_system.cached_paths[scene.enemy_id] = [(1, 1), (2, 1)]
+        scene.enemy_chase_system.cached_goal_tiles[scene.enemy_id] = (2, 1)
+        scene.enemy_chase_system.path_rebuild_timers[scene.enemy_id] = 0.5
+        scene.enemy_chase_system.last_seen_player_tiles[scene.enemy_id] = (2, 1)
+        scene.enemy_chase_system.last_seen_timers[scene.enemy_id] = 0.5
+
+        scene.update(0.1, FakeInputManager())
+        scene.update(0.1, FakeRestartInputManager())
+
+        self.assertEqual(scene.enemy_chase_system.cached_paths, {})
+        self.assertEqual(scene.enemy_chase_system.cached_goal_tiles, {})
+        self.assertEqual(scene.enemy_chase_system.path_rebuild_timers, {})
+        self.assertEqual(scene.enemy_chase_system.last_seen_player_tiles, {})
+        self.assertEqual(scene.enemy_chase_system.last_seen_timers, {})
 
     def test_region_scene_uses_current_region_name_from_game_state(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -576,6 +679,61 @@ class TestRegionScene(unittest.TestCase):
 
             for tile_x, tile_y in patrol_route.patrol_tiles:
                 self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
+
+    def test_region_scene_critical_openings_are_two_tiles_wide(self):
+        scene = RegionScene()
+
+        expected_openings = [
+            ((12, 10), (12, 11)),
+            ((26, 14), (27, 14)),
+            ((34, 16), (34, 17)),
+            ((18, 24), (19, 24)),
+            ((46, 22), (46, 23)),
+        ]
+
+        for first_tile, second_tile in expected_openings:
+            first_x, first_y = first_tile
+            second_x, second_y = second_tile
+            self.assertEqual(scene.tile_map.matrix[first_y][first_x], FLOOR)
+            self.assertEqual(scene.tile_map.matrix[second_y][second_x], FLOOR)
+
+    def test_region_scene_validate_region_layout_does_not_fail(self):
+        scene = RegionScene()
+
+        scene.validate_region_layout()
+
+    def test_region_scene_validate_region_layout_raises_if_enemy_is_unreachable(self):
+        scene = RegionScene()
+        tile_x, tile_y = scene.get_entity_tile(scene.enemy_id)
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_region_layout()
+
+    def test_region_scene_validate_region_layout_raises_if_patrol_tile_is_unreachable(self):
+        scene = RegionScene()
+        patrol_route = scene.ecm.get_component(scene.enemy_id, PatrolRoute)
+        tile_x, tile_y = patrol_route.patrol_tiles[1]
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_region_layout()
+
+    def test_region_scene_validate_region_layout_raises_if_outpost_is_unreachable(self):
+        scene = RegionScene()
+        tile_x, tile_y = scene.get_entity_tile(scene.outpost_id)
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_region_layout()
+
+    def test_region_scene_validate_region_layout_raises_if_npc_is_unreachable(self):
+        scene = RegionScene()
+        tile_x, tile_y = scene.get_entity_tile(scene.npc_id)
+        scene.tile_map.matrix[tile_y][tile_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            scene.validate_region_layout()
 
     def test_region_scene_npc_quest_does_not_complete_when_player_defeated(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

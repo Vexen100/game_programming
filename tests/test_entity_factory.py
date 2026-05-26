@@ -1,5 +1,6 @@
 import unittest
 
+import settings
 from src.components.components import (
     AttackIntent,
     AttackHitbox,
@@ -58,6 +59,12 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(health.maximum, PlayerSettings.HEALTH)
         self.assertEqual(collider.width, PlayerSettings.SIZE)
         self.assertEqual(collider.height, PlayerSettings.SIZE)
+        self.assertLess(collider.width, settings.TILE_SIZE)
+        self.assertLess(collider.height, settings.TILE_SIZE)
+        self.assertEqual(renderable.width, PlayerSettings.SIZE)
+        self.assertEqual(renderable.height, PlayerSettings.SIZE)
+        self.assertLess(renderable.width, settings.TILE_SIZE)
+        self.assertLess(renderable.height, settings.TILE_SIZE)
         self.assertEqual(renderable.color, PlayerSettings.COLOR)
         self.assertEqual(melee_attack.damage, PlayerSettings.DAMAGE)
         self.assertEqual(melee_attack.attack_range, PlayerSettings.ATTACK_RANGE)
@@ -91,6 +98,12 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(health.maximum, EnemySettings.HEALTH)
         self.assertEqual(collider.width, EnemySettings.SIZE)
         self.assertEqual(collider.height, EnemySettings.SIZE)
+        self.assertLess(collider.width, settings.TILE_SIZE)
+        self.assertLess(collider.height, settings.TILE_SIZE)
+        self.assertEqual(renderable.width, EnemySettings.SIZE)
+        self.assertEqual(renderable.height, EnemySettings.SIZE)
+        self.assertLess(renderable.width, settings.TILE_SIZE)
+        self.assertLess(renderable.height, settings.TILE_SIZE)
         self.assertEqual(renderable.color, EnemySettings.COLOR)
         self.assertEqual(chase.speed, EnemySettings.SPEED)
         self.assertEqual(chase.detection_radius, EnemySettings.DETECTION_RADIUS)
