@@ -1,6 +1,18 @@
 import pygame
 import settings
-from src.components.components import Health, NPC, Outpost, PatrolRoute, PlayerDefeated, Position
+from src.algorithms.flood_fill import are_tiles_reachable
+from src.components.components import (
+    AttackHitbox,
+    AttackIntent,
+    Collider,
+    Health,
+    NPC,
+    Outpost,
+    PatrolRoute,
+    PlayerDefeated,
+    Position,
+    Velocity,
+)
 from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
@@ -49,6 +61,7 @@ class RegionScene(BaseScene):
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
+        self.player_spawn_tile = (3, 3)
         self.restart_region()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
@@ -71,11 +84,11 @@ class RegionScene(BaseScene):
             for tile in range(width):
                 is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
                 is_inner_wall = (
-                    (tile == 12 and 4 <= row <= 18 and row != 10)
-                    or (row == 14 and 18 <= tile <= 36 and tile != 26)
-                    or (tile == 34 and 6 <= row <= 24 and row != 16)
-                    or (row == 24 and 8 <= tile <= 28 and tile != 18)
-                    or (tile == 46 and 10 <= row <= 30 and row != 22)
+                    (tile == 12 and 4 <= row <= 18 and row not in (10, 11))
+                    or (row == 14 and 18 <= tile <= 36 and tile not in (26, 27))
+                    or (tile == 34 and 6 <= row <= 24 and row not in (16, 17))
+                    or (row == 24 and 8 <= tile <= 28 and tile not in (18, 19))
+                    or (tile == 46 and 10 <= row <= 30 and row not in (22, 23))
                 )
                 if is_border or is_inner_wall:
                     map_row.append(WALL)
@@ -143,10 +156,11 @@ class RegionScene(BaseScene):
         self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
+        player_x, player_y = self.tile_map.coord_tile_to_pixels(*self.player_spawn_tile)
 
         self.ecs_player_id = self.entity_factory.create_player(
-            x=settings.TILE_SIZE * 3,
-            y=settings.TILE_SIZE * 3,
+            x=player_x,
+            y=player_y,
         )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
@@ -183,7 +197,51 @@ class RegionScene(BaseScene):
             required_outpost_id=self.outpost_id,
         )
         self.check_entity_components(self.npc_id, "NPC", Position, NPC)
+        self.validate_region_layout()
         self.update_camera()
+
+    def get_entity_tile(self, entity_id):
+        position = self.ecm.get_component(entity_id, Position)
+
+        if position is None:
+            return None
+
+        collider = self.ecm.get_component(entity_id, Collider)
+
+        if collider is None:
+            return self.tile_map.coord_pixels_to_tile(position.x, position.y)
+
+        return self.tile_map.coord_pixels_to_tile(
+            position.x + collider.width / 2,
+            position.y + collider.height / 2,
+        )
+
+    def validate_region_layout(self):
+        start_tile = self.get_entity_tile(self.ecs_player_id)
+        target_tiles = []
+
+        for enemy_id in self.enemy_ids:
+            enemy_tile = self.get_entity_tile(enemy_id)
+
+            if enemy_tile is not None:
+                target_tiles.append(enemy_tile)
+
+            patrol_route = self.ecm.get_component(enemy_id, PatrolRoute)
+
+            if patrol_route is not None:
+                target_tiles.extend(patrol_route.patrol_tiles)
+
+        outpost_tile = self.get_entity_tile(self.outpost_id)
+        npc_tile = self.get_entity_tile(self.npc_id)
+
+        if outpost_tile is not None:
+            target_tiles.append(outpost_tile)
+
+        if npc_tile is not None:
+            target_tiles.append(npc_tile)
+
+        if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
+            raise ValueError("Region layout has unreachable important tiles")
 
     def add_patrol_routes(self):
         patrol_routes = [
@@ -203,16 +261,62 @@ class RegionScene(BaseScene):
 
     def update_camera(self):
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
+        player_collider = self.ecm.get_component(self.ecs_player_id, Collider)
 
         if player_position is None:
             return
 
+        if player_collider is None:
+            center_x = player_position.x + settings.TILE_SIZE / 2
+            center_y = player_position.y + settings.TILE_SIZE / 2
+        else:
+            center_x = player_position.x + player_collider.width / 2
+            center_y = player_position.y + player_collider.height / 2
+
         self.camera.follow(
-            player_position.x + settings.TILE_SIZE / 2,
-            player_position.y + settings.TILE_SIZE / 2,
+            center_x,
+            center_y,
             self.tile_map.width * self.tile_map.tile_size,
             self.tile_map.height * self.tile_map.tile_size,
         )
+
+    def respawn_player_after_defeat(self):
+        player_health = self.ecm.get_component(self.ecs_player_id, Health)
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+        player_velocity = self.ecm.get_component(self.ecs_player_id, Velocity)
+        attack_intent = self.ecm.get_component(self.ecs_player_id, AttackIntent)
+        attack_hitbox = self.ecm.get_component(self.ecs_player_id, AttackHitbox)
+
+        if player_health is not None:
+            player_health.current = player_health.maximum
+
+        if player_position is not None:
+            player_position.x, player_position.y = self.tile_map.coord_tile_to_pixels(
+                *self.player_spawn_tile,
+            )
+
+        if player_velocity is not None:
+            player_velocity.x = 0
+            player_velocity.y = 0
+
+        self.ecm.remove_component(self.ecs_player_id, PlayerDefeated)
+
+        if attack_intent is not None:
+            attack_intent.requested = False
+
+        if attack_hitbox is not None:
+            attack_hitbox.active = False
+            attack_hitbox.x = 0
+            attack_hitbox.y = 0
+            attack_hitbox.width = 0
+            attack_hitbox.height = 0
+            attack_hitbox.timer = 0
+            attack_hitbox.hit_landed = False
+
+        self.enemy_chase_system.clear_path_cache()
+        self.enemy_chase_system.clear_ai_memory()
+        self.enemy_chase_system.stop_enemies(self.ecm)
+        self.update_camera()
 
     def update(self, dt, input_manager):
         self.current_dt = dt
@@ -236,7 +340,7 @@ class RegionScene(BaseScene):
 
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
-                self.restart_region()
+                self.respawn_player_after_defeat()
             return
 
         self.player_input_system.update(self.ecm, input_manager)
@@ -333,5 +437,5 @@ class RegionScene(BaseScene):
             self.get_contextual_prompts(),
         )
         if self.is_player_defeated():
-            self.hud.draw_defeat_message(screen)
+            self.hud.draw_defeat_message(screen, "Defeated. Press R to recover.")
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

@@ -1,7 +1,14 @@
 import pygame
 import settings
 from src.algorithms.flood_fill import are_tiles_reachable
-from src.components.components import CapturePoint, Health, PatrolRoute, PlayerDefeated, Position
+from src.components.components import (
+    CapturePoint,
+    Collider,
+    Health,
+    PatrolRoute,
+    PlayerDefeated,
+    Position,
+)
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -72,11 +79,11 @@ class CastleAssaultScene(BaseScene):
             for tile in range(width):
                 is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
                 is_inner_wall = (
-                    (tile == 8 and 2 <= row <= 10 and row != 5)
-                    or (row == 6 and 12 <= tile <= 28 and tile != 20)
-                    or (tile == 25 and 10 <= row <= 20 and row != 15)
-                    or (row == 16 and 3 <= tile <= 18 and tile != 11)
-                    or (row == 11 and 28 <= tile <= 36 and tile != 32)
+                    (tile == 8 and 2 <= row <= 10 and row not in (5, 6))
+                    or (row == 6 and 12 <= tile <= 28 and tile not in (20, 21))
+                    or (tile == 25 and 10 <= row <= 20 and row not in (15, 16))
+                    or (row == 16 and 3 <= tile <= 18 and tile not in (11, 12))
+                    or (row == 11 and 28 <= tile <= 36 and tile not in (32, 33))
                 )
                 if is_border or is_inner_wall:
                     map_row.append(WALL)
@@ -124,7 +131,15 @@ class CastleAssaultScene(BaseScene):
 
     def get_entity_tile(self, entity_id):
         position = self.ecm.get_component(entity_id, Position)
-        return self.tile_map.coord_pixels_to_tile(position.x, position.y)
+        collider = self.ecm.get_component(entity_id, Collider)
+
+        if collider is None:
+            return self.tile_map.coord_pixels_to_tile(position.x, position.y)
+
+        return self.tile_map.coord_pixels_to_tile(
+            position.x + collider.width / 2,
+            position.y + collider.height / 2,
+        )
 
     def validate_castle_layout(self):
         start_tile = self.get_entity_tile(self.ecs_player_id)
