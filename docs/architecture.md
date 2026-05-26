@@ -155,6 +155,8 @@ Mouse aiming в gameplay не добавлялся.
 
 Создаёт крупную ручную карту, ECS-слой, игрока, несколько врагов, аванпост, одного тестового NPC, системы, HUD, camera follow и debug overlay.
 
+Критические проходы ручной карты расширены минимум до двух adjacent floor tiles.
+
 Может получать `GameState` и показывает название текущего региона в HUD.
 
 По `M` открывает `WorldMapScene` как обзор с return scene. При возврате `GameState` сохраняется, потому что принадлежит `Game`, а не сцене.
@@ -164,6 +166,10 @@ Mouse aiming в gameplay не добавлялся.
 Если у текущего региона `assault_unlocked == True`, по `C` можно запросить переход в `CastleAssaultScene` прямо из региона.
 
 В обычном регионе враги теперь используют tile-map AI через `EnemyChaseSystem.update(ecm, tile_map, dt)`: detection radius, LOS, A*, path cache, last seen memory и patrol route.
+
+При создании проверяет достижимость player spawn, стартовых enemies, outpost, NPC и patrol route tiles через `src/algorithms/flood_fill.py`.
+
+Если игрок побеждён, `R` восстанавливает игрока на spawn tile без полного сброса региона: cleared outpost, completed NPC quest и удалённые enemies сохраняются внутри текущей `RegionScene`.
 
 `CapturePoint` в обычную `RegionScene` не добавлялся.
 
@@ -247,13 +253,15 @@ NPC завершает простое задание после зачистки
 
 Хранит простые настройки сущностей: скорость, здоровье, размер и цвет.
 
+`PlayerSettings.SIZE` и `EnemySettings.SIZE` меньше `settings.TILE_SIZE`, чтобы игрок и враги проходили по тайловым коридорам без пиксель-в-пиксель зазора.
+
 ### `src/algorithms/`
 
 Содержит отдельные алгоритмы, которые не зависят от PyGame-сцен и ECS-систем.
 
 `src/algorithms/flood_fill.py` реализует простой Flood fill / BFS по тайлам в 4 направлениях.
 
-Сейчас алгоритм используется в `CastleAssaultScene` для проверки, что важные тайлы статического замка достижимы.
+Сейчас алгоритм используется в `RegionScene` и `CastleAssaultScene` для проверки, что важные тайлы ручных карт достижимы.
 
 Алгоритм использует tile-coordinate API `TileMap.is_tile_blocked()`.
 
@@ -299,6 +307,10 @@ NPC завершает простое задание после зачистки
 
 Перед построением A* враг проверяет, находится ли игрок в радиусе обнаружения и есть ли line of sight по тайлам.
 
+Tile detection для A*/LOS берёт центр collider, а не top-left координату entity.
+
+Target position для движения по A* центрируется внутри следующего tile с учётом collider врага.
+
 Если враг видел игрока, а потом потерял прямую видимость, он короткое время идёт к last seen tile.
 
 Cache путей хранится внутри `EnemyChaseSystem`.
@@ -311,9 +323,13 @@ Last seen memory не является компонентом и не храни
 
 Если игрок не виден и active last seen memory нет, враг с `PatrolRoute` идёт по patrol tiles.
 
+Если path к last seen tile недоступен или устарел, enemy AI очищает last seen memory и сразу переходит к patrol fallback или останавливается.
+
 `PatrolRoute` хранит только данные маршрута. Логика patrol находится в `EnemyChaseSystem`.
 
 `PatrolRoute` с менее чем двумя tile не запускает pathfinding и явно останавливает врага.
+
+Если текущий patrol target недоступен, `EnemyChaseSystem` пробует следующий target маршрута без бесконечного цикла.
 
 `MeleeAttackSystem` использует направленный AABB hitbox игрока по `FacingDirection`.
 

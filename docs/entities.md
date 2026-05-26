@@ -34,7 +34,11 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 - отображает здоровье через `HUD`;
 - может показываться в `DebugOverlay`.
 
-Если здоровье игрока падает до `0`, игрок получает `PlayerDefeated`. После этого `RegionScene` не запускает gameplay-системы, а `HUD` показывает сообщение поражения. По `R` текущая `RegionScene` перезапускает локальное состояние региона.
+Размер collider/render игрока меньше `TILE_SIZE`, чтобы проходы не требовали пиксель-в-пиксель выравнивания.
+
+Если здоровье игрока падает до `0`, игрок получает `PlayerDefeated`. После этого `RegionScene` не запускает gameplay-системы, а `HUD` показывает сообщение поражения. По `R` текущая `RegionScene` восстанавливает игрока на spawn tile без полного сброса региона.
+
+После recover в `RegionScene` сохраняются cleared outpost, completed NPC quest и уже удалённые enemies.
 
 Игрок не удаляется через `CleanupSystem`. `Dead` не используется для игрока. GameState поражения пока не реализован.
 
@@ -69,6 +73,8 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - отображает HP bar через `RenderSystem.draw_enemy_health_bars()`, пока не помечен `Dead`;
 - учитывается в `DebugOverlay` как живая сущность.
 
+Размер collider/render врага меньше `TILE_SIZE`, чтобы враги стабильнее проходили по тайловым коридорам.
+
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
 
 `PatrolRoute` хранит только список patrol tiles, текущий индекс и optional wait timer.
@@ -88,6 +94,8 @@ Last seen memory хранится внутри `EnemyChaseSystem`.
 Last seen memory не является компонентом и не хранится в `ChaseBehavior`.
 
 Если игрок не виден и active last seen memory нет, враг с `PatrolRoute` идёт по маршруту.
+
+Если путь к last seen tile недоступен или устарел, враг очищает last seen memory и переходит к patrol fallback или останавливается.
 
 Системы работают с врагами через ECS-запросы, а не через один общий `enemy_id`.
 
