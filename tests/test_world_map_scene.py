@@ -4,6 +4,7 @@ import pygame
 import settings
 from src.core.game_state import GameState
 from src.scenes.world_map_scene import WorldMapScene
+from src.ui import texts
 
 
 class FakeSceneManager:
@@ -188,8 +189,8 @@ class TestWorldMapScene(unittest.TestCase):
 
         status = scene.get_region_status_text(region)
 
-        self.assertIn("player 25", status)
-        self.assertIn("enemy 75", status)
+        self.assertIn("игрок 25", status)
+        self.assertIn("враг 75", status)
 
     def test_world_map_scene_status_text_shows_assault_unlocked(self):
         scene = self.create_scene()
@@ -198,7 +199,7 @@ class TestWorldMapScene(unittest.TestCase):
 
         status = scene.get_region_status_text(region)
 
-        self.assertIn("assault unlocked", status)
+        self.assertIn(texts.ASSAULT_READY, status)
 
     def test_world_map_scene_draw_after_influence_change_does_not_crash(self):
         scene = self.create_scene()
@@ -250,9 +251,9 @@ class TestWorldMapScene(unittest.TestCase):
 
         status = scene.get_region_status_text(region)
 
-        self.assertIn("Control: player", status)
-        self.assertIn("player 100", status)
-        self.assertIn("enemy 0", status)
+        self.assertIn(f"{texts.CONTROL_LABEL}: {texts.CONTROL_PLAYER}", status)
+        self.assertIn("игрок 100", status)
+        self.assertIn("враг 0", status)
 
     def test_region_unlocked_after_liberation_is_drawn_as_enemy(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

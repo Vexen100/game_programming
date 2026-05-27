@@ -18,6 +18,7 @@ from src.core.game_state import GameState
 from src.events.game_events import RegionLiberatedEvent
 from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.systems.region_liberation_system import RegionLiberationSystem
+from src.ui import texts
 from src.world.tile_types import FLOOR, WALL
 
 
@@ -89,7 +90,7 @@ class TestCastleAssaultScene(unittest.TestCase):
     def test_castle_assault_scene_creates_without_game_state(self):
         scene = CastleAssaultScene()
 
-        self.assertEqual(scene.get_castle_title(), "Castle Assault")
+        self.assertEqual(scene.get_castle_title(), "Штурм замка")
         self.assertFalse(scene.assault_completed)
 
     def test_castle_assault_scene_creates_player_and_enemy(self):
@@ -303,14 +304,14 @@ class TestCastleAssaultScene(unittest.TestCase):
     def test_get_castle_title_without_game_state(self):
         scene = CastleAssaultScene()
 
-        self.assertEqual(scene.get_castle_title(), "Castle Assault")
+        self.assertEqual(scene.get_castle_title(), "Штурм замка")
 
     def test_get_castle_title_uses_current_region_name(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         game_state.set_current_region("old_ruins")
         scene = CastleAssaultScene(game_state)
 
-        self.assertEqual(scene.get_castle_title(), "Old Ruins Assault")
+        self.assertEqual(scene.get_castle_title(), "Штурм: Old Ruins")
 
     def test_open_world_map_requests_world_map_scene(self):
         scene = CastleAssaultScene()

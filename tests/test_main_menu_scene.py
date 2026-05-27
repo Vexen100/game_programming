@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pygame
 import settings
 from src.scenes.main_menu_scene import MainMenuScene
+from src.ui import texts
 
 
 class FakeSceneManager:
@@ -41,7 +42,7 @@ class TestMainMenuScene(unittest.TestCase):
     def test_main_menu_scene_creates(self):
         scene = MainMenuScene()
 
-        self.assertEqual(scene.items[0], ("Start Game", "start"))
+        self.assertEqual(scene.items[0], (texts.NEW_GAME, "start"))
         self.assertEqual(scene.selected_index, 0)
 
     def test_move_down_changes_selected_item(self):

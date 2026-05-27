@@ -3,6 +3,7 @@ import unittest
 import pygame
 import settings
 from src.scenes.pause_scene import PauseScene
+from src.ui import texts
 
 
 class FakeSceneManager:
@@ -44,7 +45,7 @@ class TestPauseScene(unittest.TestCase):
     def test_pause_scene_creates(self):
         scene = PauseScene()
 
-        self.assertEqual(scene.items[0], ("Resume", "resume"))
+        self.assertEqual(scene.items[0], (texts.RESUME, "resume"))
         self.assertEqual(scene.selected_index, 0)
 
     def test_move_down_changes_selected_item(self):

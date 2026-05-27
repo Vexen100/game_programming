@@ -25,6 +25,7 @@ from src.core.game_state import GameState
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
+from src.ui import texts
 from src.world.tile_types import FLOOR, WALL
 
 
@@ -47,6 +48,9 @@ class FakeSceneManager:
 
 class FakeInputManager:
     def was_pressed(self, action):
+        return False
+
+    def is_pressed(self, action):
         return False
 
     def get_velocity_direction(self):
@@ -79,6 +83,9 @@ class FakeWorldMapInputManager:
 
 class FakeInteractInputManager:
     def was_pressed(self, action):
+        return action == settings.INTERACT
+
+    def is_pressed(self, action):
         return action == settings.INTERACT
 
     def get_velocity_direction(self):
@@ -378,7 +385,34 @@ class TestRegionScene(unittest.TestCase):
     def test_region_scene_without_game_state_uses_default_title(self):
         scene = RegionScene()
 
-        self.assertEqual(scene.get_region_title(), "Region")
+        self.assertEqual(scene.get_region_title(), "Регион")
+
+    def test_region_scene_status_lines_show_current_influence(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        region = game_state.get_region("old_ruins")
+        region.player_influence = 25
+        region.enemy_influence = 75
+        scene = RegionScene(game_state)
+
+        status_lines = scene.get_region_status_lines()
+
+        self.assertIn(f"{texts.REGION_INFLUENCE_PLAYER}: 25", status_lines)
+        self.assertIn(f"{texts.REGION_INFLUENCE_ENEMY}: 75", status_lines)
+        self.assertIn(texts.ASSAULT_LOCKED, status_lines)
+
+    def test_region_scene_status_lines_show_assault_ready_and_liberated(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        region = game_state.get_region("old_ruins")
+        region.assault_unlocked = True
+        region.liberated = True
+        scene = RegionScene(game_state)
+
+        status_lines = scene.get_region_status_lines()
+
+        self.assertIn(texts.ASSAULT_READY, status_lines)
+        self.assertIn(texts.REGION_LIBERATED, status_lines)
 
     def test_region_scene_enemy_death_publishes_influence_event(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -403,9 +437,12 @@ class TestRegionScene(unittest.TestCase):
 
         scene.update(0.1, FakeAttackInputManager())
         region = game_state.get_region("old_ruins")
+        status_lines = scene.get_region_status_lines()
 
         self.assertEqual(region.player_influence, 25)
         self.assertEqual(region.enemy_influence, 75)
+        self.assertIn(f"{texts.REGION_INFLUENCE_PLAYER}: 25", status_lines)
+        self.assertIn(f"{texts.REGION_INFLUENCE_ENEMY}: 75", status_lines)
 
     def test_region_scene_open_world_map_requests_world_map_scene(self):
         scene = RegionScene()
@@ -503,8 +540,8 @@ class TestRegionScene(unittest.TestCase):
         world_map_scene = WorldMapScene(game_state)
         status = world_map_scene.get_region_status_text(region)
 
-        self.assertIn("player 25", status)
-        self.assertIn("enemy 75", status)
+        self.assertIn("игрок 25", status)
+        self.assertIn("враг 75", status)
 
     def test_region_scene_outpost_clear_changes_influence(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -515,16 +552,14 @@ class TestRegionScene(unittest.TestCase):
         scene = RegionScene(game_state, event_bus)
 
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
-        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
         outpost_position = scene.ecm.get_component(scene.outpost_id, Position)
         outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
 
         player_position.x = outpost_position.x
         player_position.y = outpost_position.y
-        enemy_position.x = outpost_position.x + outpost.radius + settings.TILE_SIZE
-        enemy_position.y = outpost_position.y
+        self.move_enemies_far_from(scene, outpost_position)
 
-        scene.update(0.1, FakeInteractInputManager())
+        scene.update(outpost.clear_duration, FakeInteractInputManager())
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(outpost.cleared)
@@ -593,7 +628,7 @@ class TestRegionScene(unittest.TestCase):
         player_position.x = npc_position.x
         player_position.y = npc_position.y
 
-        scene.update(0.1, FakeInteractInputManager())
+        scene.update(npc.report_duration, FakeInteractInputManager())
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(npc.quest_completed)
@@ -658,6 +693,64 @@ class TestRegionScene(unittest.TestCase):
         prompts = scene.get_contextual_prompts()
 
         self.assertIsInstance(prompts, list)
+
+    def test_region_scene_contextual_prompts_show_outpost_hold_hint(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        outpost_position = scene.ecm.get_component(scene.outpost_id, Position)
+
+        player_position.x = outpost_position.x
+        player_position.y = outpost_position.y
+        self.move_enemies_far_from(scene, outpost_position)
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertIn(texts.OUTPOST_HOLD_TO_CLEAR, prompts)
+
+    def test_region_scene_contextual_prompts_show_outpost_progress(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        outpost_position = scene.ecm.get_component(scene.outpost_id, Position)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+
+        player_position.x = outpost_position.x
+        player_position.y = outpost_position.y
+        self.move_enemies_far_from(scene, outpost_position)
+        outpost.clear_progress = outpost.clear_duration / 2
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertIn(texts.OUTPOST_CLEAR_PROGRESS.format(percent=50), prompts)
+
+    def test_region_scene_contextual_prompts_show_npc_hold_hint(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        npc_position = scene.ecm.get_component(scene.npc_id, Position)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        outpost.cleared = True
+
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertIn(texts.NPC_HOLD_TO_REPORT, prompts)
+
+    def test_region_scene_contextual_prompts_show_npc_progress(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        npc_position = scene.ecm.get_component(scene.npc_id, Position)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        outpost.cleared = True
+        npc.report_progress = npc.report_duration / 2
+
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertIn(texts.NPC_REPORT_PROGRESS.format(percent=50), prompts)
 
     def test_region_scene_camera_follow_does_not_crash(self):
         scene = RegionScene()
@@ -759,6 +852,13 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
         self.assertFalse(npc.quest_completed)
+
+    def move_enemies_far_from(self, scene, position):
+        for index, enemy_id in enumerate(scene.enemy_ids):
+            enemy_position = scene.ecm.get_component(enemy_id, Position)
+            if enemy_position is not None:
+                enemy_position.x = settings.TILE_SIZE * (50 + index)
+                enemy_position.y = settings.TILE_SIZE * 30
 
 
 if __name__ == "__main__":

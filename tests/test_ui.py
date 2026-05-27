@@ -8,6 +8,7 @@ from src.ecs.entity_component_manager import EntityComponentManager
 from src.systems.render_system import RenderSystem
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
+from src.ui import texts
 from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
 
@@ -62,7 +63,8 @@ class TestUI(unittest.TestCase):
             ecm,
             player,
             "Region",
-            contextual_prompts=["E: Clear outpost"],
+            contextual_prompts=[texts.OUTPOST_HOLD_TO_CLEAR],
+            status_lines=[f"{texts.REGION_INFLUENCE_PLAYER}: 25"],
         )
 
     def test_hud_draw_defeat_message(self):
@@ -71,7 +73,7 @@ class TestUI(unittest.TestCase):
     def test_hud_draw_custom_defeat_message(self):
         HUD().draw_defeat_message(
             self.create_surface(),
-            "Defeated. Press R to recover.",
+            texts.DEFEATED_RECOVER,
         )
 
     def test_render_system_skips_dead_enemy_health_bar(self):
