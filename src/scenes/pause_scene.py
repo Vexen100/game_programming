@@ -1,6 +1,7 @@
 import pygame
 import settings
 from src.scenes.base_scene import BaseScene
+from src.ui import texts
 
 
 class PauseScene(BaseScene):
@@ -12,9 +13,9 @@ class PauseScene(BaseScene):
 
     def __init__(self) -> None:
         self.items = [
-            ("Resume", "resume"),
-            ("World Map", "world_map"),
-            ("Main Menu", "main_menu"),
+            (texts.RESUME, "resume"),
+            (texts.WORLD_MAP, "world_map"),
+            (texts.MAIN_MENU, "main_menu"),
         ]
         self.selected_index = 0
         self.font = pygame.font.Font(None, 36)
@@ -108,7 +109,7 @@ class PauseScene(BaseScene):
     def draw(self, screen):
         screen.fill(self.BACKGROUND_COLOR)
 
-        title_surface = self.title_font.render("Paused", True, self.TEXT_COLOR)
+        title_surface = self.title_font.render(texts.PAUSED, True, self.TEXT_COLOR)
         title_rect = title_surface.get_rect(center=(screen.get_width() // 2, 150))
         screen.blit(title_surface, title_rect)
 
@@ -122,6 +123,6 @@ class PauseScene(BaseScene):
             item_rect = item_surface.get_rect(center=(screen.get_width() // 2, start_y + index * 48))
             screen.blit(item_surface, item_rect)
 
-        hint_surface = self.font.render("Enter / click: select", True, self.TEXT_COLOR)
+        hint_surface = self.font.render(texts.SELECT_HINT, True, self.TEXT_COLOR)
         hint_rect = hint_surface.get_rect(center=(screen.get_width() // 2, settings.SCREEN_HEIGHT - 72))
         screen.blit(hint_surface, hint_rect)

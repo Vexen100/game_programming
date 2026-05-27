@@ -18,8 +18,8 @@ class OutpostSystem:
     def __init__(self, event_bus=None):
         self.event_bus = event_bus
 
-    def update(self, ecm, input_manager=None, region_id=None):
-        if input_manager is None or not input_manager.was_pressed(settings.INTERACT):
+    def update(self, ecm, input_manager=None, region_id=None, dt=0):
+        if input_manager is None:
             return
 
         player_entities = ecm.get_entities_with(PlayerControlled, Position)
@@ -44,16 +44,40 @@ class OutpostSystem:
             renderable = ecm.get_component(outpost_id, Renderable)
 
             if self.get_distance(player_position, outpost_position) > outpost.radius:
+                outpost.clear_progress = 0
                 continue
 
             if self.has_living_enemy_near_outpost(ecm, outpost_position, outpost.radius):
+                outpost.clear_progress = 0
+                continue
+
+            if not self.is_interact_held(input_manager):
+                outpost.clear_progress = 0
+                continue
+
+            if dt <= 0:
+                continue
+
+            outpost.clear_progress = min(
+                outpost.clear_duration,
+                outpost.clear_progress + dt,
+            )
+
+            if outpost.clear_progress < outpost.clear_duration:
                 continue
 
             outpost.cleared = True
+            outpost.clear_progress = outpost.clear_duration
             renderable.color = OutpostSettings.CLEARED_COLOR
 
             if self.event_bus is not None and region_id is not None:
                 self.event_bus.publish(OutpostClearedEvent(outpost_id, region_id))
+
+    def is_interact_held(self, input_manager):
+        if not hasattr(input_manager, "is_pressed"):
+            return False
+
+        return input_manager.is_pressed(settings.INTERACT)
 
     def has_living_enemy_near_outpost(self, ecm, outpost_position, radius):
         for enemy_id in ecm.get_entities_with(Enemy, Position):

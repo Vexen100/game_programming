@@ -52,6 +52,8 @@ class Enemy:
 class Outpost:
     radius: float
     cleared: bool = False
+    clear_duration: float = 1.2
+    clear_progress: float = 0
 
 
 @dataclass
@@ -60,6 +62,8 @@ class NPC:
     quest_id: str
     required_outpost_id: int | None = None
     quest_completed: bool = False
+    report_duration: float = 0.8
+    report_progress: float = 0
 
 
 @dataclass

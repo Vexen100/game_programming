@@ -1,6 +1,7 @@
 import pygame
 import settings
 from src.scenes.base_scene import BaseScene
+from src.ui import texts
 from src.world.region import ENEMY_CONTROL, LOCKED_CONTROL, PLAYER_CONTROL
 
 
@@ -153,16 +154,16 @@ class WorldMapScene(BaseScene):
 
     def draw_hint(self, screen):
         selected_region = self.get_selected_region()
-        hint_text = "Enter / click: enter region"
+        hint_text = texts.WORLD_MAP_ENTER_REGION
 
         if not selected_region.unlocked:
-            hint_text = "Locked"
+            hint_text = texts.WORLD_MAP_LOCKED
         elif selected_region.assault_unlocked:
-            hint_text = "Enter / click: enter region | C: start assault"
+            hint_text = f"{texts.WORLD_MAP_ENTER_REGION} | {texts.WORLD_MAP_START_ASSAULT}"
 
         if self.manager is not None and hasattr(self.manager, "has_world_map_return_scene"):
             if self.manager.has_world_map_return_scene():
-                hint_text = f"{hint_text} | Esc/M: Back"
+                hint_text = f"{hint_text} | {texts.WORLD_MAP_BACK}"
 
         hint_surface = self.font.render(hint_text, True, self.TEXT_COLOR)
         screen.blit(hint_surface, (40, settings.SCREEN_HEIGHT - 64))
@@ -180,13 +181,22 @@ class WorldMapScene(BaseScene):
         screen.blit(status_surface, (40, settings.SCREEN_HEIGHT - 104))
 
     def get_region_status_text(self, region):
-        assault_status = "assault unlocked" if region.assault_unlocked else "assault locked"
+        assault_status = texts.ASSAULT_READY if region.assault_unlocked else texts.ASSAULT_LOCKED
 
         return (
-            f"Control: {region.control_state} | "
-            f"Influence: player {region.player_influence} / enemy {region.enemy_influence} | "
+            f"{texts.CONTROL_LABEL}: {self.get_control_text(region.control_state)} | "
+            f"{texts.INFLUENCE_STATUS.format(player=region.player_influence, enemy=region.enemy_influence)} | "
             f"{assault_status}"
         )
+
+    def get_control_text(self, control_state):
+        if control_state == PLAYER_CONTROL:
+            return texts.CONTROL_PLAYER
+        if control_state == ENEMY_CONTROL:
+            return texts.CONTROL_ENEMY
+        if control_state == LOCKED_CONTROL:
+            return texts.CONTROL_LOCKED
+        return control_state
 
     def get_region_color(self, region):
         if region.control_state == PLAYER_CONTROL:

@@ -1,6 +1,7 @@
 import pygame
 
 from src.components.components import Health, MeleeAttack
+from src.ui import texts
 
 
 class HUD:
@@ -10,38 +11,44 @@ class HUD:
         self.font = pygame.font.Font(None, 24)
         self.color = (255, 255, 255)
 
-    def draw(self, screen, ecm, player_id, scene_name, contextual_prompts=None):
+    def draw(self, screen, ecm, player_id, scene_name, contextual_prompts=None, status_lines=None):
         health = ecm.get_component(player_id, Health)
         attack = ecm.get_component(player_id, MeleeAttack)
 
         if health is None:
-            hp_text = "HP: -"
+            hp_text = f"{texts.HP_LABEL}: -"
         else:
-            hp_text = f"HP: {health.current} / {health.maximum}"
+            hp_text = f"{texts.HP_LABEL}: {health.current} / {health.maximum}"
 
         if attack is None or attack.cooldown_timer == 0:
-            attack_text = "Attack: READY"
+            attack_text = texts.ATTACK_READY
         else:
-            attack_text = f"Attack: {attack.cooldown_timer:.1f}s"
+            attack_text = texts.ATTACK_COOLDOWN.format(seconds=attack.cooldown_timer)
 
-        scene_text = f"Scene: {scene_name}"
-        hp_surface = self.font.render(hp_text, True, self.color)
-        scene_surface = self.font.render(scene_text, True, self.color)
-        attack_surface = self.font.render(attack_text, True, self.color)
+        scene_text = f"{texts.SCENE_LABEL}: {scene_name}"
+        lines = [
+            hp_text,
+            scene_text,
+            attack_text,
+            *(status_lines or []),
+        ]
 
-        screen.blit(hp_surface, (10, 10))
-        screen.blit(scene_surface, (10, 32))
-        screen.blit(attack_surface, (10, 54))
+        y = 10
+        for text in lines:
+            surface = self.font.render(text, True, self.color)
+            screen.blit(surface, (10, y))
+            y += 22
+
         self.draw_controls(screen, contextual_prompts or [])
 
     def draw_controls(self, screen, contextual_prompts):
         controls = [
-            "WASD/Arrows: Move",
-            "Space: Attack",
-            "E: Interact",
-            "M: Map",
-            "Esc: Pause",
-            "F11: Fullscreen",
+            texts.MOVE_HINT,
+            texts.ATTACK_HINT,
+            texts.INTERACT_HINT,
+            texts.MAP_HINT,
+            texts.PAUSE_HINT,
+            texts.FULLSCREEN_HINT,
         ]
         y = screen.get_height() - 24 * (len(controls) + len(contextual_prompts)) - 10
 
@@ -50,7 +57,7 @@ class HUD:
             screen.blit(surface, (10, y))
             y += 24
 
-    def draw_defeat_message(self, screen, message="Defeated. Press R to restart."):
+    def draw_defeat_message(self, screen, message=texts.DEFEATED_RESTART):
         text = message
         surface = self.font.render(text, True, self.color)
         rect = surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))

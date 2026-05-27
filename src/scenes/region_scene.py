@@ -30,6 +30,7 @@ from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
+from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
 from src.world.tile_map import TileMap
@@ -117,14 +118,38 @@ class RegionScene(BaseScene):
 
     def get_region_title(self):
         if self.game_state is None:
-            return "Region"
+            return "Регион"
 
         region = self.game_state.get_region(self.game_state.current_region_id)
 
         if region is None:
-            return "Region"
+            return "Регион"
 
         return region.name
+
+    def get_region_status_lines(self):
+        if self.game_state is None:
+            return []
+
+        region = self.game_state.get_region(self.game_state.current_region_id)
+
+        if region is None:
+            return []
+
+        status_lines = [
+            f"{texts.REGION_INFLUENCE_PLAYER}: {region.player_influence}",
+            f"{texts.REGION_INFLUENCE_ENEMY}: {region.enemy_influence}",
+        ]
+
+        if region.unlocked and region.assault_unlocked:
+            status_lines.append(texts.ASSAULT_READY)
+        else:
+            status_lines.append(texts.ASSAULT_LOCKED)
+
+        if region.liberated:
+            status_lines.append(texts.REGION_LIBERATED)
+
+        return status_lines
 
     def get_current_region_id(self):
         if self.game_state is None:
@@ -358,11 +383,13 @@ class RegionScene(BaseScene):
                 self.ecm,
                 input_manager,
                 self.get_current_region_id(),
+                dt,
             )
             self.npc_interaction_system.update(
                 self.ecm,
                 input_manager,
                 self.get_current_region_id(),
+                dt,
             )
 
         self.cleanup_system.update(self.ecm)
@@ -372,7 +399,7 @@ class RegionScene(BaseScene):
         prompts = []
 
         if self.is_assault_unlocked():
-            prompts.append("C: Start castle assault")
+            prompts.append(texts.CASTLE_ASSAULT_START)
 
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
 
@@ -387,10 +414,14 @@ class RegionScene(BaseScene):
         outpost = self.ecm.get_component(self.outpost_id, Outpost)
         outpost_position = self.ecm.get_component(self.outpost_id, Position)
 
-        if outpost is None or outpost_position is None or outpost.cleared:
+        if outpost is None or outpost_position is None:
             return
 
         if self.get_distance(player_position, outpost_position) > outpost.radius:
+            return
+
+        if outpost.cleared:
+            prompts.append(texts.OUTPOST_CLEARED)
             return
 
         if self.outpost_system.has_living_enemy_near_outpost(
@@ -398,26 +429,55 @@ class RegionScene(BaseScene):
             outpost_position,
             outpost.radius,
         ):
-            prompts.append("Clear enemies near outpost")
+            prompts.append(texts.OUTPOST_CLEAR_ENEMIES)
+        elif outpost.clear_progress > 0:
+            prompts.append(
+                texts.OUTPOST_CLEAR_PROGRESS.format(
+                    percent=self.get_progress_percent(
+                        outpost.clear_progress,
+                        outpost.clear_duration,
+                    )
+                )
+            )
         else:
-            prompts.append("E: Clear outpost")
+            prompts.append(texts.OUTPOST_HOLD_TO_CLEAR)
 
     def add_npc_prompt(self, prompts, player_position):
         npc = self.ecm.get_component(self.npc_id, NPC)
         npc_position = self.ecm.get_component(self.npc_id, Position)
 
-        if npc is None or npc_position is None or npc.quest_completed:
+        if npc is None or npc_position is None:
             return
 
         if self.get_distance(player_position, npc_position) > npc.interaction_radius:
             return
 
+        if npc.quest_completed:
+            prompts.append(texts.NPC_QUEST_COMPLETED)
+            return
+
         outpost = self.ecm.get_component(npc.required_outpost_id, Outpost)
 
         if outpost is not None and outpost.cleared:
-            prompts.append("E: Report quest")
+            if npc.report_progress > 0:
+                prompts.append(
+                    texts.NPC_REPORT_PROGRESS.format(
+                        percent=self.get_progress_percent(
+                            npc.report_progress,
+                            npc.report_duration,
+                        )
+                    )
+                )
+            else:
+                prompts.append(texts.NPC_HOLD_TO_REPORT)
         else:
-            prompts.append("Clear outpost first")
+            prompts.append(texts.NPC_CLEAR_OUTPOST_FIRST)
+
+    def get_progress_percent(self, progress, duration):
+        if duration <= 0:
+            return 100
+
+        return min(100, int(100 * progress / duration))
 
     def get_distance(self, first_position, second_position):
         dx = second_position.x - first_position.x
@@ -435,7 +495,8 @@ class RegionScene(BaseScene):
             self.ecs_player_id,
             self.get_region_title(),
             self.get_contextual_prompts(),
+            status_lines=self.get_region_status_lines(),
         )
         if self.is_player_defeated():
-            self.hud.draw_defeat_message(screen, "Defeated. Press R to recover.")
+            self.hud.draw_defeat_message(screen, texts.DEFEATED_RECOVER)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

@@ -25,6 +25,7 @@ from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
+from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
 from src.world.tile_map import TileMap
@@ -120,14 +121,14 @@ class CastleAssaultScene(BaseScene):
 
     def get_castle_title(self):
         if self.game_state is None:
-            return "Castle Assault"
+            return "Штурм замка"
 
         region = self.game_state.get_region(self.game_state.current_region_id)
 
         if region is None:
-            return "Castle Assault"
+            return "Штурм замка"
 
-        return f"{region.name} Assault"
+        return f"Штурм: {region.name}"
 
     def get_entity_tile(self, entity_id):
         position = self.ecm.get_component(entity_id, Position)
@@ -300,7 +301,7 @@ class CastleAssaultScene(BaseScene):
     def draw_assault_completed_message(self, screen):
         font = pygame.font.Font(None, 36)
         text_surface = font.render(
-            "Region liberated. Press M to return to world map.",
+            texts.ASSAULT_COMPLETED,
             True,
             (255, 255, 255),
         )
@@ -319,7 +320,7 @@ class CastleAssaultScene(BaseScene):
         self.render_system.draw_enemy_health_bars(self.ecm, screen)
         self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
-            self.hud.draw_defeat_message(screen)
+            self.hud.draw_defeat_message(screen, texts.DEFEATED_RESTART)
         if self.assault_completed:
             self.draw_assault_completed_message(screen)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

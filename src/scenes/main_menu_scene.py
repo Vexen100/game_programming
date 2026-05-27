@@ -1,6 +1,7 @@
 import pygame
 import settings
 from src.scenes.base_scene import BaseScene
+from src.ui import texts
 
 
 class MainMenuScene(BaseScene):
@@ -12,10 +13,10 @@ class MainMenuScene(BaseScene):
 
     def __init__(self) -> None:
         self.items = [
-            ("Start Game", "start"),
-            ("Continue (not available)", "continue"),
-            ("Settings (not available)", "settings"),
-            ("Exit", "exit"),
+            (texts.NEW_GAME, "start"),
+            (texts.CONTINUE_UNAVAILABLE, "continue"),
+            (texts.SETTINGS_UNAVAILABLE, "settings"),
+            (texts.EXIT, "exit"),
         ]
         self.selected_index = 0
         self.font = pygame.font.Font(None, 36)
@@ -111,6 +112,6 @@ class MainMenuScene(BaseScene):
             item_rect = item_surface.get_rect(center=(screen.get_width() // 2, start_y + index * 48))
             screen.blit(item_surface, item_rect)
 
-        hint_surface = self.font.render("Enter / click: select", True, self.TEXT_COLOR)
+        hint_surface = self.font.render(texts.SELECT_HINT, True, self.TEXT_COLOR)
         hint_rect = hint_surface.get_rect(center=(screen.get_width() // 2, settings.SCREEN_HEIGHT - 72))
         screen.blit(hint_surface, hint_rect)
