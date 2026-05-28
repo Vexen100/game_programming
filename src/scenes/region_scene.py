@@ -30,6 +30,7 @@ from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
+from src.systems.spatial_index_system import SpatialIndexSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
@@ -56,12 +57,14 @@ class RegionScene(BaseScene):
         self.npc_interaction_system = NPCInteractionSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
+        self.spatial_index_system = SpatialIndexSystem()
         self.cleanup_system = CleanupSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
+        self.enemy_spatial_index = None
         self.player_spawn_tile = (3, 3)
         self.restart_region()
 
@@ -177,6 +180,7 @@ class RegionScene(BaseScene):
         return True
 
     def restart_region(self):
+        self.enemy_spatial_index = None
         self.tile_map = TileMap(self.create_test_map())
         self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         self.ecm = EntityComponentManager()
@@ -224,6 +228,14 @@ class RegionScene(BaseScene):
         self.check_entity_components(self.npc_id, "NPC", Position, NPC)
         self.validate_region_layout()
         self.update_camera()
+
+    def rebuild_enemy_spatial_index(self):
+        self.enemy_spatial_index = self.spatial_index_system.build_enemy_index(
+            self.ecm,
+            self.tile_map.width * self.tile_map.tile_size,
+            self.tile_map.height * self.tile_map.tile_size,
+            settings.TILE_SIZE * 4,
+        )
 
     def get_entity_tile(self, entity_id):
         position = self.ecm.get_component(entity_id, Position)
@@ -373,9 +385,15 @@ class RegionScene(BaseScene):
         self.enemy_chase_system.update(self.ecm, self.tile_map, dt)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
-        self.melee_attack_system.update(self.ecm, dt, self.tile_map)
+        self.rebuild_enemy_spatial_index()
+        self.melee_attack_system.update(
+            self.ecm,
+            dt,
+            self.tile_map,
+            self.enemy_spatial_index,
+        )
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
-        self.enemy_attack_system.update(self.ecm, dt)
+        self.enemy_attack_system.update(self.ecm, dt, self.enemy_spatial_index)
         self.player_death_system.update(self.ecm)
 
         if not self.is_player_defeated():
@@ -384,6 +402,7 @@ class RegionScene(BaseScene):
                 input_manager,
                 self.get_current_region_id(),
                 dt,
+                self.enemy_spatial_index,
             )
             self.npc_interaction_system.update(
                 self.ecm,
@@ -428,6 +447,7 @@ class RegionScene(BaseScene):
             self.ecm,
             outpost_position,
             outpost.radius,
+            self.enemy_spatial_index,
         ):
             prompts.append(texts.OUTPOST_CLEAR_ENEMIES)
         elif outpost.clear_progress > 0:

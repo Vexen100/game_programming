@@ -21,7 +21,7 @@ class CaptureSystem:
     def reset(self):
         self.region_liberation_published = False
 
-    def update(self, ecm, dt, region_id=None):
+    def update(self, ecm, dt, region_id=None, enemy_spatial_index=None):
         player_entities = ecm.get_entities_with(PlayerControlled, Position)
 
         if not player_entities:
@@ -49,6 +49,7 @@ class CaptureSystem:
                 ecm,
                 capture_point_position,
                 capture_point.radius,
+                enemy_spatial_index,
             ):
                 continue
 
@@ -94,9 +95,20 @@ class CaptureSystem:
         if self.event_bus is not None and region_id is not None:
             self.event_bus.publish(RegionLiberatedEvent(region_id))
 
-    def has_living_enemy_near_capture_point(self, ecm, capture_point_position, radius):
-        for enemy_id in ecm.get_entities_with(Enemy, Position):
-            if ecm.has_component(enemy_id, Dead):
+    def has_living_enemy_near_capture_point(
+        self,
+        ecm,
+        capture_point_position,
+        radius,
+        enemy_spatial_index=None,
+    ):
+        for enemy_id in self.get_enemy_candidates(
+            ecm,
+            capture_point_position,
+            radius,
+            enemy_spatial_index,
+        ):
+            if not self.is_living_enemy(ecm, enemy_id):
                 continue
 
             enemy_position = ecm.get_component(enemy_id, Position)
@@ -105,6 +117,24 @@ class CaptureSystem:
                 return True
 
         return False
+
+    def get_enemy_candidates(self, ecm, capture_point_position, radius, enemy_spatial_index):
+        if enemy_spatial_index is None:
+            return ecm.get_entities_with(Enemy, Position)
+
+        return enemy_spatial_index.query_rect(
+            capture_point_position.x - radius,
+            capture_point_position.y - radius,
+            radius * 2,
+            radius * 2,
+        )
+
+    def is_living_enemy(self, ecm, enemy_id):
+        return (
+            ecm.has_component(enemy_id, Enemy)
+            and ecm.has_component(enemy_id, Position)
+            and not ecm.has_component(enemy_id, Dead)
+        )
 
     def get_distance(self, first_position, second_position):
         dx = second_position.x - first_position.x

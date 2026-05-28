@@ -16,7 +16,7 @@ from src.entities.entities_settings import PlayerSettings
 class MeleeAttackSystem:
     """Обрабатывает ближнюю атаку игрока по врагу"""
 
-    def update(self, ecm, dt, tile_map=None):
+    def update(self, ecm, dt, tile_map=None, enemy_spatial_index=None):
         for attacker_id in ecm.get_entities_with(
             PlayerControlled,
             Position,
@@ -50,6 +50,7 @@ class MeleeAttackSystem:
                 attack,
                 attack_rect,
                 tile_map,
+                enemy_spatial_index,
             )
 
             self.activate_hitbox(hitbox, attack_rect, hit_landed)
@@ -127,13 +128,14 @@ class MeleeAttackSystem:
         attack,
         attack_rect,
         tile_map,
+        enemy_spatial_index=None,
     ):
         hit_landed = False
         attacker_center_x, attacker_center_y = self.get_center(attacker_position, attacker_collider)
         fallback_x, fallback_y = self.get_knockback_fallback(facing)
 
-        for target_id in ecm.get_entities_with(Enemy, Position, Collider, Health):
-            if ecm.has_component(target_id, Dead):
+        for target_id in self.get_enemy_candidates(ecm, attack_rect, enemy_spatial_index):
+            if not self.is_damageable_enemy(ecm, target_id):
                 continue
 
             target_position = ecm.get_component(target_id, Position)
@@ -157,6 +159,28 @@ class MeleeAttackSystem:
             hit_landed = True
 
         return hit_landed
+
+    def get_enemy_candidates(self, ecm, attack_rect, enemy_spatial_index):
+        if enemy_spatial_index is None:
+            return ecm.get_entities_with(Enemy, Position, Collider, Health)
+
+        return enemy_spatial_index.query_rect(
+            attack_rect["x"],
+            attack_rect["y"],
+            attack_rect["width"],
+            attack_rect["height"],
+        )
+
+    def is_damageable_enemy(self, ecm, entity_id):
+        if ecm.has_component(entity_id, Dead):
+            return False
+
+        return (
+            ecm.has_component(entity_id, Enemy)
+            and ecm.has_component(entity_id, Position)
+            and ecm.has_component(entity_id, Collider)
+            and ecm.has_component(entity_id, Health)
+        )
 
     def get_knockback_fallback(self, facing):
         if facing is None:

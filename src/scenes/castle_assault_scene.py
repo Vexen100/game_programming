@@ -25,6 +25,7 @@ from src.systems.player_attack_input_system import PlayerAttackInputSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
+from src.systems.spatial_index_system import SpatialIndexSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
@@ -48,12 +49,14 @@ class CastleAssaultScene(BaseScene):
         self.capture_system = CaptureSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
+        self.spatial_index_system = SpatialIndexSystem()
         self.cleanup_system = CleanupSystem()
         self.render_system = RenderSystem()
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
+        self.enemy_spatial_index = None
         self.castle_wave_spawn_tiles = [
             (4, 3),
             (20, 6),
@@ -185,6 +188,7 @@ class CastleAssaultScene(BaseScene):
 
     def restart_castle(self):
         self.assault_completed = False
+        self.enemy_spatial_index = None
         self.tile_map = TileMap(self.create_test_castle_map())
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
@@ -237,6 +241,14 @@ class CastleAssaultScene(BaseScene):
         self.capture_system.reset()
         self.castle_wave_system.reset()
 
+    def rebuild_enemy_spatial_index(self):
+        self.enemy_spatial_index = self.spatial_index_system.build_enemy_index(
+            self.ecm,
+            self.tile_map.width * self.tile_map.tile_size,
+            self.tile_map.height * self.tile_map.tile_size,
+            settings.TILE_SIZE * 4,
+        )
+
     def add_patrol_routes(self):
         patrol_routes = [
             [(10, 3), (12, 3), (12, 5), (9, 5)],
@@ -280,13 +292,24 @@ class CastleAssaultScene(BaseScene):
         self.enemy_chase_system.update(self.ecm, self.tile_map, dt)
         previous_positions = self.movement_system.update(self.ecm, dt)
         self.collision_system.update(self.ecm, self.tile_map, previous_positions)
-        self.melee_attack_system.update(self.ecm, dt, self.tile_map)
+        self.rebuild_enemy_spatial_index()
+        self.melee_attack_system.update(
+            self.ecm,
+            dt,
+            self.tile_map,
+            self.enemy_spatial_index,
+        )
         self.enemy_death_system.update(self.ecm, self.get_current_region_id())
-        self.enemy_attack_system.update(self.ecm, dt)
+        self.enemy_attack_system.update(self.ecm, dt, self.enemy_spatial_index)
         self.player_death_system.update(self.ecm)
 
         if not self.is_player_defeated():
-            self.capture_system.update(self.ecm, dt, self.get_current_region_id())
+            self.capture_system.update(
+                self.ecm,
+                dt,
+                self.get_current_region_id(),
+                self.enemy_spatial_index,
+            )
             spawned_enemy_ids = self.castle_wave_system.update(
                 self.ecm,
                 self.entity_factory,
