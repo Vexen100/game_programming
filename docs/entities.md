@@ -266,6 +266,20 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 
 ---
 
+## Runtime SpatialIndex
+
+`SpatialIndex` и `UniformGrid` не являются ECS-сущностями и не добавляются как компоненты.
+
+Они хранят только runtime `entity_id` и AABB объектов, построенные из текущего ECS-состояния сцены.
+
+`SpatialIndexSystem` строит enemy index из живых врагов с `Enemy`, `Position` и `Collider`.
+
+Индекс временный: `RegionScene` и `CastleAssaultScene` перестраивают его во время update после движения и столкновений.
+
+Сами сущности не меняются. Компоненты `Enemy`, `Position`, `Collider`, `Dead` остаются источником правды.
+
+---
+
 ## Текущее правило для сущностей
 
 Компоненты хранят данные и не содержат игровой логики.

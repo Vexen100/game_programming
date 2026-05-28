@@ -283,6 +283,12 @@ NPC завершает простое задание после зачистки
 
 `line_of_sight.py` не зависит от PyGame, ECS, компонентов и сцен.
 
+`src/algorithms/spatial_index.py` содержит минимальный interface пространственного индекса.
+
+`src/algorithms/uniform_grid.py` содержит первый backend `UniformGrid`.
+
+`UniformGrid` работает с pixel coordinates, хранит только `entity_id` и runtime AABB объектов, не импортирует ECS и не знает про компоненты.
+
 ### `src/systems/`
 
 Содержит текущие ECS-системы:
@@ -298,6 +304,7 @@ NPC завершает простое задание после зачистки
 - `NPCInteractionSystem`;
 - `CaptureSystem`;
 - `CastleWaveSystem`;
+- `SpatialIndexSystem`;
 - `EnemyAttackSystem`;
 - `PlayerDeathSystem`;
 - `CleanupSystem`;
@@ -308,6 +315,22 @@ NPC завершает простое задание после зачистки
 `CaptureSystem` работает только с ECS и `EventBus`: захватывает точки и публикует события.
 
 `CastleWaveSystem` работает локально в `CastleAssaultScene`: после захвата не финальной точки создаёт небольшое подкрепление обычных врагов.
+
+`SpatialIndexSystem` строит временный enemy index для сцены из текущего ECS-состояния.
+
+Он создаёт `UniformGrid`, добавляет живых врагов с `Enemy`, `Position`, `Collider` и пропускает `Dead`.
+
+`RegionScene` и `CastleAssaultScene` перестраивают enemy spatial index каждый update после `MovementSystem` и `CollisionSystem`, но до melee/capture/enemy attack checks.
+
+`MeleeAttackSystem`, `EnemyAttackSystem`, `OutpostSystem` и `CaptureSystem` принимают optional spatial index.
+
+Если index не передан, эти системы сохраняют старый full-scan fallback.
+
+Если index передан, он используется только для получения кандидатов; точная проверка AABB или distance остаётся внутри системы.
+
+В `OutpostSystem` и `CaptureSystem` spatial index используется как broadphase через `query_rect()`, а не как окончательная radius-фильтрация.
+
+Точная distance-проверка между `Position` outpost/capture point и `Position` enemy остаётся внутри system, чтобы indexed path совпадал со старой full-scan семантикой.
 
 `EnemyChaseSystem` сохраняет прямое преследование без `tile_map`.
 
@@ -412,8 +435,9 @@ Last seen memory не является компонентом и не храни
 - полноценные связи и дороги между регионами;
 - граф регионов;
 - дальнейшая оптимизация pathfinding при необходимости;
+- SpatialHashing backend;
+- QuadTree backend;
 - Behavior Tree;
-- Spatial Grid;
 - полноценные sprite animations;
 - sound / hit effects;
 - сохранения.
