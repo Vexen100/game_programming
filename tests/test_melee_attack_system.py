@@ -1,5 +1,6 @@
 import unittest
 
+from src.algorithms.uniform_grid import UniformGrid
 from src.components.components import (
     AttackHitbox,
     AttackIntent,
@@ -61,6 +62,22 @@ class TestMeleeAttackSystem(unittest.TestCase):
             self.ecm.add_component(enemy, Dead())
         return enemy
 
+    def create_enemy_index(self, *enemy_ids):
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        for enemy_id in enemy_ids:
+            position = self.ecm.get_component(enemy_id, Position)
+            collider = self.ecm.get_component(enemy_id, Collider)
+            enemy_index.insert(
+                enemy_id,
+                position.x,
+                position.y,
+                collider.width,
+                collider.height,
+            )
+
+        return enemy_index
+
     def test_attack_damages_enemy_in_range(self):
         self.create_player()
         enemy = self.create_enemy(40, 0)
@@ -69,6 +86,36 @@ class TestMeleeAttackSystem(unittest.TestCase):
         health = self.ecm.get_component(enemy, Health)
 
         self.assertEqual(health.current, 30)
+
+    def test_attack_with_spatial_index_damages_enemy_inside_hitbox(self):
+        self.create_player()
+        enemy = self.create_enemy(40, 0)
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 30)
+
+    def test_attack_with_spatial_index_does_not_damage_enemy_outside_hitbox(self):
+        self.create_player(x=64, y=64, facing_x=1, facing_y=0)
+        enemy = self.create_enemy(64, 120)
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 40)
+
+    def test_attack_with_spatial_index_missing_enemy_does_not_damage(self):
+        self.create_player()
+        enemy = self.create_enemy(40, 0)
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 40)
 
     def test_facing_right_does_not_hit_enemy_on_left(self):
         self.create_player(x=64, y=64, facing_x=1, facing_y=0)

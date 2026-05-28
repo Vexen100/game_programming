@@ -1,5 +1,6 @@
 import unittest
 
+from src.algorithms.uniform_grid import UniformGrid
 from src.components.components import (
     Collider,
     Dead,
@@ -41,6 +42,22 @@ class TestEnemyAttackSystem(unittest.TestCase):
         )
         return enemy
 
+    def create_enemy_index(self, *enemy_ids):
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        for enemy_id in enemy_ids:
+            position = self.ecm.get_component(enemy_id, Position)
+            collider = self.ecm.get_component(enemy_id, Collider)
+            enemy_index.insert(
+                enemy_id,
+                position.x,
+                position.y,
+                collider.width,
+                collider.height,
+            )
+
+        return enemy_index
+
     def test_enemy_damages_player_in_range(self):
         player = self.create_player()
         self.create_enemy()
@@ -49,6 +66,36 @@ class TestEnemyAttackSystem(unittest.TestCase):
         player_health = self.ecm.get_component(player, Health)
 
         self.assertEqual(player_health.current, 92)
+
+    def test_enemy_with_spatial_index_damages_player_in_range(self):
+        player = self.create_player()
+        enemy = self.create_enemy()
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        player_health = self.ecm.get_component(player, Health)
+
+        self.assertEqual(player_health.current, 92)
+
+    def test_enemy_outside_spatial_query_does_not_damage_player(self):
+        player = self.create_player()
+        enemy = self.create_enemy(x=100)
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        player_health = self.ecm.get_component(player, Health)
+
+        self.assertEqual(player_health.current, 100)
+
+    def test_enemy_missing_from_spatial_index_does_not_damage_player(self):
+        player = self.create_player()
+        self.create_enemy()
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        player_health = self.ecm.get_component(player, Health)
+
+        self.assertEqual(player_health.current, 100)
 
     def test_enemy_does_not_damage_player_out_of_range(self):
         player = self.create_player()

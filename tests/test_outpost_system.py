@@ -1,6 +1,8 @@
 import unittest
 
+from src.algorithms.uniform_grid import UniformGrid
 from src.components.components import (
+    Collider,
     Dead,
     Enemy,
     Outpost,
@@ -71,6 +73,18 @@ class TestOutpostSystem(unittest.TestCase):
         )
         self.ecm.add_component(outpost, Outpost(radius=radius))
         return outpost
+
+    def create_enemy_index(self, *enemy_ids):
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        for enemy_id in enemy_ids:
+            position = self.ecm.get_component(enemy_id, Position)
+            collider = self.ecm.get_component(enemy_id, Collider)
+            width = collider.width if collider is not None else 1
+            height = collider.height if collider is not None else 1
+            enemy_index.insert(enemy_id, position.x, position.y, width, height)
+
+        return enemy_index
 
     def test_player_near_outpost_without_interact_does_not_clear_outpost(self):
         outpost = self.create_outpost()
@@ -162,6 +176,43 @@ class TestOutpostSystem(unittest.TestCase):
         self.assertFalse(outpost_component.cleared)
         self.assertEqual(outpost_component.clear_progress, 0)
 
+    def test_living_enemy_near_outpost_blocks_clearing_with_spatial_index(self):
+        outpost = self.create_outpost()
+        self.create_player()
+        enemy = self.create_enemy()
+        enemy_index = self.create_enemy_index(enemy)
+        outpost_component = self.ecm.get_component(outpost, Outpost)
+
+        self.system.update(
+            self.ecm,
+            FakeInputManager(held_action=settings.INTERACT),
+            region_id="old_ruins",
+            dt=outpost_component.clear_duration,
+            enemy_spatial_index=enemy_index,
+        )
+
+        self.assertFalse(outpost_component.cleared)
+        self.assertEqual(outpost_component.clear_progress, 0)
+
+    def test_spatial_index_outpost_keeps_full_scan_boundary_semantics(self):
+        outpost = self.create_outpost(radius=40)
+        self.create_player()
+        enemy = self.create_enemy(x=35, y=0)
+        self.ecm.add_component(enemy, Collider(width=28, height=28, solid=True))
+        enemy_index = self.create_enemy_index(enemy)
+        outpost_component = self.ecm.get_component(outpost, Outpost)
+
+        self.system.update(
+            self.ecm,
+            FakeInputManager(held_action=settings.INTERACT),
+            region_id="old_ruins",
+            dt=outpost_component.clear_duration,
+            enemy_spatial_index=enemy_index,
+        )
+
+        self.assertFalse(outpost_component.cleared)
+        self.assertEqual(outpost_component.clear_progress, 0)
+
     def test_dead_enemy_near_outpost_does_not_block_clearing(self):
         outpost = self.create_outpost()
         self.create_player()
@@ -173,6 +224,23 @@ class TestOutpostSystem(unittest.TestCase):
             FakeInputManager(held_action=settings.INTERACT),
             region_id="old_ruins",
             dt=outpost_component.clear_duration,
+        )
+
+        self.assertTrue(outpost_component.cleared)
+
+    def test_dead_enemy_near_outpost_does_not_block_with_spatial_index(self):
+        outpost = self.create_outpost()
+        self.create_player()
+        enemy = self.create_enemy(dead=True)
+        enemy_index = self.create_enemy_index(enemy)
+        outpost_component = self.ecm.get_component(outpost, Outpost)
+
+        self.system.update(
+            self.ecm,
+            FakeInputManager(held_action=settings.INTERACT),
+            region_id="old_ruins",
+            dt=outpost_component.clear_duration,
+            enemy_spatial_index=enemy_index,
         )
 
         self.assertTrue(outpost_component.cleared)

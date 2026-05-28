@@ -1,7 +1,9 @@
 import unittest
 
+from src.algorithms.uniform_grid import UniformGrid
 from src.components.components import (
     CapturePoint,
+    Collider,
     Dead,
     Enemy,
     PlayerControlled,
@@ -67,6 +69,18 @@ class TestCaptureSystem(unittest.TestCase):
         )
         return capture_point
 
+    def create_enemy_index(self, *enemy_ids):
+        enemy_index = UniformGrid(width=400, height=400, cell_size=64)
+
+        for enemy_id in enemy_ids:
+            position = self.ecm.get_component(enemy_id, Position)
+            collider = self.ecm.get_component(enemy_id, Collider)
+            width = collider.width if collider is not None else 1
+            height = collider.height if collider is not None else 1
+            enemy_index.insert(enemy_id, position.x, position.y, width, height)
+
+        return enemy_index
+
     def test_player_near_capture_point_increases_progress(self):
         capture_point = self.create_capture_point()
         self.create_player()
@@ -95,12 +109,80 @@ class TestCaptureSystem(unittest.TestCase):
 
         self.assertEqual(capture_point_component.progress, 0)
 
+    def test_living_enemy_near_capture_point_blocks_progress_with_spatial_index(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        enemy = self.create_enemy()
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(
+            self.ecm,
+            dt=1,
+            region_id="old_ruins",
+            enemy_spatial_index=enemy_index,
+        )
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, 0)
+
+    def test_spatial_index_capture_keeps_full_scan_boundary_semantics(self):
+        capture_point = self.create_capture_point()
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+        capture_point_component.radius = 40
+        self.create_player()
+        enemy = self.create_enemy(x=35, y=0)
+        self.ecm.add_component(enemy, Collider(width=28, height=28, solid=True))
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(
+            self.ecm,
+            dt=1,
+            region_id="old_ruins",
+            enemy_spatial_index=enemy_index,
+        )
+
+        self.assertEqual(capture_point_component.progress, 0)
+
+    def test_spatial_index_capture_uses_exact_distance_after_broadphase(self):
+        capture_point = self.create_capture_point()
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+        capture_point_component.radius = 40
+        self.create_player()
+        enemy = self.create_enemy(x=45, y=0)
+        self.ecm.add_component(enemy, Collider(width=28, height=28, solid=True))
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(
+            self.ecm,
+            dt=1,
+            region_id="old_ruins",
+            enemy_spatial_index=enemy_index,
+        )
+
+        self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)
+
     def test_dead_enemy_near_capture_point_does_not_block_progress(self):
         capture_point = self.create_capture_point()
         self.create_player()
         self.create_enemy(dead=True)
 
         self.system.update(self.ecm, dt=1, region_id="old_ruins")
+        capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+
+        self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)
+
+    def test_dead_enemy_near_capture_point_does_not_block_with_spatial_index(self):
+        capture_point = self.create_capture_point()
+        self.create_player()
+        enemy = self.create_enemy(dead=True)
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(
+            self.ecm,
+            dt=1,
+            region_id="old_ruins",
+            enemy_spatial_index=enemy_index,
+        )
         capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
 
         self.assertEqual(capture_point_component.progress, CapturePointSettings.CAPTURE_SPEED)

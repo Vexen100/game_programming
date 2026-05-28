@@ -8,6 +8,7 @@ from src.components.components import (
     AttackHitbox,
     AttackIntent,
     ChaseBehavior,
+    Dead,
     Enemy,
     FacingDirection,
     Health,
@@ -693,6 +694,70 @@ class TestRegionScene(unittest.TestCase):
         prompts = scene.get_contextual_prompts()
 
         self.assertIsInstance(prompts, list)
+
+    def test_region_scene_rebuild_enemy_spatial_index_creates_index(self):
+        scene = RegionScene()
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+
+        scene.rebuild_enemy_spatial_index()
+
+        self.assertIsNotNone(scene.enemy_spatial_index)
+        self.assertIn(
+            scene.enemy_id,
+            scene.enemy_spatial_index.query_rect(
+                enemy_position.x,
+                enemy_position.y,
+                settings.TILE_SIZE,
+                settings.TILE_SIZE,
+            ),
+        )
+
+    def test_region_scene_update_builds_enemy_spatial_index(self):
+        scene = RegionScene()
+
+        scene.update(0.1, FakeInputManager())
+
+        self.assertIsNotNone(scene.enemy_spatial_index)
+
+    def test_region_scene_enemy_spatial_index_contains_living_enemies(self):
+        scene = RegionScene()
+
+        scene.rebuild_enemy_spatial_index()
+
+        indexed_enemy_ids = scene.enemy_spatial_index.query_rect(
+            0,
+            0,
+            scene.tile_map.width * scene.tile_map.tile_size,
+            scene.tile_map.height * scene.tile_map.tile_size,
+        )
+
+        for enemy_id in scene.enemy_ids:
+            self.assertIn(enemy_id, indexed_enemy_ids)
+
+    def test_dead_enemy_does_not_block_outpost_through_spatial_index(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        outpost_position = scene.ecm.get_component(scene.outpost_id, Position)
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        dead_enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+
+        player_position.x = outpost_position.x
+        player_position.y = outpost_position.y
+        self.move_enemies_far_from(scene, outpost_position)
+        dead_enemy_position.x = outpost_position.x
+        dead_enemy_position.y = outpost_position.y
+        scene.ecm.add_component(scene.enemy_id, Dead())
+        scene.rebuild_enemy_spatial_index()
+
+        scene.outpost_system.update(
+            scene.ecm,
+            FakeInteractInputManager(),
+            scene.get_current_region_id(),
+            outpost.clear_duration,
+            scene.enemy_spatial_index,
+        )
+
+        self.assertTrue(outpost.cleared)
 
     def test_region_scene_contextual_prompts_show_outpost_hold_hint(self):
         scene = RegionScene()

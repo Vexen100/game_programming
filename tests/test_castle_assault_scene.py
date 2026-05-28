@@ -374,6 +374,46 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         self.assertGreater(capture_point.progress, 0)
 
+    def test_castle_rebuild_enemy_spatial_index_creates_index(self):
+        scene = CastleAssaultScene()
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+
+        scene.rebuild_enemy_spatial_index()
+
+        self.assertIsNotNone(scene.enemy_spatial_index)
+        self.assertIn(
+            scene.enemy_id,
+            scene.enemy_spatial_index.query_rect(
+                enemy_position.x,
+                enemy_position.y,
+                settings.TILE_SIZE,
+                settings.TILE_SIZE,
+            ),
+        )
+
+    def test_capture_system_blocks_progress_with_scene_spatial_index(self):
+        scene = CastleAssaultScene()
+        capture_point_id = scene.capture_point_ids[0]
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        capture_point_position = scene.ecm.get_component(capture_point_id, Position)
+        capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+
+        player_position.x = capture_point_position.x
+        player_position.y = capture_point_position.y
+        enemy_position.x = capture_point_position.x
+        enemy_position.y = capture_point_position.y
+        scene.rebuild_enemy_spatial_index()
+
+        scene.capture_system.update(
+            scene.ecm,
+            dt=1,
+            region_id=scene.get_current_region_id(),
+            enemy_spatial_index=scene.enemy_spatial_index,
+        )
+
+        self.assertEqual(capture_point.progress, 0)
+
     def test_defeated_player_does_not_capture_point(self):
         scene = CastleAssaultScene()
         capture_point_id = scene.capture_point_ids[0]
@@ -450,6 +490,38 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertEqual(len(scene.enemy_ids), 5)
         for enemy_id in scene.enemy_ids:
             self.assertTrue(scene.ecm.has_component(enemy_id, Enemy))
+
+    def test_wave_spawned_enemies_enter_spatial_index_on_next_update(self):
+        scene = CastleAssaultScene()
+        capture_point = scene.ecm.get_component(scene.capture_point_ids[0], CapturePoint)
+        capture_point.captured = True
+        capture_point.owner = "player"
+
+        scene.update(0, FakeInputManager())
+        spawned_enemy_id = scene.enemy_ids[-1]
+        spawned_enemy_position = scene.ecm.get_component(spawned_enemy_id, Position)
+
+        self.assertNotIn(
+            spawned_enemy_id,
+            scene.enemy_spatial_index.query_rect(
+                spawned_enemy_position.x,
+                spawned_enemy_position.y,
+                settings.TILE_SIZE,
+                settings.TILE_SIZE,
+            ),
+        )
+
+        scene.update(0, FakeInputManager())
+
+        self.assertIn(
+            spawned_enemy_id,
+            scene.enemy_spatial_index.query_rect(
+                spawned_enemy_position.x,
+                spawned_enemy_position.y,
+                settings.TILE_SIZE,
+                settings.TILE_SIZE,
+            ),
+        )
 
     def test_repeated_update_does_not_spawn_second_wave_for_same_capture_point(self):
         scene = CastleAssaultScene()
