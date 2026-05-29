@@ -17,5 +17,24 @@ Tower-defense + quests + metroidvania(??)
 - **Язык:** Python
 - **Фреймворк / Движок:** pygame
 
+## Текущий статус
+
+В проекте сейчас есть играбельный прототип:
+- world map;
+- region scene;
+- influence;
+- outpost/NPC interactions;
+- castle assault;
+- capture points;
+- liberation flow;
+- A*, LOS, BFS validation, UniformGrid.
+
+Ещё не реализовано:
+- save/load;
+- settings menu;
+- Behavior Tree;
+- BSP castle generation;
+- sprites/animations/sound.
+
 ## 📝 Примечание
 Репозиторий настроен для итеративной работы. Архитектура, стек и игровые решения будут уточняться в процессе. Ключевые шаги и прогресс фиксируются в истории коммитов и документации.

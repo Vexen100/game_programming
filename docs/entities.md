@@ -284,6 +284,8 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 
 Компоненты хранят данные и не содержат игровой логики.
 
+Текущее MVP-состояние проекта описано в `docs/mvp_checkpoint.md`. Этот checkpoint не добавляет новые компоненты и не меняет entity schema; он фиксирует, какие gameplay loops уже связаны через существующие сущности, события и системы.
+
 Системы выполняют логику:
 
 - ввод;

@@ -49,6 +49,7 @@
 - `src/ui/`
 - `src/world/`
 - `data/regions/regions.json`
+- `docs/mvp_checkpoint.md`
 - `tests/`
 
 ---
@@ -414,9 +415,15 @@ Last seen memory не является компонентом и не храни
 
 Содержит стартовые данные 5 регионов Crown Reclaim.
 
+### `docs/mvp_checkpoint.md`
+
+Фиксирует текущее milestone-состояние vertical prototype, честно отделяет уже работающие loops от ещё не реализованных систем и задаёт ближайший roadmap.
+
 ### `tests/`
 
-Содержит тесты для карты, ECM, фабрики сущностей, систем, UI и сцены региона.
+Содержит тесты для карты, ECM, фабрики сущностей, систем, UI, сцен и acceptance-level vertical slice.
+
+`tests/test_mvp_vertical_slice.py` проверяет текущий игровой цикл на уровне `GameState`, `EventBus`, `InfluenceSystem`, `RegionLiberationSystem` и `WorldMapScene` без запуска реального окна.
 
 ---
 
