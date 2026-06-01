@@ -10,6 +10,7 @@ from src.components.components import (
     ChaseBehavior,
     Dead,
     Enemy,
+    EnemyAttackState,
     FacingDirection,
     Health,
     MeleeAttack,
@@ -144,9 +145,15 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Enemy))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, MeleeAttack))
+        self.assertTrue(scene.ecm.has_component(scene.enemy_id, AttackHitbox))
+        self.assertTrue(scene.ecm.has_component(scene.enemy_id, EnemyAttackState))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, PatrolRoute))
         self.assertTrue(scene.ecm.has_component(scene.outpost_id, Outpost))
         self.assertTrue(scene.ecm.has_component(scene.npc_id, NPC))
+
+        for enemy_id in scene.enemy_ids:
+            self.assertTrue(scene.ecm.has_component(enemy_id, AttackHitbox))
+            self.assertTrue(scene.ecm.has_component(enemy_id, EnemyAttackState))
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Health))
@@ -218,6 +225,8 @@ class TestRegionScene(unittest.TestCase):
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
         enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
         player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        attack_state = scene.ecm.get_component(scene.enemy_id, EnemyAttackState)
+        hitbox = scene.ecm.get_component(scene.enemy_id, AttackHitbox)
 
         player_position.x = settings.TILE_SIZE * 5
         player_position.y = settings.TILE_SIZE * 6
@@ -227,6 +236,12 @@ class TestRegionScene(unittest.TestCase):
         old_health = player_health.current
 
         scene.update(0.1, FakeInputManager())
+
+        self.assertEqual(player_health.current, old_health)
+        self.assertTrue(attack_state.pending)
+        self.assertTrue(hitbox.active)
+
+        scene.update(attack_state.windup_duration, FakeInputManager())
 
         self.assertLess(player_health.current, old_health)
 

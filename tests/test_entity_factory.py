@@ -8,6 +8,7 @@ from src.components.components import (
     ChaseBehavior,
     Collider,
     Enemy,
+    EnemyAttackState,
     FacingDirection,
     Health,
     MeleeAttack,
@@ -86,6 +87,8 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(enemy, Enemy))
         self.assertTrue(self.ecm.has_component(enemy, ChaseBehavior))
         self.assertTrue(self.ecm.has_component(enemy, MeleeAttack))
+        self.assertTrue(self.ecm.has_component(enemy, AttackHitbox))
+        self.assertTrue(self.ecm.has_component(enemy, EnemyAttackState))
         self.assertFalse(self.ecm.has_component(enemy, PlayerControlled))
 
         health = self.ecm.get_component(enemy, Health)
@@ -93,6 +96,8 @@ class TestEntityFactory(unittest.TestCase):
         renderable = self.ecm.get_component(enemy, Renderable)
         chase = self.ecm.get_component(enemy, ChaseBehavior)
         melee_attack = self.ecm.get_component(enemy, MeleeAttack)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
 
         self.assertEqual(health.current, EnemySettings.HEALTH)
         self.assertEqual(health.maximum, EnemySettings.HEALTH)
@@ -110,6 +115,12 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(melee_attack.damage, EnemySettings.DAMAGE)
         self.assertEqual(melee_attack.attack_range, EnemySettings.ATTACK_RANGE)
         self.assertEqual(melee_attack.cooldown, EnemySettings.ATTACK_COOLDOWN)
+        self.assertEqual(hitbox.width, 0)
+        self.assertEqual(hitbox.height, 0)
+        self.assertEqual(hitbox.duration, EnemySettings.ATTACK_HITBOX_DURATION)
+        self.assertFalse(hitbox.active)
+        self.assertFalse(attack_state.pending)
+        self.assertEqual(attack_state.windup_duration, EnemySettings.ATTACK_WINDUP_DURATION)
 
     def test_create_outpost(self):
         outpost = self.entity_factory.create_outpost(x=300, y=200)

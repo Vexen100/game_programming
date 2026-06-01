@@ -3,7 +3,15 @@ from unittest.mock import patch
 
 import pygame
 
-from src.components.components import Dead, Enemy, Health, MeleeAttack, Position, Renderable
+from src.components.components import (
+    AttackHitbox,
+    Dead,
+    Enemy,
+    Health,
+    MeleeAttack,
+    Position,
+    Renderable,
+)
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.systems.render_system import RenderSystem
 from src.ui.debug_overlay import DebugOverlay
@@ -87,6 +95,48 @@ class TestUI(unittest.TestCase):
 
         with patch("pygame.draw.rect") as mock_draw_rect:
             RenderSystem().draw_enemy_health_bars(ecm, self.create_surface())
+
+        mock_draw_rect.assert_not_called()
+
+    def test_render_system_draws_player_attack_hitbox(self):
+        ecm = EntityComponentManager()
+        player = ecm.create_entity(tag="player")
+        ecm.add_component(
+            player,
+            AttackHitbox(active=True, x=10, y=10, width=20, height=12),
+        )
+
+        with patch("pygame.draw.rect") as mock_draw_rect:
+            RenderSystem().draw_attack_hitboxes(ecm, self.create_surface())
+
+        self.assertEqual(mock_draw_rect.call_args.args[1], (180, 180, 180))
+
+    def test_render_system_draws_enemy_attack_hitbox_with_enemy_color(self):
+        ecm = EntityComponentManager()
+        enemy = ecm.create_entity(tag="enemy")
+        ecm.add_component(enemy, Enemy())
+        ecm.add_component(
+            enemy,
+            AttackHitbox(active=True, x=10, y=10, width=20, height=12),
+        )
+
+        with patch("pygame.draw.rect") as mock_draw_rect:
+            RenderSystem().draw_attack_hitboxes(ecm, self.create_surface())
+
+        self.assertEqual(mock_draw_rect.call_args.args[1], (255, 150, 80))
+
+    def test_render_system_skips_dead_enemy_attack_hitbox(self):
+        ecm = EntityComponentManager()
+        enemy = ecm.create_entity(tag="enemy")
+        ecm.add_component(enemy, Enemy())
+        ecm.add_component(enemy, Dead())
+        ecm.add_component(
+            enemy,
+            AttackHitbox(active=True, x=10, y=10, width=20, height=12),
+        )
+
+        with patch("pygame.draw.rect") as mock_draw_rect:
+            RenderSystem().draw_attack_hitboxes(ecm, self.create_surface())
 
         mock_draw_rect.assert_not_called()
 

@@ -2,9 +2,11 @@ import unittest
 
 from src.algorithms.uniform_grid import UniformGrid
 from src.components.components import (
+    AttackHitbox,
     Collider,
     Dead,
     Enemy,
+    EnemyAttackState,
     Health,
     MeleeAttack,
     PlayerControlled,
@@ -27,7 +29,15 @@ class TestEnemyAttackSystem(unittest.TestCase):
         self.ecm.add_component(player, Health(current=health, maximum=100))
         return player
 
-    def create_enemy(self, x=40, y=0, damage=8, attack_range=40, cooldown=0.8):
+    def create_enemy(
+        self,
+        x=40,
+        y=0,
+        damage=8,
+        attack_range=40,
+        cooldown=0.8,
+        readable=False,
+    ):
         enemy = self.ecm.create_entity(tag="enemy")
         self.ecm.add_component(enemy, Enemy())
         self.ecm.add_component(enemy, Position(x, y))
@@ -40,6 +50,11 @@ class TestEnemyAttackSystem(unittest.TestCase):
                 cooldown=cooldown,
             ),
         )
+
+        if readable:
+            self.ecm.add_component(enemy, AttackHitbox(duration=0.12))
+            self.ecm.add_component(enemy, EnemyAttackState(windup_duration=0.35))
+
         return enemy
 
     def create_enemy_index(self, *enemy_ids):
@@ -66,6 +81,121 @@ class TestEnemyAttackSystem(unittest.TestCase):
         player_health = self.ecm.get_component(player, Health)
 
         self.assertEqual(player_health.current, 92)
+
+    def test_enemy_without_attack_state_uses_legacy_instant_attack(self):
+        player = self.create_player()
+        enemy = self.create_enemy()
+
+        self.assertFalse(self.ecm.has_component(enemy, EnemyAttackState))
+        self.assertFalse(self.ecm.has_component(enemy, AttackHitbox))
+
+        self.system.update(self.ecm, dt=0.1)
+        player_health = self.ecm.get_component(player, Health)
+
+        self.assertEqual(player_health.current, 92)
+
+    def test_readable_enemy_attack_starts_windup_without_immediate_damage(self):
+        player = self.create_player()
+        enemy = self.create_enemy(readable=True)
+
+        self.system.update(self.ecm, dt=0.1)
+        player_health = self.ecm.get_component(player, Health)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.assertEqual(player_health.current, 100)
+        self.assertTrue(attack_state.pending)
+        self.assertAlmostEqual(attack_state.windup_timer, attack_state.windup_duration)
+        self.assertTrue(hitbox.active)
+        self.assertFalse(hitbox.hit_landed)
+        self.assertGreater(hitbox.width, 0)
+        self.assertGreater(hitbox.height, 0)
+
+    def test_readable_enemy_attack_damages_after_windup_if_player_stays(self):
+        player = self.create_player()
+        enemy = self.create_enemy(readable=True)
+
+        self.system.update(self.ecm, dt=0.1)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        self.system.update(self.ecm, dt=attack_state.windup_duration)
+        player_health = self.ecm.get_component(player, Health)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.assertEqual(player_health.current, 92)
+        self.assertFalse(attack_state.pending)
+        self.assertTrue(hitbox.active)
+        self.assertTrue(hitbox.hit_landed)
+
+    def test_readable_enemy_attack_misses_if_player_leaves_before_windup(self):
+        player = self.create_player()
+        enemy = self.create_enemy(readable=True)
+        player_position = self.ecm.get_component(player, Position)
+
+        self.system.update(self.ecm, dt=0.1)
+        player_position.x = -200
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        self.system.update(self.ecm, dt=attack_state.windup_duration)
+        player_health = self.ecm.get_component(player, Health)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.assertEqual(player_health.current, 100)
+        self.assertFalse(attack_state.pending)
+        self.assertTrue(hitbox.active)
+        self.assertFalse(hitbox.hit_landed)
+
+    def test_readable_enemy_attack_sets_cooldown_after_resolve(self):
+        self.create_player()
+        enemy = self.create_enemy(readable=True, cooldown=0.8)
+        attack = self.ecm.get_component(enemy, MeleeAttack)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+
+        self.system.update(self.ecm, dt=0.1)
+        self.system.update(self.ecm, dt=attack_state.windup_duration)
+
+        self.assertAlmostEqual(attack.cooldown_timer, attack.cooldown)
+
+    def test_readable_enemy_hitbox_deactivates_after_flash_duration(self):
+        self.create_player()
+        enemy = self.create_enemy(readable=True)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.system.update(self.ecm, dt=0.1)
+        self.system.update(self.ecm, dt=attack_state.windup_duration)
+        self.system.update(self.ecm, dt=hitbox.duration)
+
+        self.assertFalse(hitbox.active)
+        self.assertEqual(hitbox.timer, 0)
+        self.assertFalse(hitbox.hit_landed)
+
+    def test_dead_readable_enemy_does_not_keep_hitbox_active(self):
+        player = self.create_player()
+        enemy = self.create_enemy(readable=True)
+
+        self.system.update(self.ecm, dt=0.1)
+        self.ecm.add_component(enemy, Dead())
+        self.system.update(self.ecm, dt=0.1)
+        player_health = self.ecm.get_component(player, Health)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.assertEqual(player_health.current, 100)
+        self.assertFalse(attack_state.pending)
+        self.assertFalse(hitbox.active)
+
+    def test_readable_enemy_with_spatial_index_starts_windup(self):
+        player = self.create_player()
+        enemy = self.create_enemy(readable=True)
+        enemy_index = self.create_enemy_index(enemy)
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        player_health = self.ecm.get_component(player, Health)
+        attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        hitbox = self.ecm.get_component(enemy, AttackHitbox)
+
+        self.assertEqual(player_health.current, 100)
+        self.assertTrue(attack_state.pending)
+        self.assertTrue(hitbox.active)
 
     def test_enemy_with_spatial_index_damages_player_in_range(self):
         player = self.create_player()

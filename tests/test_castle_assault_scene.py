@@ -3,9 +3,11 @@ import unittest
 import pygame
 import settings
 from src.components.components import (
+    AttackHitbox,
     CapturePoint,
     ChaseBehavior,
     Enemy,
+    EnemyAttackState,
     Health,
     MeleeAttack,
     PatrolRoute,
@@ -114,6 +116,8 @@ class TestCastleAssaultScene(unittest.TestCase):
             self.assertTrue(scene.ecm.has_component(enemy_id, Health))
             self.assertTrue(scene.ecm.has_component(enemy_id, ChaseBehavior))
             self.assertTrue(scene.ecm.has_component(enemy_id, MeleeAttack))
+            self.assertTrue(scene.ecm.has_component(enemy_id, AttackHitbox))
+            self.assertTrue(scene.ecm.has_component(enemy_id, EnemyAttackState))
             self.assertTrue(scene.ecm.has_component(enemy_id, PatrolRoute))
 
     def test_castle_assault_scene_has_capture_system(self):
@@ -359,6 +363,26 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         self.assertTrue(hasattr(scene.enemy_chase_system, "cached_paths"))
         self.assertTrue(hasattr(scene.enemy_chase_system, "last_seen_player_tiles"))
+
+    def test_update_can_activate_enemy_attack_hitbox(self):
+        scene = CastleAssaultScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        enemy_position = scene.ecm.get_component(scene.enemy_id, Position)
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        attack_state = scene.ecm.get_component(scene.enemy_id, EnemyAttackState)
+        hitbox = scene.ecm.get_component(scene.enemy_id, AttackHitbox)
+
+        player_position.x = settings.TILE_SIZE * 9
+        player_position.y = settings.TILE_SIZE * 3
+        enemy_position.x = settings.TILE_SIZE * 10
+        enemy_position.y = settings.TILE_SIZE * 3
+        old_health = player_health.current
+
+        scene.update(0.1, FakeInputManager())
+
+        self.assertEqual(player_health.current, old_health)
+        self.assertTrue(attack_state.pending)
+        self.assertTrue(hitbox.active)
 
     def test_player_near_capture_point_increases_progress(self):
         scene = CastleAssaultScene()
