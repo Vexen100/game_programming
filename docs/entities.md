@@ -55,7 +55,7 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 Текущий набор компонентов:
 
 ```text
-Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior + MeleeAttack (+ PatrolRoute)
+Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy + ChaseBehavior + MeleeAttack + AttackHitbox + EnemyAttackState (+ PatrolRoute)
 ```
 
 На текущем этапе враг:
@@ -66,7 +66,9 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 - в замке может появляться как подкрепление после захвата точки;
 - замечает игрока в радиусе обнаружения;
 - двигается к игроку через `EnemyChaseSystem`, `MovementSystem` и `CollisionSystem`;
-- наносит урон игроку через `EnemyAttackSystem`;
+- готовит удар через `EnemyAttackState`;
+- показывает AABB hitbox атаки через `AttackHitbox`;
+- наносит урон игроку через `EnemyAttackSystem` после windup, если игрок остался внутри hitbox;
 - помечается `Dead`, если `Health.current <= 0`;
 - удаляется через `CleanupSystem`, если помечен `Dead`;
 - рисуется через `RenderSystem`;
@@ -76,6 +78,14 @@ Enemy = entity_id + Position + Velocity + Collider + Renderable + Health + Enemy
 Размер collider/render врага меньше `TILE_SIZE`, чтобы враги стабильнее проходили по тайловым коридорам.
 
 `ChaseBehavior` хранит только параметры преследования. Логика преследования находится в `EnemyChaseSystem`.
+
+`EnemyAttackState` хранит только runtime-состояние вражеской атаки: длительность подготовки, текущий windup timer, recovery timer и флаг pending.
+
+`AttackHitbox` у врага — runtime-прямоугольник предупреждения и короткой flash-отрисовки после resolve атаки. Прямоугольник фиксируется в момент начала windup и не следует за игроком.
+
+Если игрок выходит из enemy attack hitbox до конца windup, атака промахивается и урон не наносится.
+
+`AttackHitbox` используется и игроком, и врагом, но игровая логика разная: игрок строит hitbox по `FacingDirection` в `MeleeAttackSystem`, враг строит hitbox по направлению к игроку в `EnemyAttackSystem`.
 
 `PatrolRoute` хранит только список patrol tiles, текущий индекс и optional wait timer.
 

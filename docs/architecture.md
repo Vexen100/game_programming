@@ -250,13 +250,13 @@ NPC завершает простое задание после зачистки
 
 ### `src/components/components.py`
 
-Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `Outpost`, `NPC`, `CapturePoint`, `Dead`, `ChaseBehavior`, `PatrolRoute`, `AttackIntent`, `FacingDirection`, `AttackHitbox`, `MeleeAttack`.
+Содержит dataclass-компоненты: `Position`, `Velocity`, `Collider`, `Renderable`, `Health`, `PlayerControlled`, `PlayerDefeated`, `Enemy`, `EnemyAttackState`, `Outpost`, `NPC`, `CapturePoint`, `Dead`, `ChaseBehavior`, `PatrolRoute`, `AttackIntent`, `FacingDirection`, `AttackHitbox`, `MeleeAttack`.
 
 ### `src/entities/entity_factory.py`
 
 Создаёт типовые ECS-сущности и добавляет им компоненты.
 
-Сейчас фабрика создаёт игрока с `AttackIntent`, `FacingDirection`, `AttackHitbox` и `MeleeAttack`, базового врага с `ChaseBehavior`/`MeleeAttack`, простой аванпост, NPC с простым заданием и точку захвата.
+Сейчас фабрика создаёт игрока с `AttackIntent`, `FacingDirection`, `AttackHitbox` и `MeleeAttack`, базового врага с `ChaseBehavior`, `MeleeAttack`, `AttackHitbox` и `EnemyAttackState`, простой аванпост, NPC с простым заданием и точку захвата.
 
 ### `src/entities/entities_settings.py`
 
@@ -373,9 +373,15 @@ Last seen memory не является компонентом и не храни
 
 Если центры игрока и врага совпали, fallback-направление knockback берётся из `FacingDirection`.
 
+`EnemyAttackSystem` использует `EnemyAttackState` и `AttackHitbox` для читаемой атаки врага: сначала запускается короткий windup, на земле виден зафиксированный AABB hitbox, а урон наносится только после windup, если игрок всё ещё внутри этого прямоугольника.
+
+Enemy attack telegraph не является Behavior Tree, sprite animation, sound feedback или системой эффектов. Это минимальная runtime-визуализация прямоугольника удара.
+
 `RenderSystem` умеет рисовать сущности с camera offset, enemy HP bars живых врагов и active attack hitboxes.
 
-Сущности с `Dead` пропускаются при отрисовке enemy HP bars.
+Enemy attack hitboxes рисуются отдельным warning/landed цветом, player attack hitboxes сохраняют свой цвет.
+
+Сущности с `Dead` пропускаются при отрисовке enemy HP bars и active attack hitboxes.
 
 `RegionLiberationSystem` слушает `RegionLiberatedEvent` и обновляет `GameState`.
 

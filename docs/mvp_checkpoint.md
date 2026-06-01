@@ -48,7 +48,7 @@
 - BSP generation не реализован.
 - SpatialHashing не реализован.
 - Lightmap / Perlin не реализованы.
-- Enemy attack feedback слабый.
+- Enemy attack имеет AABB telegraph и windup, но полноценные animations/sound/hit effects ещё не реализованы.
 - Нет спрайтов, анимаций и звука.
 - Регионы пока используют один прототип `RegionScene`.
 - Квесты пока прототипные, без диалогов и вариативности.
