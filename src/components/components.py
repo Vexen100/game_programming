@@ -49,6 +49,14 @@ class Enemy:
 
 
 @dataclass
+class EnemyAttackState:
+    windup_duration: float = 0.35
+    windup_timer: float = 0
+    recovery_timer: float = 0
+    pending: bool = False
+
+
+@dataclass
 class Outpost:
     radius: float
     cleared: bool = False

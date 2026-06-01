@@ -21,6 +21,10 @@ class EnemySettings:
     DAMAGE = 8
     ATTACK_RANGE = 40
     ATTACK_COOLDOWN = 0.8
+    ATTACK_WINDUP_DURATION = 0.35
+    ATTACK_HITBOX_WIDTH = 34
+    ATTACK_HITBOX_LENGTH = 44
+    ATTACK_HITBOX_DURATION = 0.12
 
 
 class OutpostSettings:

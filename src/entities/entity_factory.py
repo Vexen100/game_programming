@@ -5,6 +5,7 @@ from src.components.components import (
     ChaseBehavior,
     Collider,
     Enemy,
+    EnemyAttackState,
     FacingDirection,
     Health,
     MeleeAttack,
@@ -123,6 +124,18 @@ class EntityFactory:
                 damage=EnemySettings.DAMAGE,
                 attack_range=EnemySettings.ATTACK_RANGE,
                 cooldown=EnemySettings.ATTACK_COOLDOWN,
+            ),
+        )
+        self.ecm.add_component(
+            enemy,
+            AttackHitbox(
+                duration=EnemySettings.ATTACK_HITBOX_DURATION,
+            ),
+        )
+        self.ecm.add_component(
+            enemy,
+            EnemyAttackState(
+                windup_duration=EnemySettings.ATTACK_WINDUP_DURATION,
             ),
         )
 

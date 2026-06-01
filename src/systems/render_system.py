@@ -25,6 +25,9 @@ class RenderSystem:
 
     def draw_attack_hitboxes(self, ecm, screen, camera=None):
         for entity in ecm.get_entities_with(AttackHitbox):
+            if ecm.has_component(entity, Dead):
+                continue
+
             hitbox = ecm.get_component(entity, AttackHitbox)
 
             if not hitbox.active:
@@ -35,7 +38,11 @@ class RenderSystem:
             if camera is not None:
                 x, y = camera.apply(x, y)
 
-            color = (255, 230, 80) if hitbox.hit_landed else (180, 180, 180)
+            if ecm.has_component(entity, Enemy):
+                color = (255, 90, 70) if hitbox.hit_landed else (255, 150, 80)
+            else:
+                color = (255, 230, 80) if hitbox.hit_landed else (180, 180, 180)
+
             rect = pygame.Rect(x, y, hitbox.width, hitbox.height)
             pygame.draw.rect(screen, color, rect, 2)
 
