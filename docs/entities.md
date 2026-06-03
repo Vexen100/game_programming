@@ -46,6 +46,8 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 
 `AttackHitbox.width/height` у игрока — runtime-rect активного удара для отрисовки. Базовый размер атаки берётся из `PlayerSettings`.
 
+Close-contact melee fallback не добавляет новые компоненты и не меняет entity schema игрока. Если enemy AABB пересекается с body AABB игрока, `MeleeAttackSystem` может засчитать попадание как safety-case для физического overlap, но visible attack hitbox остаётся направленным.
+
 ---
 
 ## Enemy
@@ -259,6 +261,10 @@ CapturePoint = entity_id + Position + Renderable + CapturePoint
 `RegionScene` тоже показывает текущее влияние региона в gameplay HUD.
 
 Возврат из `RegionScene` на карту не пересоздаёт `GameState`.
+
+Повторный вход в тот же region_id в рамках текущего запуска не пересоздаёт `RegionScene`: `Game` хранит in-memory cache сцен по `region_id`.
+
+Это сохраняет runtime progress внутри объекта сцены, но не является SaveManager. После закрытия игры состояние региона всё ещё не восстанавливается с диска.
 
 `InfluenceSystem` меняет `player_influence` и `enemy_influence` при `EnemyKilledEvent`, `OutpostClearedEvent` и `QuestCompletedEvent`. Если влияние врага падает достаточно низко, выставляется `assault_unlocked`.
 

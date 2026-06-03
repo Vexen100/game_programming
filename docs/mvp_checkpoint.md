@@ -10,6 +10,8 @@
 - MainMenu / Pause / WorldMap / Region / CastleAssault.
 - EventBus для gameplay-событий.
 - GameState с регионами, influence, assault unlock, liberation и unlock next region.
+- In-session cache `RegionScene` по `region_id`.
+- Возврат Pause -> WorldMap -> gameplay без потери текущей gameplay-сцены.
 
 ### Region loop
 
@@ -21,6 +23,7 @@
 - NPC report progress через удержание `E`.
 - Influence в HUD обычного региона.
 - Assault unlock после ослабления влияния врага.
+- Повторный вход в тот же регион в рамках текущего запуска не сбрасывает runtime progress.
 
 ### Castle loop
 
@@ -43,6 +46,8 @@
 ## 2. Что ещё НЕ является готовой игрой
 
 - SaveManager / Continue не реализованы.
+- Disk persistence прогресса региона не реализован.
+- Partial region resurgence / reinforcements while away не реализованы.
 - SettingsScene / SettingsManager не реализованы.
 - Behavior Tree не реализован.
 - BSP generation не реализован.
@@ -69,9 +74,9 @@ QA-фиксы не являются отклонением от плана. Он
 ### Milestone A - закрыть playable vertical slice
 
 1. Acceptance tests текущего цикла.
-2. Enemy attack readability.
-3. SaveManager / Continue.
-4. SettingsManager / SettingsScene минимально.
+2. SaveManager / Continue.
+3. SettingsManager / SettingsScene минимально.
+4. Минимальная ручная проверка vertical slice после in-session continuity.
 
 ### Milestone B - алгоритмическое развитие
 
