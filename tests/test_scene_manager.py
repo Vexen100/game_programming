@@ -1,5 +1,6 @@
 import unittest
 
+import settings
 from src.core.scene_manager import SceneManager
 from src.scenes.base_scene import BaseScene
 
@@ -162,6 +163,48 @@ class TestSceneManager(unittest.TestCase):
         })
         gameplay_scene = FakeGameplayScene()
         manager.open_world_map(return_scene=gameplay_scene)
+        manager.process_scene_change()
+
+        manager.return_from_world_map()
+
+        self.assertIs(manager.current_scene, gameplay_scene)
+        self.assertIs(manager.current_scene.manager, manager)
+        self.assertIsNone(manager.world_map_return_scene)
+
+    def test_open_world_map_from_pause_saves_paused_scene_as_return_scene(self):
+        manager = SceneManager()
+        manager.register_scenes({
+            settings.REGION_SCENE: lambda: FakeGameplayScene(),
+            settings.PAUSE_SCENE: lambda: FakePauseScene(),
+            settings.WORLD_MAP_SCENE: lambda: FakeWorldMapScene(),
+        })
+        manager.request_change(settings.REGION_SCENE)
+        manager.process_scene_change()
+        gameplay_scene = manager.current_scene
+        manager.request_pause(settings.PAUSE_SCENE)
+        manager.process_scene_change()
+
+        manager.open_world_map_from_pause()
+        manager.process_scene_change()
+
+        self.assertIsInstance(manager.current_scene, FakeWorldMapScene)
+        self.assertIs(manager.world_map_return_scene, gameplay_scene)
+        self.assertIsNone(manager.paused_scene)
+        self.assertIsNone(manager.pause_scene_id)
+
+    def test_return_from_world_map_after_pause_restores_original_gameplay_scene(self):
+        manager = SceneManager()
+        manager.register_scenes({
+            settings.REGION_SCENE: lambda: FakeGameplayScene(),
+            settings.PAUSE_SCENE: lambda: FakePauseScene(),
+            settings.WORLD_MAP_SCENE: lambda: FakeWorldMapScene(),
+        })
+        manager.request_change(settings.REGION_SCENE)
+        manager.process_scene_change()
+        gameplay_scene = manager.current_scene
+        manager.request_pause(settings.PAUSE_SCENE)
+        manager.process_scene_change()
+        manager.open_world_map_from_pause()
         manager.process_scene_change()
 
         manager.return_from_world_map()

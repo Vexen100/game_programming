@@ -10,12 +10,16 @@ class FakeSceneManager:
     def __init__(self):
         self.requested_scene_id = None
         self.resumed = False
+        self.opened_world_map_from_pause = False
 
     def request_change(self, scene_id):
         self.requested_scene_id = scene_id
 
     def resume_scene(self):
         self.resumed = True
+
+    def open_world_map_from_pause(self):
+        self.opened_world_map_from_pause = True
 
 
 class FakeInputManager:
@@ -105,14 +109,15 @@ class TestPauseScene(unittest.TestCase):
 
         self.assertTrue(scene.manager.resumed)
 
-    def test_select_world_map_requests_world_map_scene(self):
+    def test_select_world_map_opens_world_map_from_pause(self):
         scene = PauseScene()
         scene.manager = FakeSceneManager()
         scene.selected_index = 1
 
         scene.update(0.1, FakeInputManager(settings.SELECT))
 
-        self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+        self.assertTrue(scene.manager.opened_world_map_from_pause)
+        self.assertIsNone(scene.manager.requested_scene_id)
 
     def test_select_main_menu_requests_main_menu_scene(self):
         scene = PauseScene()

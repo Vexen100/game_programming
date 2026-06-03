@@ -235,6 +235,22 @@ class TestWorldMapScene(unittest.TestCase):
 
         self.assertTrue(scene.manager.returned_from_world_map)
 
+    def test_back_from_world_map_without_return_scene_does_not_break_with_escape(self):
+        scene = self.create_scene()
+
+        scene.update(0.1, FakeInputManager(settings.PAUSE))
+
+        self.assertFalse(scene.manager.returned_from_world_map)
+        self.assertIsNone(scene.manager.requested_scene_id)
+
+    def test_back_from_world_map_without_return_scene_does_not_break_with_map_key(self):
+        scene = self.create_scene()
+
+        scene.update(0.1, FakeInputManager(settings.OPEN_WORLD_MAP))
+
+        self.assertFalse(scene.manager.returned_from_world_map)
+        self.assertIsNone(scene.manager.requested_scene_id)
+
     def test_liberated_region_is_drawn_as_player_controlled(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         game_state.mark_liberated("old_ruins")

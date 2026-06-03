@@ -126,6 +126,52 @@ class TestMeleeAttackSystem(unittest.TestCase):
 
         self.assertEqual(health.current, 40)
 
+    def test_attack_hits_overlapping_enemy_without_spatial_index(self):
+        self.create_player(x=128, y=64, facing_x=1, facing_y=0)
+        enemy = self.create_enemy(112, 64)
+
+        self.system.update(self.ecm, dt=0.1)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 30)
+
+    def test_attack_hits_overlapping_enemy_with_spatial_index(self):
+        self.create_player(x=128, y=64, facing_x=1, facing_y=0)
+        enemy = self.create_enemy(112, 64)
+        enemy_index = UniformGrid(width=400, height=400, cell_size=16)
+        enemy_position = self.ecm.get_component(enemy, Position)
+        enemy_collider = self.ecm.get_component(enemy, Collider)
+        enemy_index.insert(
+            enemy,
+            enemy_position.x,
+            enemy_position.y,
+            enemy_collider.width,
+            enemy_collider.height,
+        )
+
+        self.system.update(self.ecm, dt=0.1, enemy_spatial_index=enemy_index)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 30)
+
+    def test_attack_does_not_hit_enemy_behind_player_when_not_overlapping(self):
+        self.create_player(x=128, y=64, facing_x=1, facing_y=0)
+        enemy = self.create_enemy(80, 64)
+
+        self.system.update(self.ecm, dt=0.1)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 40)
+
+    def test_attack_still_hits_enemy_in_forward_hitbox(self):
+        self.create_player(x=128, y=64, facing_x=1, facing_y=0)
+        enemy = self.create_enemy(160, 64)
+
+        self.system.update(self.ecm, dt=0.1)
+        health = self.ecm.get_component(enemy, Health)
+
+        self.assertEqual(health.current, 30)
+
     def test_facing_left_hits_enemy_on_left(self):
         self.create_player(x=64, y=64, facing_x=-1, facing_y=0)
         enemy = self.create_enemy(32, 64)
