@@ -98,7 +98,10 @@ class PauseScene(BaseScene):
             return
 
         if action == "world_map":
-            self.manager.request_change(settings.WORLD_MAP_SCENE)
+            if hasattr(self.manager, "open_world_map_from_pause"):
+                self.manager.open_world_map_from_pause()
+            else:
+                self.manager.request_change(settings.WORLD_MAP_SCENE)
         elif action == "main_menu":
             self.manager.request_change(settings.MAIN_MENU_SCENE)
 

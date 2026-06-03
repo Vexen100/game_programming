@@ -65,6 +65,16 @@ class SceneManager:
         self.world_map_return_scene = return_scene
         self.next_scene_id = settings.WORLD_MAP_SCENE
 
+    def open_world_map_from_pause(self):
+        if self.paused_scene is None:
+            self.open_world_map()
+            return
+
+        return_scene = self.paused_scene
+        self.open_world_map(return_scene=return_scene)
+        self.paused_scene = None
+        self.pause_scene_id = None
+
     def has_world_map_return_scene(self):
         return self.world_map_return_scene is not None
 

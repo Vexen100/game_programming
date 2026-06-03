@@ -134,14 +134,28 @@ class MeleeAttackSystem:
         attacker_center_x, attacker_center_y = self.get_center(attacker_position, attacker_collider)
         fallback_x, fallback_y = self.get_knockback_fallback(facing)
 
-        for target_id in self.get_enemy_candidates(ecm, attack_rect, enemy_spatial_index):
+        for target_id in self.get_enemy_candidates(
+            ecm,
+            attack_rect,
+            attacker_position,
+            attacker_collider,
+            enemy_spatial_index,
+        ):
             if not self.is_damageable_enemy(ecm, target_id):
                 continue
 
             target_position = ecm.get_component(target_id, Position)
             target_collider = ecm.get_component(target_id, Collider)
 
-            if not self.rects_intersect(attack_rect, target_position, target_collider):
+            if not (
+                self.rects_intersect(attack_rect, target_position, target_collider)
+                or self.target_intersects_attacker_body(
+                    attacker_position,
+                    attacker_collider,
+                    target_position,
+                    target_collider,
+                )
+            ):
                 continue
 
             target_health = ecm.get_component(target_id, Health)
@@ -160,16 +174,32 @@ class MeleeAttackSystem:
 
         return hit_landed
 
-    def get_enemy_candidates(self, ecm, attack_rect, enemy_spatial_index):
+    def get_enemy_candidates(
+        self,
+        ecm,
+        attack_rect,
+        attacker_position,
+        attacker_collider,
+        enemy_spatial_index,
+    ):
         if enemy_spatial_index is None:
             return ecm.get_entities_with(Enemy, Position, Collider, Health)
 
-        return enemy_spatial_index.query_rect(
+        candidates = enemy_spatial_index.query_rect(
             attack_rect["x"],
             attack_rect["y"],
             attack_rect["width"],
             attack_rect["height"],
         )
+        candidates.update(
+            enemy_spatial_index.query_rect(
+                attacker_position.x,
+                attacker_position.y,
+                attacker_collider.width,
+                attacker_collider.height,
+            )
+        )
+        return candidates
 
     def is_damageable_enemy(self, ecm, entity_id):
         if ecm.has_component(entity_id, Dead):
@@ -195,6 +225,21 @@ class MeleeAttackSystem:
             and attack_rect["y"] < target_position.y + target_collider.height
             and attack_rect["y"] + attack_rect["height"] > target_position.y
         )
+
+    def target_intersects_attacker_body(
+        self,
+        attacker_position,
+        attacker_collider,
+        target_position,
+        target_collider,
+    ):
+        attacker_rect = self.create_rect(
+            attacker_position.x,
+            attacker_position.y,
+            attacker_collider.width,
+            attacker_collider.height,
+        )
+        return self.rects_intersect(attacker_rect, target_position, target_collider)
 
     def apply_knockback(
         self,

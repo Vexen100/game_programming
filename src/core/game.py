@@ -31,10 +31,11 @@ class Game:
         self.influence_system.subscribe(self.event_bus)
         self.region_liberation_system = RegionLiberationSystem(self.game_state)
         self.region_liberation_system.subscribe(self.event_bus)
+        self.region_scene_cache = {}
         scene_registry = {
             settings.MAIN_MENU_SCENE: lambda: MainMenuScene(),
             settings.WORLD_MAP_SCENE: lambda: WorldMapScene(self.game_state),
-            settings.REGION_SCENE: lambda: RegionScene(self.game_state, self.event_bus),
+            settings.REGION_SCENE: self.get_region_scene,
             settings.CASTLE_ASSAULT_SCENE: lambda: CastleAssaultScene(
                 self.game_state,
                 self.event_bus,
@@ -45,6 +46,14 @@ class Game:
         self.scene_manager.register_scenes(scene_registry)
         self.scene_manager.request_change(settings.MAIN_MENU_SCENE)
         self.scene_manager.process_scene_change()
+
+    def get_region_scene(self):
+        region_id = self.game_state.current_region_id
+
+        if region_id not in self.region_scene_cache:
+            self.region_scene_cache[region_id] = RegionScene(self.game_state, self.event_bus)
+
+        return self.region_scene_cache[region_id]
 
     def run(self):
         """Запускает игровой цикл"""
