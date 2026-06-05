@@ -5,16 +5,19 @@ from src.components.components import (
     AttackHitbox,
     AttackIntent,
     Collider,
+    Dead,
     Health,
     NPC,
     Outpost,
     PatrolRoute,
     PlayerDefeated,
     Position,
+    Renderable,
     Velocity,
 )
 from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
+from src.entities.entities_settings import NPCSettings, OutpostSettings
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
 from src.systems.cleanup_system import CleanupSystem
@@ -354,6 +357,107 @@ class RegionScene(BaseScene):
         self.enemy_chase_system.clear_ai_memory()
         self.enemy_chase_system.stop_enemies(self.ecm)
         self.update_camera()
+
+    def export_runtime_state(self):
+        defeated_enemy_indexes = []
+
+        for index, enemy_id in enumerate(self.enemy_ids):
+            if enemy_id not in self.ecm.alive_entities:
+                defeated_enemy_indexes.append(index)
+                continue
+
+            enemy_health = self.ecm.get_component(enemy_id, Health)
+
+            if self.ecm.has_component(enemy_id, Dead):
+                defeated_enemy_indexes.append(index)
+            elif enemy_health is not None and enemy_health.current <= 0:
+                defeated_enemy_indexes.append(index)
+
+        outpost = self.ecm.get_component(self.outpost_id, Outpost)
+        npc = self.ecm.get_component(self.npc_id, NPC)
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+        player_health = self.ecm.get_component(self.ecs_player_id, Health)
+
+        player_state = {}
+
+        if player_position is not None:
+            player_state["x"] = player_position.x
+            player_state["y"] = player_position.y
+
+        if player_health is not None:
+            player_state["health"] = player_health.current
+
+        return {
+            "defeated_enemy_indexes": defeated_enemy_indexes,
+            "outpost_cleared": outpost.cleared if outpost is not None else False,
+            "npc_quest_completed": npc.quest_completed if npc is not None else False,
+            "player": player_state,
+        }
+
+    def apply_runtime_state(self, runtime_state):
+        if not runtime_state:
+            return
+
+        for enemy_index in runtime_state.get("defeated_enemy_indexes", []):
+            if enemy_index < 0 or enemy_index >= len(self.enemy_ids):
+                continue
+
+            enemy_id = self.enemy_ids[enemy_index]
+
+            if enemy_id in self.ecm.alive_entities:
+                self.ecm.destroy_entity(enemy_id)
+
+        if runtime_state.get("outpost_cleared"):
+            self.apply_outpost_runtime_state()
+
+        if runtime_state.get("npc_quest_completed"):
+            self.apply_npc_runtime_state()
+
+        self.apply_player_runtime_state(runtime_state.get("player", {}))
+        self.update_camera()
+
+    def apply_outpost_runtime_state(self):
+        outpost = self.ecm.get_component(self.outpost_id, Outpost)
+        renderable = self.ecm.get_component(self.outpost_id, Renderable)
+
+        if outpost is not None:
+            outpost.cleared = True
+            outpost.clear_progress = outpost.clear_duration
+
+        if renderable is not None:
+            renderable.color = OutpostSettings.CLEARED_COLOR
+
+    def apply_npc_runtime_state(self):
+        npc = self.ecm.get_component(self.npc_id, NPC)
+        renderable = self.ecm.get_component(self.npc_id, Renderable)
+
+        if npc is not None:
+            npc.quest_completed = True
+            npc.report_progress = npc.report_duration
+
+        if renderable is not None:
+            renderable.color = NPCSettings.COMPLETED_COLOR
+
+    def apply_player_runtime_state(self, player_state):
+        if not player_state:
+            return
+
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+        player_health = self.ecm.get_component(self.ecs_player_id, Health)
+
+        if player_position is not None:
+            if "x" in player_state:
+                player_position.x = player_state["x"]
+            if "y" in player_state:
+                player_position.y = player_state["y"]
+
+        if player_health is not None and "health" in player_state:
+            player_health.current = max(
+                1,
+                min(player_health.maximum, player_state["health"]),
+            )
+
+            self.ecm.remove_component(self.ecs_player_id, PlayerDefeated)
 
     def update(self, dt, input_manager):
         self.current_dt = dt

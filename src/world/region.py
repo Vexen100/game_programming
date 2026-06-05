@@ -31,3 +31,16 @@ class RegionState:
             liberated=data["liberated"],
             unlocks_on_liberation=data.get("unlocks_on_liberation", []),
         )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "unlocked": self.unlocked,
+            "control_state": self.control_state,
+            "player_influence": self.player_influence,
+            "enemy_influence": self.enemy_influence,
+            "assault_unlocked": self.assault_unlocked,
+            "liberated": self.liberated,
+            "unlocks_on_liberation": list(self.unlocks_on_liberation),
+        }

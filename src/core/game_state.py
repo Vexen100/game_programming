@@ -21,6 +21,23 @@ class GameState:
         regions = [RegionState.from_dict(region_data) for region_data in regions_data]
         return cls(regions)
 
+    @classmethod
+    def from_dict(cls, data):
+        regions = [
+            RegionState.from_dict(region_data)
+            for region_data in data["regions"]
+        ]
+        return cls(regions, current_region_id=data.get("current_region_id"))
+
+    def to_dict(self):
+        return {
+            "current_region_id": self.current_region_id,
+            "regions": [
+                region.to_dict()
+                for region in self.regions.values()
+            ],
+        }
+
     def get_first_unlocked_region_id(self):
         for region in self.regions.values():
             if region.unlocked:

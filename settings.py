@@ -37,3 +37,4 @@ PAUSE_SCENE = "pause"
 
 # Пути к данным
 REGIONS_DATA_PATH = "data/regions/regions.json"
+SAVE_FILE_PATH = "data/saves/save_1.json"
