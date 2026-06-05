@@ -40,7 +40,7 @@
 Используется для проверки достижимости важных тайлов на карте.
 
 Пример применения:
-- статический замок проверяет, что игрок, враг и точки захвата находятся на проходимых и достижимых тайлах;
+- процедурный замок проверяет, что игрок, враги, точки захвата, wave spawns и финальная комната находятся на проходимых и достижимых тайлах;
 - обычная `RegionScene` проверяет, что player spawn, стартовые enemies, outpost, NPC и patrol route tiles достижимы;
 - тесты сразу ловят сломанные ручные карты.
 
@@ -445,9 +445,17 @@ Layout валидируется через существующий Flood fill /
 
 Алгоритм работает в tile coordinates и не создаёт PyGame objects, ECS entities или scene objects.
 
-Это сложный алгоритм и пока только generator core.
+Это сложный алгоритм.
 
-Он ещё не подключён к `CastleAssaultScene`: текущий штурм замка продолжает использовать статическую тестовую карту.
+BSP generator core подключён к `CastleAssaultScene`.
+
+Layout всё ещё data-only: gameplay scene создаёт ECS entities по tile coordinates из `CastleLayout`.
+
+BFS validation используется и в generator, и на уровне сцены.
+
+Текущий scope — procedural layout для штурма.
+
+Это не decorations, doors, traps, locked rooms, lighting, room themes или boss/final room gameplay.
 
 ---
 
@@ -457,7 +465,7 @@ Layout валидируется через существующий Flood fill /
 
 - движение по вектору;
 - проверка столкновений;
-- Flood fill / BFS validation для статического замка;
+- Flood fill / BFS validation для процедурного замка;
 - проверка расстояния;
 - таймеры перезарядки;
 - простое поведение врага;
@@ -465,7 +473,7 @@ Layout валидируется через существующий Flood fill /
 - простая система влияния;
 - A* + LOS для врагов;
 - `UniformGrid` для nearby enemy candidate search;
-- BSP generator core для будущей процедурной структуры замка.
+- BSP generator core и интеграция procedural layout в `CastleAssaultScene`.
 
 Текущий vertical prototype уже использует этот набор как рабочую основу. Дальше алгоритмы стоит добавлять от milestone-задач, а не просто ради увеличения списка систем.
 
@@ -480,7 +488,7 @@ Layout валидируется через существующий Flood fill /
 - SpatialHashing;
 - QuadTree;
 - полноценную симуляцию фронта;
-- интеграцию процедурного замка в `CastleAssaultScene`;
+- doors/traps/decorations/lighting для процедурного замка;
 - умный выбор атак врага;
 - систему снабжения;
 - сложный ИИ отрядов.

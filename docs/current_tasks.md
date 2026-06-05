@@ -188,7 +188,7 @@ Nearby enemy check для outpost может использовать време
 ## 8. Штурм замка
 
 В `CastleAssaultScene` уже есть:
-- статическая карта замка;
+- procedural BSP layout замка;
 - игрок;
 - несколько обычных врагов;
 - точки захвата;
@@ -205,13 +205,15 @@ Nearby enemy check для outpost может использовать време
 
 API `TileMap` теперь явно различает tile checks и pixel checks.
 
-При создании и локальном restart статический замок проверяет, что игрок, все враги и все точки захвата находятся на достижимых тайлах.
+При создании и локальном restart procedural castle layout проверяет, что игрок, все враги, все точки захвата, wave spawn tiles и final room tile находятся на достижимых тайлах.
 
-BSP core для будущей процедурной структуры замка уже реализован отдельно от сцены.
+BSP core реализован и подключён к `CastleAssaultScene`.
 
-`CastleAssaultScene` пока использует static test map.
+Static castle test map заменён на procedural BSP layout.
 
-Интеграция procedural castle layout в `CastleAssaultScene` ещё не реализована.
+Текущий штурм всё ещё минимальный: capture points, waves и liberation.
+
+Doors, traps, decorations, lighting, room themes, boss/final room gameplay и сохранение runtime штурма ещё не реализованы.
 
 Behavior Tree, глобальные контратаки, оборона регионов и разные типы врагов ещё не реализованы.
 
@@ -277,7 +279,7 @@ Corrupted save не чинится и не удаляется автоматич
 
 CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox timers и partial outpost/NPC progress не сохраняются.
 
-Это всё ещё ручной прототип без procedural castle scene integration, sprite animations, sound, hit effects, полноценного QuestSystem, диалоговых окон, multi-slot save UI и SettingsScene.
+Это всё ещё ручной прототип без sprite animations, sound, hit effects, полноценного QuestSystem, диалоговых окон, multi-slot save UI, SettingsScene и full procedural content system для замка.
 
 ## 10. MVP checkpoint
 
@@ -292,7 +294,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - liberation event;
 - unlock next region.
 
-Это не означает, что игра готова. Multi-slot save UI, manual save menu, CastleAssault runtime save, partial region resurgence while away, SettingsScene, Behavior Tree, procedural castle scene integration, sprites, animations и sound ещё не реализованы.
+Это не означает, что игра готова. Multi-slot save UI, manual save menu, CastleAssault runtime save, partial region resurgence while away, SettingsScene, Behavior Tree, room theming, doors/traps/decorations, sprites, animations и sound ещё не реализованы.
 
 ---
 
@@ -314,7 +316,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - сюжет;
 - полноценные квесты;
 - прокачку;
-- подключение процедурного замка вместо текущей статической сцены;
+- doors/traps/decorations/room themes для процедурного замка;
 - сложную систему сохранений со слотами;
 - звук;
 - красивый интерфейс;
@@ -337,7 +339,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 
 ## Потом
 - влияние через врагов, аванпост и NPC-задачу;
-- вход в статический `CastleAssaultScene` после ослабления региона;
+- вход в `CastleAssaultScene` после ослабления региона;
 - захват точек внутри замка;
 - освобождение региона после штурма;
 - несколько врагов;
@@ -358,7 +360,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - полноценные связи регионов;
 - дороги регионов;
 - распространение влияния по сети регионов;
-- procedural castle scene integration;
+- room theming / doors / traps / decorations для процедурного замка;
 - partial region resurgence while away;
 - SpatialHashing;
 - QuadTree;

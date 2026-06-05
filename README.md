@@ -25,6 +25,7 @@ Tower-defense + quests + metroidvania(??)
 - influence;
 - outpost/NPC interactions;
 - castle assault;
+- procedural BSP castle layout in `CastleAssaultScene`;
 - capture points;
 - liberation flow;
 - single-slot save/continue MVP;
@@ -34,7 +35,10 @@ Tower-defense + quests + metroidvania(??)
 - multi-slot save/load UI;
 - settings menu;
 - Behavior Tree;
-- BSP castle generation;
+- SpatialHashing;
+- full castle runtime save;
+- doors/traps/room decorations;
+- Lightmap / Perlin;
 - sprites/animations/sound.
 
 ## 📝 Примечание

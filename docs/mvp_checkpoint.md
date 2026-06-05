@@ -31,6 +31,7 @@
 ### Castle loop
 
 - Вход в штурм после unlock.
+- BSP-generated layout in `CastleAssaultScene`.
 - Capture points.
 - Waves после захвата не финальной точки.
 - Liberation event.
@@ -54,7 +55,8 @@
 - Partial region resurgence / reinforcements while away не реализованы.
 - SettingsScene / SettingsManager не реализованы.
 - Behavior Tree не реализован.
-- Procedural castle scene integration не реализована.
+- Room theming, doors, traps и decorations для процедурного замка не реализованы.
+- Boss/final room special encounter не реализован.
 - SpatialHashing не реализован.
 - Lightmap / Perlin не реализованы.
 - Enemy attack имеет AABB telegraph и windup, но полноценные animations/sound/hit effects ещё не реализованы.
@@ -85,7 +87,7 @@ QA-фиксы не являются отклонением от плана. Он
 
 1. Behavior Tree для enemy decisions.
 2. SpatialHashing backend.
-3. BSP castle scene integration.
+3. Doors/traps/decorations и room theming для procedural castle.
 
 ### Milestone C - presentation
 
