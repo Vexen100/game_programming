@@ -18,9 +18,11 @@ from src.components.components import (
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.events.game_events import RegionLiberatedEvent
+from src.algorithms.bsp import RectInt
 from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.systems.region_liberation_system import RegionLiberationSystem
 from src.ui import texts
+from src.world.castle_generator import CastleLayout
 from src.world.tile_types import FLOOR, WALL
 
 
@@ -89,11 +91,149 @@ class TestCastleAssaultScene(unittest.TestCase):
     def setUpClass(cls):
         pygame.font.init()
 
+    def create_test_castle_layout(self):
+        width = 14
+        height = 10
+        matrix = []
+
+        for tile_y in range(height):
+            row = []
+            for tile_x in range(width):
+                if tile_x == 0 or tile_y == 0 or tile_x == width - 1 or tile_y == height - 1:
+                    row.append(WALL)
+                else:
+                    row.append(FLOOR)
+            matrix.append(row)
+
+        return CastleLayout(
+            matrix=matrix,
+            rooms=[RectInt(1, 1, width - 2, height - 2)],
+            corridors=[],
+            entrance_tile=(2, 2),
+            final_room_tile=(11, 7),
+            capture_point_tiles=[(5, 2), (9, 6)],
+            enemy_spawn_tiles=[(4, 4), (7, 4), (10, 4)],
+            wave_spawn_tiles=[(3, 7), (8, 7)],
+            seed=123,
+        )
+
+    def get_position_tile(self, scene, entity_id):
+        position = scene.ecm.get_component(entity_id, Position)
+        return scene.tile_map.coord_pixels_to_tile(position.x, position.y)
+
+    def get_layout_important_tiles(self, layout):
+        return [
+            layout.entrance_tile,
+            layout.final_room_tile,
+            *layout.capture_point_tiles,
+            *layout.enemy_spawn_tiles,
+            *layout.wave_spawn_tiles,
+        ]
+
     def test_castle_assault_scene_creates_without_game_state(self):
         scene = CastleAssaultScene()
 
         self.assertEqual(scene.get_castle_title(), "Штурм замка")
         self.assertFalse(scene.assault_completed)
+
+    def test_castle_assault_scene_uses_castle_layout_matrix(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+
+        self.assertEqual(scene.tile_map.width, len(layout.matrix[0]))
+        self.assertEqual(scene.tile_map.height, len(layout.matrix))
+        self.assertEqual(scene.tile_map.matrix, layout.matrix)
+
+    def test_player_spawns_at_layout_entrance(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+
+        self.assertEqual(scene.get_entity_tile(scene.ecs_player_id), layout.entrance_tile)
+
+    def test_capture_points_spawn_from_layout(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+        capture_point_tiles = [
+            self.get_position_tile(scene, capture_point_id)
+            for capture_point_id in scene.capture_point_ids
+        ]
+
+        self.assertEqual(capture_point_tiles, layout.capture_point_tiles)
+
+    def test_enemies_spawn_from_layout(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+        enemy_tiles = [
+            scene.get_entity_tile(enemy_id)
+            for enemy_id in scene.enemy_ids
+        ]
+
+        self.assertEqual(len(scene.enemy_ids), len(layout.enemy_spawn_tiles))
+        self.assertEqual(enemy_tiles, layout.enemy_spawn_tiles)
+
+    def test_wave_spawn_tiles_come_from_layout(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+
+        self.assertEqual(scene.castle_wave_spawn_tiles, layout.wave_spawn_tiles)
+        self.assertEqual(scene.castle_wave_system.spawn_tiles, layout.wave_spawn_tiles)
+
+    def test_final_room_tile_is_reachable_in_scene_validation(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+
+        self.assertEqual(scene.final_room_tile, layout.final_room_tile)
+        scene.validate_castle_layout()
+
+    def test_restart_keeps_same_layout(self):
+        scene = CastleAssaultScene(castle_seed=12345)
+        layout_matrix = [row[:] for row in scene.castle_layout.matrix]
+        tile_map_matrix = [row[:] for row in scene.tile_map.matrix]
+        important_tiles = self.get_layout_important_tiles(scene.castle_layout)
+
+        scene.restart_castle()
+
+        self.assertEqual(scene.castle_layout.matrix, layout_matrix)
+        self.assertEqual(scene.tile_map.matrix, tile_map_matrix)
+        self.assertEqual(
+            self.get_layout_important_tiles(scene.castle_layout),
+            important_tiles,
+        )
+
+    def test_same_region_seed_produces_same_castle_layout(self):
+        first_game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        first_game_state.set_current_region("old_ruins")
+        second_game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        second_game_state.set_current_region("old_ruins")
+
+        first_scene = CastleAssaultScene(game_state=first_game_state)
+        second_scene = CastleAssaultScene(game_state=second_game_state)
+
+        self.assertEqual(first_scene.castle_layout.matrix, second_scene.castle_layout.matrix)
+        self.assertEqual(
+            self.get_layout_important_tiles(first_scene.castle_layout),
+            self.get_layout_important_tiles(second_scene.castle_layout),
+        )
+
+    def test_different_region_seed_can_produce_different_castle_layout(self):
+        first_scene = CastleAssaultScene(castle_seed=1)
+        second_scene = CastleAssaultScene(castle_seed=2)
+
+        self.assertNotEqual(first_scene.castle_layout.matrix, second_scene.castle_layout.matrix)
+
+    def test_invalid_layout_raises_value_error(self):
+        layout = self.create_test_castle_layout()
+        final_x, final_y = layout.final_room_tile
+        layout.matrix[final_y][final_x] = WALL
+
+        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+            CastleAssaultScene(castle_layout=layout)
 
     def test_castle_assault_scene_creates_player_and_enemy(self):
         scene = CastleAssaultScene()
@@ -212,7 +352,7 @@ class TestCastleAssaultScene(unittest.TestCase):
 
             self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
-    def test_validate_castle_layout_does_not_fail_on_static_map(self):
+    def test_validate_castle_layout_does_not_fail_on_procedural_map(self):
         scene = CastleAssaultScene()
 
         scene.validate_castle_layout()
@@ -235,27 +375,20 @@ class TestCastleAssaultScene(unittest.TestCase):
             for tile_x, tile_y in patrol_route.patrol_tiles:
                 self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
-    def test_castle_critical_openings_are_two_tiles_wide(self):
+    def test_castle_layout_corridors_are_floor(self):
         scene = CastleAssaultScene()
 
-        expected_openings = [
-            ((8, 5), (8, 6)),
-            ((20, 6), (21, 6)),
-            ((25, 15), (25, 16)),
-            ((11, 16), (12, 16)),
-            ((32, 11), (33, 11)),
-        ]
-
-        for first_tile, second_tile in expected_openings:
-            first_x, first_y = first_tile
-            second_x, second_y = second_tile
-            self.assertEqual(scene.tile_map.matrix[first_y][first_x], FLOOR)
-            self.assertEqual(scene.tile_map.matrix[second_y][second_x], FLOOR)
+        for corridor in scene.castle_layout.corridors:
+            for tile_x, tile_y in corridor:
+                self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
 
     def test_get_entity_tile_returns_player_tile_coordinates(self):
         scene = CastleAssaultScene()
 
-        self.assertEqual(scene.get_entity_tile(scene.ecs_player_id), (3, 3))
+        self.assertEqual(
+            scene.get_entity_tile(scene.ecs_player_id),
+            scene.castle_layout.entrance_tile,
+        )
 
     def test_validate_castle_layout_raises_if_capture_point_is_unreachable(self):
         scene = CastleAssaultScene()
@@ -620,6 +753,24 @@ class TestCastleAssaultScene(unittest.TestCase):
         for capture_point_id in scene.capture_point_ids:
             capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
             capture_point.captured = True
+
+        scene.update(0, FakeInputManager())
+
+        self.assertTrue(scene.assault_completed)
+        self.assertTrue(
+            any(isinstance(event, RegionLiberatedEvent) for event in event_bus.events)
+        )
+
+    def test_existing_castle_assault_liberation_flow_still_works(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = FakeEventBus()
+        scene = CastleAssaultScene(game_state, event_bus)
+
+        for capture_point_id in scene.capture_point_ids:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+            capture_point.owner = "player"
 
         scene.update(0, FakeInputManager())
 

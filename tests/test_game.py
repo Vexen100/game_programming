@@ -10,6 +10,7 @@ from src.core.game_state import GameState
 from src.core.save_manager import SaveData
 from src.core.scene_manager import SceneManager
 from src.events.game_events import OutpostClearedEvent, RegionLiberatedEvent
+from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.scenes.world_map_scene import WorldMapScene
 
 
@@ -115,6 +116,19 @@ class TestGame(unittest.TestCase):
         old_ruins_scene = game.get_region_scene()
 
         self.assertIsNot(old_ruins_scene, border_scene)
+
+    def test_build_scene_registry_creates_castle_assault_scene_with_layout(self):
+        game = self.create_game_shell()
+        game.game_state.set_current_region("old_ruins")
+
+        scene_registry = game.build_scene_registry()
+        scene = scene_registry[settings.CASTLE_ASSAULT_SCENE]()
+
+        self.assertIsInstance(scene, CastleAssaultScene)
+        self.assertIs(scene.game_state, game.game_state)
+        self.assertIs(scene.event_bus, game.event_bus)
+        self.assertIsNotNone(scene.castle_layout)
+        scene.validate_castle_layout()
 
     def test_world_map_reenter_same_region_uses_cached_region_scene(self):
         game = self.create_game_shell()
