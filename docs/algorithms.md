@@ -425,6 +425,32 @@ LOS не является Behavior Tree, patrol-системой, FOV-систе
 
 ---
 
+## BSP dungeon generation
+
+Используется для процедурной структуры замка.
+
+Сейчас реализованы:
+- `src/algorithms/bsp.py`;
+- `src/world/castle_generator.py`.
+
+BSP делит прямоугольник карты на leaves.
+
+В leaf nodes создаются rooms.
+
+Rooms соединяются L-shaped corridors.
+
+`CastleGenerator` создаёт data-only layout: matrix, rooms, corridors, entrance tile, final room tile, capture point tiles, enemy spawn tiles и wave spawn tiles.
+
+Layout валидируется через существующий Flood fill / BFS из `src/algorithms/flood_fill.py`.
+
+Алгоритм работает в tile coordinates и не создаёт PyGame objects, ECS entities или scene objects.
+
+Это сложный алгоритм и пока только generator core.
+
+Он ещё не подключён к `CastleAssaultScene`: текущий штурм замка продолжает использовать статическую тестовую карту.
+
+---
+
 # Минимальный набор алгоритмов для первого прототипа
 
 Для самого первого ядра были нужны:
@@ -438,7 +464,8 @@ LOS не является Behavior Tree, patrol-системой, FOV-систе
 - система захвата точки;
 - простая система влияния;
 - A* + LOS для врагов;
-- `UniformGrid` для nearby enemy candidate search.
+- `UniformGrid` для nearby enemy candidate search;
+- BSP generator core для будущей процедурной структуры замка.
 
 Текущий vertical prototype уже использует этот набор как рабочую основу. Дальше алгоритмы стоит добавлять от milestone-задач, а не просто ради увеличения списка систем.
 
@@ -453,7 +480,7 @@ LOS не является Behavior Tree, patrol-системой, FOV-систе
 - SpatialHashing;
 - QuadTree;
 - полноценную симуляцию фронта;
-- сложную процедурную генерацию;
+- интеграцию процедурного замка в `CastleAssaultScene`;
 - умный выбор атак врага;
 - систему снабжения;
 - сложный ИИ отрядов.

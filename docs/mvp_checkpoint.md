@@ -45,6 +45,7 @@
 - A* pathfinding.
 - Flood fill / BFS validation.
 - UniformGrid / SpatialIndex.
+- BSP generator core.
 
 ## 2. Что ещё НЕ является готовой игрой
 
@@ -53,7 +54,7 @@
 - Partial region resurgence / reinforcements while away не реализованы.
 - SettingsScene / SettingsManager не реализованы.
 - Behavior Tree не реализован.
-- BSP generation не реализован.
+- Procedural castle scene integration не реализована.
 - SpatialHashing не реализован.
 - Lightmap / Perlin не реализованы.
 - Enemy attack имеет AABB telegraph и windup, но полноценные animations/sound/hit effects ещё не реализованы.
@@ -84,7 +85,7 @@ QA-фиксы не являются отклонением от плана. Он
 
 1. Behavior Tree для enemy decisions.
 2. SpatialHashing backend.
-3. BSP castle generation.
+3. BSP castle scene integration.
 
 ### Milestone C - presentation
 

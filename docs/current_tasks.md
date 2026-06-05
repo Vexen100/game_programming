@@ -207,7 +207,11 @@ API `TileMap` теперь явно различает tile checks и pixel chec
 
 При создании и локальном restart статический замок проверяет, что игрок, все враги и все точки захвата находятся на достижимых тайлах.
 
-Эта проверка нужна как подготовка к будущей BSP-генерации, но сама процедурная генерация ещё не реализована.
+BSP core для будущей процедурной структуры замка уже реализован отдельно от сцены.
+
+`CastleAssaultScene` пока использует static test map.
+
+Интеграция procedural castle layout в `CastleAssaultScene` ещё не реализована.
 
 Behavior Tree, глобальные контратаки, оборона регионов и разные типы врагов ещё не реализованы.
 
@@ -273,7 +277,7 @@ Corrupted save не чинится и не удаляется автоматич
 
 CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox timers и partial outpost/NPC progress не сохраняются.
 
-Это всё ещё ручной прототип без procedural generation, sprite animations, sound, hit effects, полноценного QuestSystem, диалоговых окон, multi-slot save UI и SettingsScene.
+Это всё ещё ручной прототип без procedural castle scene integration, sprite animations, sound, hit effects, полноценного QuestSystem, диалоговых окон, multi-slot save UI и SettingsScene.
 
 ## 10. MVP checkpoint
 
@@ -288,7 +292,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - liberation event;
 - unlock next region.
 
-Это не означает, что игра готова. Multi-slot save UI, manual save menu, CastleAssault runtime save, partial region resurgence while away, SettingsScene, Behavior Tree, BSP generation, sprites, animations и sound ещё не реализованы.
+Это не означает, что игра готова. Multi-slot save UI, manual save menu, CastleAssault runtime save, partial region resurgence while away, SettingsScene, Behavior Tree, procedural castle scene integration, sprites, animations и sound ещё не реализованы.
 
 ---
 
@@ -310,7 +314,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - сюжет;
 - полноценные квесты;
 - прокачку;
-- процедурную генерацию;
+- подключение процедурного замка вместо текущей статической сцены;
 - сложную систему сохранений со слотами;
 - звук;
 - красивый интерфейс;
@@ -354,8 +358,7 @@ CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox ti
 - полноценные связи регионов;
 - дороги регионов;
 - распространение влияния по сети регионов;
-- процедурная генерация;
-- BSP-генерация;
+- procedural castle scene integration;
 - partial region resurgence while away;
 - SpatialHashing;
 - QuadTree;
