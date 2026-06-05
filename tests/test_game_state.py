@@ -53,6 +53,55 @@ class TestGameState(unittest.TestCase):
 
         self.assertEqual(region.unlocks_on_liberation, [])
 
+    def test_game_state_to_dict_contains_current_region_and_regions(self):
+        self.game_state.set_current_region("old_ruins")
+
+        data = self.game_state.to_dict()
+
+        self.assertEqual(data["current_region_id"], "old_ruins")
+        self.assertEqual(len(data["regions"]), 5)
+
+    def test_game_state_from_dict_restores_region_data(self):
+        data = {
+            "current_region_id": "old_ruins",
+            "regions": [
+                {
+                    "id": "old_ruins",
+                    "name": "Old Ruins",
+                    "unlocked": True,
+                    "control_state": ENEMY_CONTROL,
+                    "player_influence": 25,
+                    "enemy_influence": 75,
+                    "assault_unlocked": True,
+                    "liberated": False,
+                    "unlocks_on_liberation": ["mountain_mines"],
+                }
+            ],
+        }
+
+        game_state = GameState.from_dict(data)
+        region = game_state.get_region("old_ruins")
+
+        self.assertEqual(game_state.current_region_id, "old_ruins")
+        self.assertTrue(region.unlocked)
+        self.assertEqual(region.control_state, ENEMY_CONTROL)
+        self.assertEqual(region.player_influence, 25)
+        self.assertEqual(region.enemy_influence, 75)
+        self.assertTrue(region.assault_unlocked)
+        self.assertFalse(region.liberated)
+        self.assertEqual(region.unlocks_on_liberation, ["mountain_mines"])
+
+    def test_game_state_serialization_roundtrip_preserves_data(self):
+        self.game_state.set_current_region("old_ruins")
+        self.game_state.mark_assault_unlocked("old_ruins")
+        self.game_state.mark_liberated("old_ruins")
+
+        restored_state = GameState.from_dict(self.game_state.to_dict())
+
+        self.assertEqual(restored_state.current_region_id, "old_ruins")
+        self.assertTrue(restored_state.get_region("old_ruins").liberated)
+        self.assertTrue(restored_state.get_region("mountain_mines").unlocked)
+
     def test_current_region_is_first_unlocked_region_after_loading(self):
         self.assertEqual(self.game_state.current_region_id, "border_forest")
 

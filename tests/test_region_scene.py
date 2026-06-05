@@ -20,10 +20,12 @@ from src.components.components import (
     PlayerControlled,
     PlayerDefeated,
     Position,
+    Renderable,
     Velocity,
 )
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
+from src.entities.entities_settings import NPCSettings, OutpostSettings
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
@@ -390,6 +392,128 @@ class TestRegionScene(unittest.TestCase):
         self.assertEqual(scene.enemy_chase_system.path_rebuild_timers, {})
         self.assertEqual(scene.enemy_chase_system.last_seen_player_tiles, {})
         self.assertEqual(scene.enemy_chase_system.last_seen_timers, {})
+
+    def test_region_scene_export_runtime_state_saves_destroyed_enemy_index(self):
+        scene = RegionScene()
+        scene.ecm.destroy_entity(scene.enemy_ids[1])
+
+        runtime_state = scene.export_runtime_state()
+
+        self.assertIn(1, runtime_state["defeated_enemy_indexes"])
+
+    def test_region_scene_export_runtime_state_saves_dead_enemy_index(self):
+        scene = RegionScene()
+        scene.ecm.add_component(scene.enemy_ids[2], Dead())
+
+        runtime_state = scene.export_runtime_state()
+
+        self.assertIn(2, runtime_state["defeated_enemy_indexes"])
+
+    def test_region_scene_export_runtime_state_saves_outpost_cleared(self):
+        scene = RegionScene()
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        outpost.cleared = True
+
+        runtime_state = scene.export_runtime_state()
+
+        self.assertTrue(runtime_state["outpost_cleared"])
+
+    def test_region_scene_export_runtime_state_saves_npc_quest_completed(self):
+        scene = RegionScene()
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        npc.quest_completed = True
+
+        runtime_state = scene.export_runtime_state()
+
+        self.assertTrue(runtime_state["npc_quest_completed"])
+
+    def test_region_scene_export_runtime_state_saves_player_position_and_health(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+        player_position.x = 123
+        player_position.y = 234
+        player_health.current = 80
+
+        runtime_state = scene.export_runtime_state()
+
+        self.assertEqual(runtime_state["player"]["x"], 123)
+        self.assertEqual(runtime_state["player"]["y"], 234)
+        self.assertEqual(runtime_state["player"]["health"], 80)
+
+    def test_region_scene_apply_runtime_state_removes_defeated_enemies(self):
+        scene = RegionScene()
+        removed_enemy_id = scene.enemy_ids[1]
+
+        scene.apply_runtime_state({"defeated_enemy_indexes": [1]})
+
+        self.assertNotIn(removed_enemy_id, scene.ecm.alive_entities)
+
+    def test_region_scene_apply_runtime_state_restores_outpost_cleared_and_color(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({"outpost_cleared": True})
+        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        renderable = scene.ecm.get_component(scene.outpost_id, Renderable)
+
+        self.assertTrue(outpost.cleared)
+        self.assertEqual(outpost.clear_progress, outpost.clear_duration)
+        self.assertEqual(renderable.color, OutpostSettings.CLEARED_COLOR)
+
+    def test_region_scene_apply_runtime_state_restores_npc_completed_and_color(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({"npc_quest_completed": True})
+        npc = scene.ecm.get_component(scene.npc_id, NPC)
+        renderable = scene.ecm.get_component(scene.npc_id, Renderable)
+
+        self.assertTrue(npc.quest_completed)
+        self.assertEqual(npc.report_progress, npc.report_duration)
+        self.assertEqual(renderable.color, NPCSettings.COMPLETED_COLOR)
+
+    def test_region_scene_apply_runtime_state_restores_player_position_and_health(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({
+            "player": {
+                "x": 140,
+                "y": 180,
+                "health": 72,
+            }
+        })
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+
+        self.assertEqual(player_position.x, 140)
+        self.assertEqual(player_position.y, 180)
+        self.assertEqual(player_health.current, 72)
+
+    def test_region_scene_apply_runtime_state_clamps_player_health_to_one(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({"player": {"health": 0}})
+        player_health = scene.ecm.get_component(scene.ecs_player_id, Health)
+
+        self.assertEqual(player_health.current, 1)
+
+    def test_region_scene_apply_runtime_state_does_not_publish_events(self):
+        class RecordingEventBus:
+            def __init__(self):
+                self.events = []
+
+            def publish(self, event):
+                self.events.append(event)
+
+        event_bus = RecordingEventBus()
+        scene = RegionScene(event_bus=event_bus)
+
+        scene.apply_runtime_state({
+            "defeated_enemy_indexes": [0],
+            "outpost_cleared": True,
+            "npc_quest_completed": True,
+        })
+
+        self.assertEqual(event_bus.events, [])
 
     def test_region_scene_uses_current_region_name_from_game_state(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

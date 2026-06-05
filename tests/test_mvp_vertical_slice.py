@@ -1,9 +1,13 @@
 import unittest
+import tempfile
+from pathlib import Path
 
 import pygame
 import settings
 from src.core.event_bus import EventBus
+from src.core.game import Game
 from src.core.game_state import GameState
+from src.core.save_manager import SaveManager
 from src.events.game_events import (
     OutpostClearedEvent,
     QuestCompletedEvent,
@@ -118,6 +122,31 @@ class TestMVPVerticalSlice(unittest.TestCase):
         self.assertTrue(game_state.get_region("old_ruins").liberated)
         self.assertTrue(mountain_mines.unlocked)
         self.assertEqual(mountain_mines.control_state, ENEMY_CONTROL)
+
+    def test_save_load_and_continue_keep_liberated_vertical_slice_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            game_state = self.load_game_state()
+            game_state.set_current_region("old_ruins")
+            event_bus = EventBus()
+            liberation_system = RegionLiberationSystem(game_state)
+            liberation_system.subscribe(event_bus)
+            event_bus.publish(RegionLiberatedEvent("old_ruins"))
+            save_manager = SaveManager(Path(directory) / "save_1.json")
+
+            save_manager.save(game_state)
+            save_data = save_manager.load()
+
+            self.assertTrue(save_data.game_state.get_region("old_ruins").liberated)
+            self.assertTrue(save_data.game_state.get_region("mountain_mines").unlocked)
+
+            game = object.__new__(Game)
+            game.save_manager = save_manager
+            game.scene_manager = FakeSceneManager()
+
+            self.assertTrue(game.continue_game())
+            self.assertTrue(game.game_state.get_region("old_ruins").liberated)
+            self.assertTrue(game.game_state.get_region("mountain_mines").unlocked)
+            self.assertEqual(game.scene_manager.requested_scene_id, settings.WORLD_MAP_SCENE)
 
 
 if __name__ == "__main__":

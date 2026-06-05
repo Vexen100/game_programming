@@ -45,6 +45,16 @@ class TestMainMenuScene(unittest.TestCase):
         self.assertEqual(scene.items[0], (texts.NEW_GAME, "start"))
         self.assertEqual(scene.selected_index, 0)
 
+    def test_continue_item_shows_unavailable_without_save(self):
+        scene = MainMenuScene(has_save=False)
+
+        self.assertEqual(scene.items[1], (texts.CONTINUE_UNAVAILABLE, "continue"))
+
+    def test_continue_item_shows_continue_with_save(self):
+        scene = MainMenuScene(has_save=True)
+
+        self.assertEqual(scene.items[1], (texts.CONTINUE, "continue"))
+
     def test_move_down_changes_selected_item(self):
         scene = MainMenuScene()
 
@@ -75,6 +85,73 @@ class TestMainMenuScene(unittest.TestCase):
         scene.update(0.1, FakeMouseInputManager(mouse_position))
 
         self.assertEqual(scene.manager.requested_scene_id, settings.WORLD_MAP_SCENE)
+
+    def test_new_game_without_save_calls_on_new_game_immediately(self):
+        calls = []
+        scene = MainMenuScene(on_new_game=lambda: calls.append("new"), has_save=False)
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, ["new"])
+        self.assertFalse(scene.confirm_new_game_delete)
+
+    def test_new_game_with_save_opens_delete_confirmation(self):
+        calls = []
+        scene = MainMenuScene(on_new_game=lambda: calls.append("new"), has_save=True)
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, [])
+        self.assertTrue(scene.confirm_new_game_delete)
+
+    def test_confirm_new_game_yes_calls_on_new_game(self):
+        calls = []
+        scene = MainMenuScene(on_new_game=lambda: calls.append("new"), has_save=True)
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, ["new"])
+        self.assertFalse(scene.confirm_new_game_delete)
+
+    def test_confirm_new_game_no_cancels_confirmation(self):
+        calls = []
+        scene = MainMenuScene(on_new_game=lambda: calls.append("new"), has_save=True)
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+        scene.confirm_selected_index = 1
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, [])
+        self.assertFalse(scene.confirm_new_game_delete)
+
+    def test_confirm_new_game_escape_cancels_confirmation(self):
+        calls = []
+        scene = MainMenuScene(on_new_game=lambda: calls.append("new"), has_save=True)
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        scene.update(0.1, FakeInputManager(settings.PAUSE))
+
+        self.assertEqual(calls, [])
+        self.assertFalse(scene.confirm_new_game_delete)
+
+    def test_continue_with_save_calls_on_continue(self):
+        calls = []
+        scene = MainMenuScene(on_continue=lambda: calls.append("continue"), has_save=True)
+        scene.selected_index = 1
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, ["continue"])
+
+    def test_continue_without_save_does_nothing(self):
+        calls = []
+        scene = MainMenuScene(on_continue=lambda: calls.append("continue"), has_save=False)
+        scene.selected_index = 1
+
+        scene.update(0.1, FakeInputManager(settings.SELECT))
+
+        self.assertEqual(calls, [])
 
     def test_click_outside_items_does_not_request_start_game(self):
         scene = MainMenuScene()
