@@ -29,16 +29,32 @@ from src.systems.spatial_index_system import SpatialIndexSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
-from src.world.tile_map import TileMap
-from src.world.tile_types import FLOOR, WALL
+from src.world.castle_generator import CastleGenerator, CastleLayout
 
 
 class CastleAssaultScene(BaseScene):
-    """Статическая сцена штурма замка"""
+    """Сцена штурма замка"""
 
-    def __init__(self, game_state=None, event_bus=None) -> None:
+    DEFAULT_CASTLE_SEED = 41042
+    CASTLE_LAYOUT_WIDTH = settings.SCREEN_WIDTH // settings.TILE_SIZE
+    CASTLE_LAYOUT_HEIGHT = settings.SCREEN_HEIGHT // settings.TILE_SIZE + 1
+
+    def __init__(
+        self,
+        game_state=None,
+        event_bus=None,
+        castle_layout: CastleLayout | None = None,
+        castle_seed=None,
+    ) -> None:
         self.game_state = game_state
         self.event_bus = event_bus
+        self.castle_seed = self.resolve_castle_seed(castle_seed)
+        self.castle_layout = castle_layout or self.generate_castle_layout()
+        self.final_room_tile = self.castle_layout.final_room_tile
+        self.capture_point_tiles = list(self.castle_layout.capture_point_tiles)
+        self.enemy_spawn_tiles = list(self.castle_layout.enemy_spawn_tiles)
+        self.castle_wave_spawn_tiles = list(self.castle_layout.wave_spawn_tiles)
+        self.validate_castle_layout_data()
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
@@ -57,11 +73,45 @@ class CastleAssaultScene(BaseScene):
         self.current_dt = 0
         self.manager = None
         self.enemy_spatial_index = None
-        self.castle_wave_spawn_tiles = [
-            (4, 3),
-            (20, 6),
-        ]
         self.restart_castle()
+
+    def resolve_castle_seed(self, castle_seed):
+        if castle_seed is not None:
+            return castle_seed
+
+        region_id = self.get_current_region_id()
+        if region_id is None:
+            return self.DEFAULT_CASTLE_SEED
+
+        return self.DEFAULT_CASTLE_SEED + self.make_stable_seed_from_text(region_id)
+
+    def make_stable_seed_from_text(self, text):
+        total = 0
+
+        for index, character in enumerate(text):
+            total += (index + 1) * ord(character)
+
+        return total
+
+    def generate_castle_layout(self):
+        return CastleGenerator(
+            self.CASTLE_LAYOUT_WIDTH,
+            self.CASTLE_LAYOUT_HEIGHT,
+            seed=self.castle_seed,
+        ).generate()
+
+    def validate_castle_layout_data(self):
+        if not self.castle_layout.matrix:
+            raise ValueError("Castle layout matrix is empty")
+
+        if not self.capture_point_tiles:
+            raise ValueError("Castle layout has no capture point tiles")
+
+        if not self.enemy_spawn_tiles:
+            raise ValueError("Castle layout has no enemy spawn tiles")
+
+        if not self.castle_wave_spawn_tiles:
+            raise ValueError("Castle layout has no wave spawn tiles")
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
         """Проверяет, что сущность создана с нужными компонентами"""
@@ -71,31 +121,6 @@ class CastleAssaultScene(BaseScene):
                 raise RuntimeError(
                     f"{entity_name} was created without {component_type.__name__} component"
                 )
-
-    def create_test_castle_map(self):
-        """Создаёт простую статическую карту замка"""
-        width = settings.SCREEN_WIDTH // settings.TILE_SIZE
-        height = settings.SCREEN_HEIGHT // settings.TILE_SIZE + 1
-        matrix = []
-
-        for row in range(height):
-            map_row = []
-            for tile in range(width):
-                is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
-                is_inner_wall = (
-                    (tile == 8 and 2 <= row <= 10 and row not in (5, 6))
-                    or (row == 6 and 12 <= tile <= 28 and tile not in (20, 21))
-                    or (tile == 25 and 10 <= row <= 20 and row not in (15, 16))
-                    or (row == 16 and 3 <= tile <= 18 and tile not in (11, 12))
-                    or (row == 11 and 28 <= tile <= 36 and tile not in (32, 33))
-                )
-                if is_border or is_inner_wall:
-                    map_row.append(WALL)
-                else:
-                    map_row.append(FLOOR)
-            matrix.append(map_row)
-
-        return matrix
 
     def handle_events(self, events):
         pass
@@ -147,7 +172,7 @@ class CastleAssaultScene(BaseScene):
 
     def validate_castle_layout(self):
         start_tile = self.get_entity_tile(self.ecs_player_id)
-        target_tiles = []
+        target_tiles = [self.final_room_tile]
 
         for enemy_id in self.enemy_ids:
             target_tiles.append(self.get_entity_tile(enemy_id))
@@ -189,7 +214,7 @@ class CastleAssaultScene(BaseScene):
     def restart_castle(self):
         self.assault_completed = False
         self.enemy_spatial_index = None
-        self.tile_map = TileMap(self.create_test_castle_map())
+        self.tile_map = self.castle_layout.to_tile_map()
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
         self.castle_wave_system = CastleWaveSystem(
@@ -197,42 +222,40 @@ class CastleAssaultScene(BaseScene):
             enemies_per_wave=2,
         )
 
+        player_x, player_y = self.tile_to_pixels(self.castle_layout.entrance_tile)
         self.ecs_player_id = self.entity_factory.create_player(
-            x=settings.TILE_SIZE * 3,
-            y=settings.TILE_SIZE * 3,
+            x=player_x,
+            y=player_y,
         )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
-        self.enemy_ids = [
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 10,
-                y=settings.TILE_SIZE * 3,
-            ),
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 7,
-                y=settings.TILE_SIZE * 6,
-            ),
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 11,
-                y=settings.TILE_SIZE * 6,
-            ),
-        ]
+        self.enemy_ids = []
+
+        for spawn_tile in self.enemy_spawn_tiles:
+            enemy_x, enemy_y = self.tile_to_pixels(spawn_tile)
+            self.enemy_ids.append(
+                self.entity_factory.create_enemy(
+                    x=enemy_x,
+                    y=enemy_y,
+                )
+            )
+
         self.enemy_id = self.enemy_ids[0]
         self.add_patrol_routes()
 
         for enemy_id in self.enemy_ids:
             self.check_entity_components(enemy_id, "ECS enemy", Position, Health)
 
-        self.capture_point_ids = [
-            self.entity_factory.create_capture_point(
-                x=settings.TILE_SIZE * 4,
-                y=settings.TILE_SIZE * 2,
-            ),
-            self.entity_factory.create_capture_point(
-                x=settings.TILE_SIZE * 10,
-                y=settings.TILE_SIZE * 6,
-            ),
-        ]
+        self.capture_point_ids = []
+
+        for capture_point_tile in self.capture_point_tiles:
+            capture_x, capture_y = self.tile_to_pixels(capture_point_tile)
+            self.capture_point_ids.append(
+                self.entity_factory.create_capture_point(
+                    x=capture_x,
+                    y=capture_y,
+                )
+            )
 
         for capture_point_id in self.capture_point_ids:
             self.check_entity_components(capture_point_id, "CapturePoint", Position, CapturePoint)
@@ -240,6 +263,10 @@ class CastleAssaultScene(BaseScene):
         self.validate_castle_layout()
         self.capture_system.reset()
         self.castle_wave_system.reset()
+
+    def tile_to_pixels(self, tile):
+        tile_x, tile_y = tile
+        return self.tile_map.coord_tile_to_pixels(tile_x, tile_y)
 
     def rebuild_enemy_spatial_index(self):
         self.enemy_spatial_index = self.spatial_index_system.build_enemy_index(
@@ -250,20 +277,50 @@ class CastleAssaultScene(BaseScene):
         )
 
     def add_patrol_routes(self):
-        patrol_routes = [
-            [(10, 3), (12, 3), (12, 5), (9, 5)],
-            [(7, 6), (7, 9), (5, 9), (5, 6)],
-            [(11, 6), (11, 8), (9, 8), (9, 6)],
-        ]
-
-        for enemy_id, patrol_tiles in zip(self.enemy_ids, patrol_routes):
+        for enemy_id, spawn_tile in zip(self.enemy_ids, self.enemy_spawn_tiles):
             self.ecm.add_component(
                 enemy_id,
                 PatrolRoute(
-                    patrol_tiles=patrol_tiles,
+                    patrol_tiles=self.create_patrol_tiles(spawn_tile),
                     wait_duration=0.2,
                 ),
             )
+
+    def create_patrol_tiles(self, spawn_tile):
+        patrol_tiles = []
+
+        for radius in range(0, 4):
+            for tile in self.get_square_ring_tiles(spawn_tile, radius):
+                if self.tile_map.is_tile_blocked(*tile):
+                    continue
+
+                if tile in patrol_tiles:
+                    continue
+
+                patrol_tiles.append(tile)
+
+                if len(patrol_tiles) == 4:
+                    return patrol_tiles
+
+        return patrol_tiles
+
+    def get_square_ring_tiles(self, center_tile, radius):
+        center_x, center_y = center_tile
+
+        if radius == 0:
+            return [center_tile]
+
+        tiles = []
+
+        for tile_x in range(center_x - radius, center_x + radius + 1):
+            tiles.append((tile_x, center_y - radius))
+            tiles.append((tile_x, center_y + radius))
+
+        for tile_y in range(center_y - radius + 1, center_y + radius):
+            tiles.append((center_x - radius, tile_y))
+            tiles.append((center_x + radius, tile_y))
+
+        return tiles
 
     def update(self, dt, input_manager):
         self.current_dt = dt

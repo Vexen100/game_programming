@@ -21,7 +21,7 @@ class CastleLayout:
     def to_tile_map(self):
         from src.world.tile_map import TileMap
 
-        return TileMap(self.matrix)
+        return TileMap([row[:] for row in self.matrix])
 
 
 class CastleGenerator:
