@@ -48,6 +48,8 @@ Player = entity_id + Position + Velocity + Collider + Renderable + Health + Play
 
 Close-contact melee fallback не добавляет новые компоненты и не меняет entity schema игрока. Если enemy AABB пересекается с body AABB игрока, `MeleeAttackSystem` может засчитать попадание как safety-case для физического overlap, но visible attack hitbox остаётся направленным.
 
+Save snapshot обычного региона тоже не добавляет новые ECS components.
+
 ---
 
 ## Enemy
@@ -122,6 +124,8 @@ Last seen memory не является компонентом и не храни
 При первом переходе врага в `Dead` публикуется `EnemyKilledEvent`. Это событие может менять влияние региона через `InfluenceSystem`.
 
 Враг не является отдельным классом `Enemy`.
+
+Save snapshot сохраняет defeated enemies как indexes внутри `RegionScene.enemy_ids`, а не как raw entity objects и не как полный ECS dump.
 
 ---
 

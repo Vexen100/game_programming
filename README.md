@@ -27,10 +27,11 @@ Tower-defense + quests + metroidvania(??)
 - castle assault;
 - capture points;
 - liberation flow;
+- single-slot save/continue MVP;
 - A*, LOS, BFS validation, UniformGrid.
 
 Ещё не реализовано:
-- save/load;
+- multi-slot save/load UI;
 - settings menu;
 - Behavior Tree;
 - BSP castle generation;
