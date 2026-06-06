@@ -579,10 +579,10 @@ class TestRegionScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
         status_lines = scene.get_region_status_lines()
 
-        self.assertEqual(region.player_influence, 25)
-        self.assertEqual(region.enemy_influence, 75)
-        self.assertIn(f"{texts.REGION_INFLUENCE_PLAYER}: 25", status_lines)
-        self.assertIn(f"{texts.REGION_INFLUENCE_ENEMY}: 75", status_lines)
+        self.assertEqual(region.player_influence, 5)
+        self.assertEqual(region.enemy_influence, 95)
+        self.assertIn(f"{texts.REGION_INFLUENCE_PLAYER}: 5", status_lines)
+        self.assertIn(f"{texts.REGION_INFLUENCE_ENEMY}: 95", status_lines)
 
     def test_region_scene_open_world_map_requests_world_map_scene(self):
         scene = RegionScene()
@@ -674,14 +674,14 @@ class TestRegionScene(unittest.TestCase):
 
         scene.update(0.1, FakeAttackInputManager())
         region = game_state.get_region("old_ruins")
-        self.assertEqual(region.player_influence, 25)
-        self.assertEqual(region.enemy_influence, 75)
+        self.assertEqual(region.player_influence, 5)
+        self.assertEqual(region.enemy_influence, 95)
 
         world_map_scene = WorldMapScene(game_state)
         status = world_map_scene.get_region_status_text(region)
 
-        self.assertIn("игрок 25", status)
-        self.assertIn("враг 75", status)
+        self.assertIn("игрок 5", status)
+        self.assertIn("враг 95", status)
 
     def test_region_scene_outpost_clear_changes_influence(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -703,9 +703,9 @@ class TestRegionScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(outpost.cleared)
-        self.assertEqual(region.player_influence, 50)
-        self.assertEqual(region.enemy_influence, 50)
-        self.assertTrue(region.assault_unlocked)
+        self.assertEqual(region.player_influence, 35)
+        self.assertEqual(region.enemy_influence, 65)
+        self.assertFalse(region.assault_unlocked)
 
     def test_region_scene_outpost_does_not_clear_without_interact(self):
         scene = RegionScene()
@@ -772,8 +772,8 @@ class TestRegionScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(npc.quest_completed)
-        self.assertEqual(region.player_influence, 25)
-        self.assertEqual(region.enemy_influence, 75)
+        self.assertEqual(region.player_influence, 30)
+        self.assertEqual(region.enemy_influence, 70)
 
     def test_region_scene_npc_quest_does_not_complete_before_outpost_cleared(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)

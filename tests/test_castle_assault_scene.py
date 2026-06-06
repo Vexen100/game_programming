@@ -111,8 +111,8 @@ class TestCastleAssaultScene(unittest.TestCase):
             corridors=[],
             entrance_tile=(2, 2),
             final_room_tile=(11, 7),
-            capture_point_tiles=[(5, 2), (9, 6)],
-            enemy_spawn_tiles=[(4, 4), (7, 4), (10, 4)],
+            capture_point_tiles=[(5, 2), (9, 6), (11, 7)],
+            enemy_spawn_tiles=[(5, 3), (9, 5), (11, 6)],
             wave_spawn_tiles=[(3, 7), (8, 7)],
             seed=123,
         )
@@ -129,6 +129,11 @@ class TestCastleAssaultScene(unittest.TestCase):
             *layout.enemy_spawn_tiles,
             *layout.wave_spawn_tiles,
         ]
+
+    def remove_starting_enemies(self, scene):
+        for enemy_id in list(scene.enemy_ids):
+            scene.ecm.destroy_entity(enemy_id)
+        scene.enemy_ids = []
 
     def test_castle_assault_scene_creates_without_game_state(self):
         scene = CastleAssaultScene()
@@ -191,6 +196,60 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertEqual(scene.final_room_tile, layout.final_room_tile)
         scene.validate_castle_layout()
 
+    def test_final_capture_point_spawns_in_final_room(self):
+        layout = self.create_test_castle_layout()
+
+        scene = CastleAssaultScene(castle_layout=layout)
+        final_capture_point_id = scene.capture_point_ids[-1]
+
+        self.assertEqual(
+            scene.get_entity_tile(final_capture_point_id),
+            scene.final_room_tile,
+        )
+
+    def test_assault_does_not_complete_before_final_capture_point(self):
+        scene = CastleAssaultScene(castle_layout=self.create_test_castle_layout())
+
+        for capture_point_id in scene.capture_point_ids[:-1]:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+
+        scene.complete_assault_if_ready()
+
+        self.assertFalse(scene.assault_completed)
+
+    def test_first_capture_point_is_blocked_by_starting_enemy(self):
+        scene = CastleAssaultScene(castle_layout=self.create_test_castle_layout())
+        capture_point_id = scene.capture_point_ids[0]
+        capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+        capture_point_position = scene.ecm.get_component(capture_point_id, Position)
+
+        self.assertTrue(
+            scene.capture_system.has_living_enemy_near_capture_point(
+                scene.ecm,
+                capture_point_position,
+                capture_point.radius,
+            )
+        )
+
+    def test_capture_point_cannot_be_captured_while_guard_enemy_alive(self):
+        scene = CastleAssaultScene(castle_layout=self.create_test_castle_layout())
+        capture_point_id = scene.capture_point_ids[0]
+        capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        capture_point_position = scene.ecm.get_component(capture_point_id, Position)
+        player_position.x = capture_point_position.x
+        player_position.y = capture_point_position.y
+
+        scene.capture_system.update(
+            scene.ecm,
+            dt=10,
+            region_id=scene.get_current_region_id(),
+        )
+
+        self.assertEqual(capture_point.progress, 0)
+        self.assertFalse(capture_point.captured)
+
     def test_restart_keeps_same_layout(self):
         scene = CastleAssaultScene(castle_seed=12345)
         layout_matrix = [row[:] for row in scene.castle_layout.matrix]
@@ -243,7 +302,7 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "enemy_id"))
         self.assertEqual(len(scene.enemy_ids), 3)
         self.assertEqual(scene.enemy_id, scene.enemy_ids[0])
-        self.assertEqual(len(scene.ecm.alive_entities), 6)
+        self.assertEqual(len(scene.ecm.alive_entities), 7)
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerControlled))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
@@ -279,7 +338,7 @@ class TestCastleAssaultScene(unittest.TestCase):
     def test_castle_assault_scene_creates_capture_points(self):
         scene = CastleAssaultScene()
 
-        self.assertEqual(len(scene.capture_point_ids), 2)
+        self.assertEqual(len(scene.capture_point_ids), 3)
         for capture_point_id in scene.capture_point_ids:
             self.assertTrue(scene.ecm.has_component(capture_point_id, CapturePoint))
 
@@ -519,6 +578,7 @@ class TestCastleAssaultScene(unittest.TestCase):
 
     def test_player_near_capture_point_increases_progress(self):
         scene = CastleAssaultScene()
+        self.remove_starting_enemies(scene)
         capture_point_id = scene.capture_point_ids[0]
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
         capture_point_position = scene.ecm.get_component(capture_point_id, Position)
@@ -822,9 +882,10 @@ class TestCastleAssaultScene(unittest.TestCase):
 
         scene.update(0, FakeInputManager())
 
-        second_capture_point = scene.ecm.get_component(scene.capture_point_ids[1], CapturePoint)
-        second_capture_point.captured = True
-        second_capture_point.owner = "player"
+        for capture_point_id in scene.capture_point_ids[1:]:
+            capture_point = scene.ecm.get_component(capture_point_id, CapturePoint)
+            capture_point.captured = True
+            capture_point.owner = "player"
 
         scene.update(0, FakeInputManager())
         enemy_count_after_victory = len(scene.enemy_ids)
@@ -851,7 +912,7 @@ class TestCastleAssaultScene(unittest.TestCase):
         self.assertEqual(new_player_health.current, new_player_health.maximum)
         self.assertEqual(len(scene.enemy_ids), 3)
         self.assertEqual(scene.enemy_id, scene.enemy_ids[0])
-        self.assertEqual(len(scene.ecm.alive_entities), 6)
+        self.assertEqual(len(scene.ecm.alive_entities), 7)
 
     def test_draw_does_not_crash(self):
         scene = CastleAssaultScene()

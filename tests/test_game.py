@@ -296,9 +296,9 @@ class TestGame(unittest.TestCase):
         saved_region = game.save_manager.saved_game_state.get_region("old_ruins")
 
         self.assertTrue(game.save_manager.save_called)
-        self.assertEqual(saved_region.player_influence, 50)
-        self.assertEqual(saved_region.enemy_influence, 50)
-        self.assertTrue(saved_region.assault_unlocked)
+        self.assertEqual(saved_region.player_influence, 35)
+        self.assertEqual(saved_region.enemy_influence, 65)
+        self.assertFalse(saved_region.assault_unlocked)
         self.assertTrue(
             game.save_manager.saved_region_runtime["old_ruins"]["outpost_cleared"]
         )

@@ -9,6 +9,7 @@ from src.core.game import Game
 from src.core.game_state import GameState
 from src.core.save_manager import SaveManager
 from src.events.game_events import (
+    EnemyKilledEvent,
     OutpostClearedEvent,
     QuestCompletedEvent,
     RegionLiberatedEvent,
@@ -51,7 +52,7 @@ class TestMVPVerticalSlice(unittest.TestCase):
 
         self.assertEqual(game_state.current_region_id, "old_ruins")
 
-    def test_influence_events_unlock_assault(self):
+    def test_influence_events_unlock_assault_after_full_region_loop(self):
         game_state = self.load_game_state()
         game_state.set_current_region("old_ruins")
         event_bus = EventBus()
@@ -59,6 +60,15 @@ class TestMVPVerticalSlice(unittest.TestCase):
         influence_system.subscribe(event_bus)
 
         event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        event_bus.publish(
+            QuestCompletedEvent(
+                quest_id="clear_old_ruins_outpost",
+                npc_id=1,
+                region_id="old_ruins",
+            )
+        )
+        event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
+        event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
         region = game_state.get_region("old_ruins")
 
         self.assertLessEqual(
@@ -113,6 +123,8 @@ class TestMVPVerticalSlice(unittest.TestCase):
                 region_id="old_ruins",
             )
         )
+        event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
+        event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
         old_ruins = game_state.get_region("old_ruins")
         self.assertTrue(old_ruins.assault_unlocked)
 
