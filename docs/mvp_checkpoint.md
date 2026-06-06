@@ -14,6 +14,7 @@
 - Возврат Pause -> WorldMap -> gameplay без потери текущей gameplay-сцены.
 - SaveManager / Continue MVP.
 - Single-slot disk persistence для world progress.
+- Assault unlock now requires a fuller region loop: outpost, NPC quest and combat contribution.
 
 ### Region loop
 
@@ -24,7 +25,7 @@
 - Outpost progress через удержание `E`.
 - NPC report progress через удержание `E`.
 - Influence в HUD обычного региона.
-- Assault unlock после ослабления влияния врага.
+- Assault unlock после более полного ослабления влияния врага: outpost, NPC quest и combat contribution.
 - Повторный вход в тот же регион в рамках текущего запуска не сбрасывает runtime progress.
 - Minimal `RegionScene` runtime snapshot для Continue.
 
@@ -32,7 +33,9 @@
 
 - Вход в штурм после unlock.
 - BSP-generated layout in `CastleAssaultScene`.
-- Capture points.
+- Widened procedural corridors.
+- Capture points, включая final room capture point.
+- Starting enemies guarding capture points.
 - Waves после захвата не финальной точки.
 - Liberation event.
 - Unlock next region после liberation.

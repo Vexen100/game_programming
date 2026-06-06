@@ -26,10 +26,14 @@ Tower-defense + quests + metroidvania(??)
 - outpost/NPC interactions;
 - castle assault;
 - procedural BSP castle layout in `CastleAssaultScene`;
+- widened castle corridors tuned for current player/enemy sizes;
 - capture points;
+- final castle room participates as the final capture point;
 - liberation flow;
 - single-slot save/continue MVP;
 - A*, LOS, BFS validation, UniformGrid.
+
+Assault unlock is harder than before: outpost alone and outpost + NPC quest alone are not enough without additional combat contribution.
 
 Ещё не реализовано:
 - multi-slot save/load UI;
