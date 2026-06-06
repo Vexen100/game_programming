@@ -25,6 +25,8 @@ class CastleLayout:
 
 
 class CastleGenerator:
+    CAPTURE_POINT_COUNT = 3
+
     def __init__(
         self,
         width,
@@ -35,6 +37,7 @@ class CastleGenerator:
         min_room_size=4,
         room_margin=1,
         max_attempts=20,
+        corridor_width=2,
     ):
         self.width = width
         self.height = height
@@ -44,12 +47,15 @@ class CastleGenerator:
         self.min_room_size = min_room_size
         self.room_margin = room_margin
         self.max_attempts = max_attempts
+        self.corridor_width = corridor_width
 
         self.validate_parameters()
 
     def validate_parameters(self):
         if self.max_attempts < 1:
             raise ValueError("CastleGenerator max_attempts must be at least 1")
+        if self.corridor_width < 1:
+            raise ValueError("CastleGenerator corridor_width must be at least 1")
 
         BSPGenerator(
             self.width,
@@ -166,13 +172,27 @@ class CastleGenerator:
                 horizontal_first,
             )
 
-            for tile_x, tile_y in corridor:
-                if self.is_in_bounds((tile_x, tile_y)):
-                    matrix[tile_y][tile_x] = FLOOR
+            for tile in corridor:
+                self.carve_corridor_tile(matrix, tile)
 
             corridors.append(corridor)
 
         return corridors
+
+    def carve_corridor_tile(self, matrix, tile):
+        for tile_x, tile_y in self.get_widened_corridor_tiles(tile):
+            if self.is_in_bounds((tile_x, tile_y)):
+                matrix[tile_y][tile_x] = FLOOR
+
+    def get_widened_corridor_tiles(self, tile):
+        tile_x, tile_y = tile
+        tiles = []
+
+        for offset_x in range(self.corridor_width):
+            for offset_y in range(self.corridor_width):
+                tiles.append((tile_x + offset_x, tile_y + offset_y))
+
+        return tiles
 
     def create_l_corridor(self, start_tile, end_tile, horizontal_first):
         start_x, start_y = start_tile
@@ -230,12 +250,20 @@ class CastleGenerator:
         final_room_tile,
     ):
         used_tiles = {entrance_tile, final_room_tile}
+        intermediate_count = self.CAPTURE_POINT_COUNT - 1
         candidate_tiles = [
             room.center
             for room in self.sort_rooms_by_distance(rooms, entrance_tile)
+            if room.center != final_room_tile
         ]
         candidate_tiles.extend(self.get_floor_tiles_by_distance(matrix, entrance_tile))
-        return self.choose_distinct_tiles(candidate_tiles, used_tiles, 2)
+        capture_point_tiles = self.choose_distinct_tiles(
+            candidate_tiles,
+            used_tiles,
+            intermediate_count,
+        )
+        capture_point_tiles.append(final_room_tile)
+        return capture_point_tiles
 
     def choose_enemy_spawn_tiles(
         self,
@@ -250,13 +278,43 @@ class CastleGenerator:
             final_room_tile,
             *capture_point_tiles,
         }
+        guard_tiles = self.choose_guard_tiles_near_capture_points(
+            matrix,
+            capture_point_tiles,
+            used_tiles,
+        )
+        used_tiles.update(guard_tiles)
         candidate_tiles = self.get_near_room_center_tiles(
             rooms,
             matrix,
             entrance_tile,
         )
         candidate_tiles.extend(self.get_floor_tiles_by_distance(matrix, entrance_tile))
-        return self.choose_distinct_tiles(candidate_tiles, used_tiles, 3)
+        enemy_spawn_tiles = list(guard_tiles)
+        enemy_spawn_tiles.extend(
+            self.choose_distinct_tiles(
+                candidate_tiles,
+                used_tiles,
+                max(0, len(capture_point_tiles) - len(enemy_spawn_tiles)),
+            )
+        )
+        return enemy_spawn_tiles
+
+    def choose_guard_tiles_near_capture_points(self, matrix, capture_point_tiles, used_tiles):
+        guard_tiles = []
+        used_tiles = set(used_tiles)
+
+        for capture_point_tile in capture_point_tiles:
+            candidate_tiles = self.get_nearby_floor_tiles(
+                matrix,
+                capture_point_tile,
+                max_distance=2,
+            )
+            guard_tile = self.choose_distinct_tiles(candidate_tiles, used_tiles, 1)[0]
+            used_tiles.add(guard_tile)
+            guard_tiles.append(guard_tile)
+
+        return guard_tiles
 
     def choose_wave_spawn_tiles(
         self,
@@ -273,10 +331,24 @@ class CastleGenerator:
             *capture_point_tiles,
             *enemy_spawn_tiles,
         }
-        candidate_tiles = self.get_floor_tiles_by_distance(matrix, entrance_tile)
+        candidate_tiles = []
+
+        for capture_point_tile in capture_point_tiles[:-1]:
+            candidate_tiles.extend(
+                self.get_nearby_floor_tiles(
+                    matrix,
+                    capture_point_tile,
+                    max_distance=4,
+                )
+            )
+
+        candidate_tiles.extend(self.get_floor_tiles_by_distance(matrix, entrance_tile))
         return self.choose_distinct_tiles(candidate_tiles, used_tiles, 2)
 
     def choose_distinct_tiles(self, candidate_tiles, used_tiles, count):
+        if count <= 0:
+            return []
+
         used_tiles = set(used_tiles)
         chosen_tiles = []
 
@@ -315,6 +387,26 @@ class CastleGenerator:
 
         return self.unique_tiles(candidate_tiles)
 
+    def get_nearby_floor_tiles(self, matrix, origin_tile, max_distance):
+        candidate_tiles = []
+        origin_x, origin_y = origin_tile
+
+        for distance in range(1, max_distance + 1):
+            for tile_y in range(origin_y - distance, origin_y + distance + 1):
+                for tile_x in range(origin_x - distance, origin_x + distance + 1):
+                    tile = (tile_x, tile_y)
+
+                    if tile == origin_tile:
+                        continue
+
+                    if self.manhattan_distance(tile, origin_tile) > distance:
+                        continue
+
+                    if self.is_floor_tile(matrix, tile):
+                        candidate_tiles.append(tile)
+
+        return self.unique_tiles(candidate_tiles)
+
     def get_floor_tiles_by_distance(self, matrix, origin_tile):
         floor_tiles = []
 
@@ -336,6 +428,9 @@ class CastleGenerator:
     def is_layout_valid(self, layout):
         important_tiles = self.get_important_tiles(layout)
 
+        if layout.capture_point_tiles[-1] != layout.final_room_tile:
+            return False
+
         if len(set(important_tiles)) != len(important_tiles):
             return False
 
@@ -352,7 +447,6 @@ class CastleGenerator:
 
     def get_important_tiles(self, layout):
         return [
-            layout.final_room_tile,
             *layout.capture_point_tiles,
             *layout.enemy_spawn_tiles,
             *layout.wave_spawn_tiles,
