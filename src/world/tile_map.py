@@ -3,6 +3,10 @@ import settings
 from src.world.tile_types import (
     BLOCKING_TILES,
     BRIDGE,
+    CASTLE_FLOOR,
+    CASTLE_WALL,
+    CRACKED_STONE_FLOOR,
+    DARK_CORRIDOR_FLOOR,
     DIRT,
     FLOOR,
     FOREST,
@@ -24,18 +28,42 @@ TILE_COLORS = {
     WATER: settings.WATER_COLOR,
     FOREST: settings.FOREST_COLOR,
     BRIDGE: settings.BRIDGE_COLOR,
+    CASTLE_FLOOR: settings.CASTLE_FLOOR_COLOR,
+    CASTLE_WALL: settings.CASTLE_WALL_COLOR,
+    CRACKED_STONE_FLOOR: settings.CRACKED_STONE_FLOOR_COLOR,
+    DARK_CORRIDOR_FLOOR: settings.DARK_CORRIDOR_FLOOR_COLOR,
 }
 
 
 class TileMap:
+    """Хранит матрицу тайлов и рисует карту с учетом камеры.
+
+    """
     def __init__(self, matrix: list[list[int]]) -> None:
+        """Инициализирует `TileMap` и сохраняет начальные зависимости.
+
+        Args:
+            matrix: Двумерная матрица тайлов карты.
+
+        Returns:
+            None.
+        """
         self.matrix = matrix
         self.tile_size = settings.TILE_SIZE
         self.height = len(matrix)
         self.width = len(matrix[0])
 
     def draw(self, screen: pygame.Surface, camera=None, resource_manager=None):
-        """Рисует тайлы карты (по сути рисует саму карту)"""
+        """Рисует объект на переданной поверхности.
+
+        Args:
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+            camera: Камера, задающая смещение видимой области карты.
+            resource_manager: Менеджер графических ресурсов и placeholder-изображений.
+
+        Returns:
+            None.
+        """
         for row in range(self.height):
             for tile in range(self.width):
                 x, y = self.coord_tile_to_pixels(tile, row)
@@ -57,35 +85,85 @@ class TileMap:
                 )
 
     def coord_tile_to_pixels(self, tile_x, tile_y):
-        """Преобразует индекс тайла в матрице карты в пиксельные координаты"""
+        """Переводит координаты тайла в пиксельную позицию.
+
+        Args:
+            tile_x: Координата тайла по оси X.
+            tile_y: Координата тайла по оси Y.
+
+        Returns:
+            Результат выполнения `coord_tile_to_pixels`.
+        """
         x = self.tile_size * tile_x
         y = self.tile_size * tile_y
         return x, y
 
     def coord_pixels_to_tile(self, x, y):
-        """Преобразует пиксельные координаты в индекс тайла в матрице карты"""
+        """Переводит пиксельную позицию в координаты тайла.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            Результат выполнения `coord_pixels_to_tile`.
+        """
         tile_x = int(x // self.tile_size)
         tile_y = int(y // self.tile_size)
         return tile_x, tile_y
 
     def is_tile_blocked(self, tile_x, tile_y):
-        """Проверяет, заблокирован ли тайл по координатам тайла"""
+        """Проверяет, заблокирован ли тайл для движения.
+
+        Args:
+            tile_x: Координата тайла по оси X.
+            tile_y: Координата тайла по оси Y.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if tile_x < 0 or tile_y < 0 or tile_x >= self.width or tile_y >= self.height:
             return True
 
         return self.matrix[tile_y][tile_x] in BLOCKING_TILES
 
     def is_point_blocked(self, x, y):
-        """Проверяет, заблокирована ли точка по пиксельным координатам"""
+        """Проверяет, находится ли точка внутри непроходимого тайла.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         tile_x, tile_y = self.coord_pixels_to_tile(x, y)
         return self.is_tile_blocked(tile_x, tile_y)
 
     def is_blocked(self, x, y):
-        """Совместимость: проверяет точку по пиксельным координатам"""
+        """Проверяет, заблокирована ли точка на карте.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return self.is_point_blocked(x, y)
 
     def is_rect_blocked(self, x, y, width, height):
-        """Проверяет, заблокирован ли прямоугольник по пиксельным координатам"""
+        """Проверяет, пересекает ли прямоугольник непроходимые тайлы.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         left_tile = int(x // self.tile_size)
         right_tile = int((x + width - 1) // self.tile_size)
         top_tile = int(y // self.tile_size)

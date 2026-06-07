@@ -5,6 +5,13 @@ from src.world.tile_types import BRIDGE, DIRT, FOREST, GRASS, ROAD, RUINS_FLOOR,
 
 @dataclass(frozen=True)
 class EnemySpawn:
+    """Описывает объект проекта: враг появление.
+
+    Attributes:
+        key: Ключ словаря, ресурса или игровой сущности.
+        tile: Координаты тайла в формате `(x, y)`.
+        patrol_tiles: Маршрут патруля как список тайлов.
+    """
     key: str
     tile: tuple[int, int]
     patrol_tiles: list[tuple[int, int]]
@@ -12,12 +19,26 @@ class EnemySpawn:
 
 @dataclass(frozen=True)
 class OutpostSpawn:
+    """Описывает объект проекта: аванпост появление.
+
+    Attributes:
+        key: Ключ словаря, ресурса или игровой сущности.
+        tile: Координаты тайла в формате `(x, y)`.
+    """
     key: str
     tile: tuple[int, int]
 
 
 @dataclass(frozen=True)
 class NPCSpawn:
+    """Описывает объект проекта: NPC появление.
+
+    Attributes:
+        key: Ключ словаря, ресурса или игровой сущности.
+        tile: Координаты тайла в формате `(x, y)`.
+        quest_id: Идентификатор задания NPC.
+        required_outpost_key: Ключ аванпоста, необходимого для задания NPC.
+    """
     key: str
     tile: tuple[int, int]
     quest_id: str
@@ -26,6 +47,15 @@ class NPCSpawn:
 
 @dataclass
 class RegionLayout:
+    """Описывает объект проекта: регион layout.
+
+    Attributes:
+        matrix: Двумерная матрица тайлов карты.
+        player_spawn_tile: Координаты тайла `игрок появление тайл` в формате `(x, y)`.
+        enemy_spawns: Значение `враг spawns`, используемое в логике метода.
+        outposts: Значение `outposts`, используемое в логике метода.
+        npcs: Значение `npcs`, используемое в логике метода.
+    """
     matrix: list[list[int]]
     player_spawn_tile: tuple[int, int]
     enemy_spawns: list[EnemySpawn]
@@ -34,6 +64,11 @@ class RegionLayout:
 
 
 def create_old_ruins_region_layout():
+    """Создает layout региона старых руин.
+
+    Returns:
+        Готовый layout региона старых руин.
+    """
     width = 96
     height = 56
     matrix = [
@@ -144,6 +179,19 @@ def create_old_ruins_region_layout():
 
 
 def fill_rect(matrix, x, y, width, height, tile_type):
+    """Заполняет прямоугольную область выбранным цветом или тайлом.
+
+    Args:
+        matrix: Двумерная матрица тайлов карты.
+        x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+        y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+        width: Ширина области, карты или изображения.
+        height: Высота области, карты или изображения.
+        tile_type: Тип тайла, который нужно разместить или проверить.
+
+    Returns:
+        None.
+    """
     for tile_y in range(y, y + height):
         for tile_x in range(x, x + width):
             matrix[tile_y][tile_x] = tile_type
