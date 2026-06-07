@@ -60,16 +60,26 @@ class TestMVPVerticalSlice(unittest.TestCase):
         influence_system.subscribe(event_bus)
 
         event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
         event_bus.publish(
             QuestCompletedEvent(
-                quest_id="clear_old_ruins_outpost",
+                quest_id="clear_north_ruins_outpost",
                 npc_id=1,
                 region_id="old_ruins",
             )
         )
-        event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
-        event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
+        event_bus.publish(
+            QuestCompletedEvent(
+                quest_id="clear_east_supply_outpost",
+                npc_id=2,
+                region_id="old_ruins",
+            )
+        )
         region = game_state.get_region("old_ruins")
+        self.assertEqual(region.enemy_influence, 30)
+        self.assertFalse(region.assault_unlocked)
+
+        event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
 
         self.assertLessEqual(
             region.enemy_influence,
@@ -116,15 +126,22 @@ class TestMVPVerticalSlice(unittest.TestCase):
         liberation_system.subscribe(event_bus)
 
         event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
         event_bus.publish(
             QuestCompletedEvent(
-                quest_id="clear_old_ruins_outpost",
+                quest_id="clear_north_ruins_outpost",
                 npc_id=1,
                 region_id="old_ruins",
             )
         )
+        event_bus.publish(
+            QuestCompletedEvent(
+                quest_id="clear_east_supply_outpost",
+                npc_id=2,
+                region_id="old_ruins",
+            )
+        )
         event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
-        event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
         old_ruins = game_state.get_region("old_ruins")
         self.assertTrue(old_ruins.assault_unlocked)
 

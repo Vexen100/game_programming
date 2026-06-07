@@ -21,16 +21,18 @@ from src.components.components import (
     PlayerDefeated,
     Position,
     Renderable,
+    Sprite,
     Velocity,
 )
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
+from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent, QuestCompletedEvent
 from src.entities.entities_settings import NPCSettings, OutpostSettings
 from src.scenes.region_scene import RegionScene
 from src.scenes.world_map_scene import WorldMapScene
 from src.systems.influence_system import InfluenceSystem
 from src.ui import texts
-from src.world.tile_types import FLOOR, WALL
+from src.world.tile_types import BLOCKING_TILES, WALL
 
 
 class FakeSceneManager:
@@ -134,9 +136,17 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(hasattr(scene, "player_death_system"))
         self.assertTrue(hasattr(scene, "cleanup_system"))
         self.assertTrue(hasattr(scene, "npc_id"))
-        self.assertEqual(len(scene.enemy_ids), 3)
+        self.assertGreaterEqual(len(scene.enemy_ids), 7)
+        self.assertEqual(len(scene.outpost_ids), 2)
+        self.assertEqual(len(scene.npc_ids), 2)
         self.assertEqual(scene.enemy_id, scene.enemy_ids[0])
-        self.assertEqual(len(scene.ecm.alive_entities), 6)
+        self.assertEqual(scene.outpost_id, scene.outpost_ids[0])
+        self.assertEqual(scene.npc_id, scene.npc_ids[0])
+        self.assertEqual(len(scene.ecm.alive_entities), 14)
+        self.assertIn("north_ruins_outpost", scene.outpost_entity_by_key)
+        self.assertIn("east_supply_outpost", scene.outpost_entity_by_key)
+        self.assertIn("scout_npc", scene.npc_entity_by_key)
+        self.assertIn("villager_npc", scene.npc_entity_by_key)
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, PlayerControlled))
         self.assertFalse(scene.ecm.has_component(scene.ecs_player_id, PlayerDefeated))
@@ -144,6 +154,7 @@ class TestRegionScene(unittest.TestCase):
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, MeleeAttack))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, FacingDirection))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, AttackHitbox))
+        self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Sprite))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, Enemy))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, ChaseBehavior))
         self.assertTrue(scene.ecm.has_component(scene.enemy_id, MeleeAttack))
@@ -156,6 +167,15 @@ class TestRegionScene(unittest.TestCase):
         for enemy_id in scene.enemy_ids:
             self.assertTrue(scene.ecm.has_component(enemy_id, AttackHitbox))
             self.assertTrue(scene.ecm.has_component(enemy_id, EnemyAttackState))
+            self.assertTrue(scene.ecm.has_component(enemy_id, Sprite))
+
+        for outpost_id in scene.outpost_ids:
+            self.assertTrue(scene.ecm.has_component(outpost_id, Outpost))
+            self.assertTrue(scene.ecm.has_component(outpost_id, Sprite))
+
+        for npc_id in scene.npc_ids:
+            self.assertTrue(scene.ecm.has_component(npc_id, NPC))
+            self.assertTrue(scene.ecm.has_component(npc_id, Sprite))
 
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Position))
         self.assertTrue(scene.ecm.has_component(scene.ecs_player_id, Health))
@@ -409,23 +429,35 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertIn(2, runtime_state["defeated_enemy_indexes"])
 
-    def test_region_scene_export_runtime_state_saves_outpost_cleared(self):
+    def test_region_scene_export_runtime_state_saves_multiple_outposts(self):
         scene = RegionScene()
-        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
-        outpost.cleared = True
+        north_outpost_id = scene.outpost_entity_by_key["north_ruins_outpost"]
+        east_outpost_id = scene.outpost_entity_by_key["east_supply_outpost"]
+        scene.ecm.get_component(north_outpost_id, Outpost).cleared = True
+        scene.ecm.get_component(east_outpost_id, Outpost).cleared = True
 
         runtime_state = scene.export_runtime_state()
 
-        self.assertTrue(runtime_state["outpost_cleared"])
+        self.assertEqual(
+            runtime_state["cleared_outpost_keys"],
+            ["north_ruins_outpost", "east_supply_outpost"],
+        )
+        self.assertNotIn("outpost_cleared", runtime_state)
 
-    def test_region_scene_export_runtime_state_saves_npc_quest_completed(self):
+    def test_region_scene_export_runtime_state_saves_multiple_npcs(self):
         scene = RegionScene()
-        npc = scene.ecm.get_component(scene.npc_id, NPC)
-        npc.quest_completed = True
+        scout_npc_id = scene.npc_entity_by_key["scout_npc"]
+        villager_npc_id = scene.npc_entity_by_key["villager_npc"]
+        scene.ecm.get_component(scout_npc_id, NPC).quest_completed = True
+        scene.ecm.get_component(villager_npc_id, NPC).quest_completed = True
 
         runtime_state = scene.export_runtime_state()
 
-        self.assertTrue(runtime_state["npc_quest_completed"])
+        self.assertEqual(
+            runtime_state["completed_npc_keys"],
+            ["scout_npc", "villager_npc"],
+        )
+        self.assertNotIn("npc_quest_completed", runtime_state)
 
     def test_region_scene_export_runtime_state_saves_player_position_and_health(self):
         scene = RegionScene()
@@ -449,27 +481,59 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertNotIn(removed_enemy_id, scene.ecm.alive_entities)
 
-    def test_region_scene_apply_runtime_state_restores_outpost_cleared_and_color(self):
+    def test_region_scene_apply_runtime_state_restores_multiple_outposts(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({
+            "cleared_outpost_keys": [
+                "north_ruins_outpost",
+                "east_supply_outpost",
+            ]
+        })
+
+        for outpost_id in scene.outpost_ids:
+            outpost = scene.ecm.get_component(outpost_id, Outpost)
+            renderable = scene.ecm.get_component(outpost_id, Renderable)
+            self.assertTrue(outpost.cleared)
+            self.assertEqual(outpost.clear_progress, outpost.clear_duration)
+            self.assertEqual(renderable.color, OutpostSettings.CLEARED_COLOR)
+
+    def test_region_scene_apply_runtime_state_restores_multiple_npcs(self):
+        scene = RegionScene()
+
+        scene.apply_runtime_state({
+            "completed_npc_keys": [
+                "scout_npc",
+                "villager_npc",
+            ]
+        })
+
+        for npc_id in scene.npc_ids:
+            npc = scene.ecm.get_component(npc_id, NPC)
+            renderable = scene.ecm.get_component(npc_id, Renderable)
+            self.assertTrue(npc.quest_completed)
+            self.assertEqual(npc.report_progress, npc.report_duration)
+            self.assertEqual(renderable.color, NPCSettings.COMPLETED_COLOR)
+
+    def test_region_scene_apply_runtime_state_supports_legacy_single_outpost_snapshot(self):
         scene = RegionScene()
 
         scene.apply_runtime_state({"outpost_cleared": True})
-        outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
-        renderable = scene.ecm.get_component(scene.outpost_id, Renderable)
+        first_outpost = scene.ecm.get_component(scene.outpost_id, Outpost)
+        second_outpost = scene.ecm.get_component(scene.outpost_ids[1], Outpost)
 
-        self.assertTrue(outpost.cleared)
-        self.assertEqual(outpost.clear_progress, outpost.clear_duration)
-        self.assertEqual(renderable.color, OutpostSettings.CLEARED_COLOR)
+        self.assertTrue(first_outpost.cleared)
+        self.assertFalse(second_outpost.cleared)
 
-    def test_region_scene_apply_runtime_state_restores_npc_completed_and_color(self):
+    def test_region_scene_apply_runtime_state_supports_legacy_single_npc_snapshot(self):
         scene = RegionScene()
 
         scene.apply_runtime_state({"npc_quest_completed": True})
-        npc = scene.ecm.get_component(scene.npc_id, NPC)
-        renderable = scene.ecm.get_component(scene.npc_id, Renderable)
+        first_npc = scene.ecm.get_component(scene.npc_id, NPC)
+        second_npc = scene.ecm.get_component(scene.npc_ids[1], NPC)
 
-        self.assertTrue(npc.quest_completed)
-        self.assertEqual(npc.report_progress, npc.report_duration)
-        self.assertEqual(renderable.color, NPCSettings.COMPLETED_COLOR)
+        self.assertTrue(first_npc.quest_completed)
+        self.assertFalse(second_npc.quest_completed)
 
     def test_region_scene_apply_runtime_state_restores_player_position_and_health(self):
         scene = RegionScene()
@@ -539,7 +603,26 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertIn(f"{texts.REGION_INFLUENCE_PLAYER}: 25", status_lines)
         self.assertIn(f"{texts.REGION_INFLUENCE_ENEMY}: 75", status_lines)
+        self.assertIn("Аванпосты: 0/2", status_lines)
+        self.assertIn("Задания: 0/2", status_lines)
+        self.assertIn("Враги: 9/9", status_lines)
         self.assertIn(texts.ASSAULT_LOCKED, status_lines)
+
+    def test_region_scene_status_lines_show_objective_counts(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        scene = RegionScene(game_state)
+        first_outpost = scene.ecm.get_component(scene.outpost_ids[0], Outpost)
+        first_npc = scene.ecm.get_component(scene.npc_ids[0], NPC)
+        first_outpost.cleared = True
+        first_npc.quest_completed = True
+        scene.ecm.destroy_entity(scene.enemy_ids[0])
+
+        status_lines = scene.get_region_status_lines()
+
+        self.assertIn("Аванпосты: 1/2", status_lines)
+        self.assertIn("Задания: 1/2", status_lines)
+        self.assertIn("Враги: 8/9", status_lines)
 
     def test_region_scene_status_lines_show_assault_ready_and_liberated(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -703,9 +786,39 @@ class TestRegionScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(outpost.cleared)
-        self.assertEqual(region.player_influence, 35)
-        self.assertEqual(region.enemy_influence, 65)
+        self.assertEqual(region.player_influence, 20)
+        self.assertEqual(region.enemy_influence, 80)
         self.assertFalse(region.assault_unlocked)
+
+    def test_region_scene_full_region_loop_unlocks_assault(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        event_bus = EventBus()
+        influence_system = InfluenceSystem(game_state)
+        influence_system.subscribe(event_bus)
+        scene = RegionScene(game_state, event_bus)
+
+        for outpost_id in scene.outpost_ids:
+            event_bus.publish(OutpostClearedEvent(outpost_id, "old_ruins"))
+
+        for npc_id in scene.npc_ids:
+            npc = scene.ecm.get_component(npc_id, NPC)
+            event_bus.publish(
+                QuestCompletedEvent(
+                    quest_id=npc.quest_id,
+                    npc_id=npc_id,
+                    region_id="old_ruins",
+                )
+            )
+
+        region = game_state.get_region("old_ruins")
+        self.assertEqual(region.enemy_influence, 30)
+        self.assertFalse(region.assault_unlocked)
+
+        event_bus.publish(EnemyKilledEvent(scene.enemy_id, "old_ruins"))
+
+        self.assertEqual(region.enemy_influence, 25)
+        self.assertTrue(region.assault_unlocked)
 
     def test_region_scene_outpost_does_not_clear_without_interact(self):
         scene = RegionScene()
@@ -772,8 +885,8 @@ class TestRegionScene(unittest.TestCase):
         region = game_state.get_region("old_ruins")
 
         self.assertTrue(npc.quest_completed)
-        self.assertEqual(region.player_influence, 30)
-        self.assertEqual(region.enemy_influence, 70)
+        self.assertEqual(region.player_influence, 15)
+        self.assertEqual(region.enemy_influence, 85)
 
     def test_region_scene_npc_quest_does_not_complete_before_outpost_cleared(self):
         game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
@@ -911,6 +1024,41 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertIn(texts.OUTPOST_HOLD_TO_CLEAR, prompts)
 
+    def test_region_scene_outpost_prompts_work_for_multiple_outposts(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        outpost_id = scene.outpost_entity_by_key["east_supply_outpost"]
+        outpost_position = scene.ecm.get_component(outpost_id, Position)
+
+        player_position.x = outpost_position.x
+        player_position.y = outpost_position.y
+        self.move_enemies_far_from(scene, outpost_position)
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertEqual(prompts, [texts.OUTPOST_HOLD_TO_CLEAR])
+
+    def test_region_scene_outpost_prompt_uses_nearest_relevant_outpost(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        first_outpost_id = scene.outpost_ids[0]
+        second_outpost_id = scene.outpost_ids[1]
+        first_outpost = scene.ecm.get_component(first_outpost_id, Outpost)
+        first_position = scene.ecm.get_component(first_outpost_id, Position)
+        second_position = scene.ecm.get_component(second_outpost_id, Position)
+        first_outpost.cleared = True
+        first_position.x = 100
+        first_position.y = 100
+        second_position.x = 110
+        second_position.y = 100
+        player_position.x = second_position.x
+        player_position.y = second_position.y
+        self.move_enemies_far_from(scene, second_position)
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertEqual(prompts, [texts.OUTPOST_HOLD_TO_CLEAR])
+
     def test_region_scene_contextual_prompts_show_outpost_progress(self):
         scene = RegionScene()
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
@@ -940,6 +1088,44 @@ class TestRegionScene(unittest.TestCase):
 
         self.assertIn(texts.NPC_HOLD_TO_REPORT, prompts)
 
+    def test_region_scene_npc_prompts_work_for_multiple_npcs(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        npc_id = scene.npc_entity_by_key["villager_npc"]
+        npc = scene.ecm.get_component(npc_id, NPC)
+        npc_position = scene.ecm.get_component(npc_id, Position)
+        required_outpost = scene.ecm.get_component(npc.required_outpost_id, Outpost)
+        required_outpost.cleared = True
+
+        player_position.x = npc_position.x
+        player_position.y = npc_position.y
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertEqual(prompts, [texts.NPC_HOLD_TO_REPORT])
+
+    def test_region_scene_npc_prompt_uses_nearest_relevant_npc(self):
+        scene = RegionScene()
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        first_npc_id = scene.npc_ids[0]
+        second_npc_id = scene.npc_ids[1]
+        first_npc = scene.ecm.get_component(first_npc_id, NPC)
+        second_npc = scene.ecm.get_component(second_npc_id, NPC)
+        first_position = scene.ecm.get_component(first_npc_id, Position)
+        second_position = scene.ecm.get_component(second_npc_id, Position)
+        first_npc.quest_completed = True
+        scene.ecm.get_component(second_npc.required_outpost_id, Outpost).cleared = True
+        first_position.x = 100
+        first_position.y = 100
+        second_position.x = 110
+        second_position.y = 100
+        player_position.x = second_position.x
+        player_position.y = second_position.y
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertEqual(prompts, [texts.NPC_HOLD_TO_REPORT])
+
     def test_region_scene_contextual_prompts_show_npc_progress(self):
         scene = RegionScene()
         player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
@@ -967,7 +1153,7 @@ class TestRegionScene(unittest.TestCase):
         self.assertGreaterEqual(scene.camera.x, 0)
         self.assertGreaterEqual(scene.camera.y, 0)
 
-    def test_region_scene_patrol_tiles_are_floor(self):
+    def test_region_scene_patrol_tiles_are_walkable(self):
         scene = RegionScene()
 
         for enemy_id in scene.enemy_ids:
@@ -975,24 +1161,24 @@ class TestRegionScene(unittest.TestCase):
             self.assertIsNotNone(patrol_route)
 
             for tile_x, tile_y in patrol_route.patrol_tiles:
-                self.assertEqual(scene.tile_map.matrix[tile_y][tile_x], FLOOR)
+                self.assertNotIn(scene.tile_map.matrix[tile_y][tile_x], BLOCKING_TILES)
 
     def test_region_scene_critical_openings_are_two_tiles_wide(self):
         scene = RegionScene()
 
         expected_openings = [
-            ((12, 10), (12, 11)),
-            ((26, 14), (27, 14)),
-            ((34, 16), (34, 17)),
-            ((18, 24), (19, 24)),
-            ((46, 22), (46, 23)),
+            ((44, 19), (45, 19)),
+            ((45, 42), (46, 42)),
+            ((32, 19), (33, 19)),
+            ((71, 20), (72, 20)),
+            ((56, 42), (57, 42)),
         ]
 
         for first_tile, second_tile in expected_openings:
             first_x, first_y = first_tile
             second_x, second_y = second_tile
-            self.assertEqual(scene.tile_map.matrix[first_y][first_x], FLOOR)
-            self.assertEqual(scene.tile_map.matrix[second_y][second_x], FLOOR)
+            self.assertNotIn(scene.tile_map.matrix[first_y][first_x], BLOCKING_TILES)
+            self.assertNotIn(scene.tile_map.matrix[second_y][second_x], BLOCKING_TILES)
 
     def test_region_scene_validate_region_layout_does_not_fail(self):
         scene = RegionScene()
@@ -1004,7 +1190,7 @@ class TestRegionScene(unittest.TestCase):
         tile_x, tile_y = scene.get_entity_tile(scene.enemy_id)
         scene.tile_map.matrix[tile_y][tile_x] = WALL
 
-        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+        with self.assertRaisesRegex(ValueError, "blocked important tile"):
             scene.validate_region_layout()
 
     def test_region_scene_validate_region_layout_raises_if_patrol_tile_is_unreachable(self):
@@ -1013,7 +1199,7 @@ class TestRegionScene(unittest.TestCase):
         tile_x, tile_y = patrol_route.patrol_tiles[1]
         scene.tile_map.matrix[tile_y][tile_x] = WALL
 
-        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+        with self.assertRaisesRegex(ValueError, "blocked important tile"):
             scene.validate_region_layout()
 
     def test_region_scene_validate_region_layout_raises_if_outpost_is_unreachable(self):
@@ -1021,7 +1207,7 @@ class TestRegionScene(unittest.TestCase):
         tile_x, tile_y = scene.get_entity_tile(scene.outpost_id)
         scene.tile_map.matrix[tile_y][tile_x] = WALL
 
-        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+        with self.assertRaisesRegex(ValueError, "blocked important tile"):
             scene.validate_region_layout()
 
     def test_region_scene_validate_region_layout_raises_if_npc_is_unreachable(self):
@@ -1029,7 +1215,7 @@ class TestRegionScene(unittest.TestCase):
         tile_x, tile_y = scene.get_entity_tile(scene.npc_id)
         scene.tile_map.matrix[tile_y][tile_x] = WALL
 
-        with self.assertRaisesRegex(ValueError, "unreachable important tiles"):
+        with self.assertRaisesRegex(ValueError, "blocked important tile"):
             scene.validate_region_layout()
 
     def test_region_scene_npc_quest_does_not_complete_when_player_defeated(self):

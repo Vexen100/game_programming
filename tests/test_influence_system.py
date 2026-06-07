@@ -14,11 +14,11 @@ class TestInfluenceSystem(unittest.TestCase):
         self.system = InfluenceSystem(self.game_state)
         self.system.subscribe(self.event_bus)
 
-    def publish_old_ruins_quest_completed(self):
+    def publish_old_ruins_quest_completed(self, quest_id="clear_old_ruins_outpost", npc_id=1):
         self.event_bus.publish(
             QuestCompletedEvent(
-                quest_id="clear_old_ruins_outpost",
-                npc_id=1,
+                quest_id=quest_id,
+                npc_id=npc_id,
                 region_id="old_ruins",
             )
         )
@@ -44,11 +44,12 @@ class TestInfluenceSystem(unittest.TestCase):
         self.assertEqual(region.player_influence, 100)
         self.assertEqual(region.enemy_influence, 0)
 
-    def test_outpost_quest_and_two_enemy_kills_unlock_assault(self):
+    def test_full_region_loop_and_one_enemy_kill_unlock_assault(self):
         self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
-        self.publish_old_ruins_quest_completed()
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
+        self.publish_old_ruins_quest_completed("clear_north_ruins_outpost", 1)
+        self.publish_old_ruins_quest_completed("clear_east_supply_outpost", 2)
         self.event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
-        self.event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
         region = self.game_state.get_region("old_ruins")
 
         self.assertEqual(region.enemy_influence, 25)
@@ -70,8 +71,8 @@ class TestInfluenceSystem(unittest.TestCase):
         self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
         region = self.game_state.get_region("old_ruins")
 
-        self.assertEqual(region.player_influence, 35)
-        self.assertEqual(region.enemy_influence, 65)
+        self.assertEqual(region.player_influence, 20)
+        self.assertEqual(region.enemy_influence, 80)
 
     def test_outpost_clear_alone_does_not_unlock_assault(self):
         self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
@@ -87,21 +88,60 @@ class TestInfluenceSystem(unittest.TestCase):
         self.publish_old_ruins_quest_completed()
         region = self.game_state.get_region("old_ruins")
 
-        self.assertEqual(region.player_influence, 30)
+        self.assertEqual(region.player_influence, 15)
 
     def test_quest_completed_decreases_enemy_influence(self):
         self.publish_old_ruins_quest_completed()
         region = self.game_state.get_region("old_ruins")
 
-        self.assertEqual(region.enemy_influence, 70)
+        self.assertEqual(region.enemy_influence, 85)
 
     def test_outpost_and_quest_without_combat_do_not_unlock_assault(self):
         self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
         self.publish_old_ruins_quest_completed()
         region = self.game_state.get_region("old_ruins")
 
-        self.assertEqual(region.enemy_influence, 35)
+        self.assertEqual(region.enemy_influence, 65)
         self.assertFalse(region.assault_unlocked)
+
+    def test_two_outposts_without_quests_do_not_unlock_assault(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertEqual(region.enemy_influence, 60)
+        self.assertFalse(region.assault_unlocked)
+
+    def test_two_outposts_and_one_quest_do_not_unlock_assault(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
+        self.publish_old_ruins_quest_completed("clear_north_ruins_outpost", 1)
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertEqual(region.enemy_influence, 45)
+        self.assertFalse(region.assault_unlocked)
+
+    def test_two_outposts_and_two_quests_without_combat_do_not_unlock_assault(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
+        self.publish_old_ruins_quest_completed("clear_north_ruins_outpost", 1)
+        self.publish_old_ruins_quest_completed("clear_east_supply_outpost", 2)
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertEqual(region.enemy_influence, 30)
+        self.assertFalse(region.assault_unlocked)
+
+    def test_full_region_loop_and_two_enemy_kills_unlock_assault(self):
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=1, region_id="old_ruins"))
+        self.event_bus.publish(OutpostClearedEvent(outpost_id=2, region_id="old_ruins"))
+        self.publish_old_ruins_quest_completed("clear_north_ruins_outpost", 1)
+        self.publish_old_ruins_quest_completed("clear_east_supply_outpost", 2)
+        self.event_bus.publish(EnemyKilledEvent(enemy_id=1, region_id="old_ruins"))
+        self.event_bus.publish(EnemyKilledEvent(enemy_id=2, region_id="old_ruins"))
+        region = self.game_state.get_region("old_ruins")
+
+        self.assertEqual(region.enemy_influence, 20)
+        self.assertTrue(region.assault_unlocked)
 
     def test_quest_completed_unknown_region_raises_value_error(self):
         with self.assertRaises(ValueError):

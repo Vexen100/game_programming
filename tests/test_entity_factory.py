@@ -17,6 +17,7 @@ from src.components.components import (
     PlayerControlled,
     Position,
     Renderable,
+    Sprite,
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
@@ -43,6 +44,7 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(player, Velocity))
         self.assertTrue(self.ecm.has_component(player, Collider))
         self.assertTrue(self.ecm.has_component(player, Renderable))
+        self.assertTrue(self.ecm.has_component(player, Sprite))
         self.assertTrue(self.ecm.has_component(player, Health))
         self.assertTrue(self.ecm.has_component(player, PlayerControlled))
         self.assertTrue(self.ecm.has_component(player, AttackIntent))
@@ -55,6 +57,7 @@ class TestEntityFactory(unittest.TestCase):
         renderable = self.ecm.get_component(player, Renderable)
         melee_attack = self.ecm.get_component(player, MeleeAttack)
         hitbox = self.ecm.get_component(player, AttackHitbox)
+        sprite = self.ecm.get_component(player, Sprite)
 
         self.assertEqual(health.current, PlayerSettings.HEALTH)
         self.assertEqual(health.maximum, PlayerSettings.HEALTH)
@@ -74,6 +77,7 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(hitbox.width, 0)
         self.assertEqual(hitbox.height, 0)
         self.assertEqual(hitbox.duration, PlayerSettings.ATTACK_HITBOX_DURATION)
+        self.assertEqual(sprite.asset_key, "player")
 
     def test_create_enemy(self):
         enemy = self.entity_factory.create_enemy(x=200, y=200)
@@ -83,6 +87,7 @@ class TestEntityFactory(unittest.TestCase):
         self.assertTrue(self.ecm.has_component(enemy, Velocity))
         self.assertTrue(self.ecm.has_component(enemy, Collider))
         self.assertTrue(self.ecm.has_component(enemy, Renderable))
+        self.assertTrue(self.ecm.has_component(enemy, Sprite))
         self.assertTrue(self.ecm.has_component(enemy, Health))
         self.assertTrue(self.ecm.has_component(enemy, Enemy))
         self.assertTrue(self.ecm.has_component(enemy, ChaseBehavior))
@@ -98,6 +103,7 @@ class TestEntityFactory(unittest.TestCase):
         melee_attack = self.ecm.get_component(enemy, MeleeAttack)
         hitbox = self.ecm.get_component(enemy, AttackHitbox)
         attack_state = self.ecm.get_component(enemy, EnemyAttackState)
+        sprite = self.ecm.get_component(enemy, Sprite)
 
         self.assertEqual(health.current, EnemySettings.HEALTH)
         self.assertEqual(health.maximum, EnemySettings.HEALTH)
@@ -121,6 +127,7 @@ class TestEntityFactory(unittest.TestCase):
         self.assertFalse(hitbox.active)
         self.assertFalse(attack_state.pending)
         self.assertEqual(attack_state.windup_duration, EnemySettings.ATTACK_WINDUP_DURATION)
+        self.assertEqual(sprite.asset_key, "enemy")
 
     def test_create_outpost(self):
         outpost = self.entity_factory.create_outpost(x=300, y=200)
@@ -128,18 +135,21 @@ class TestEntityFactory(unittest.TestCase):
         self.assertIn(outpost, self.ecm.alive_entities)
         self.assertTrue(self.ecm.has_component(outpost, Position))
         self.assertTrue(self.ecm.has_component(outpost, Renderable))
+        self.assertTrue(self.ecm.has_component(outpost, Sprite))
         self.assertTrue(self.ecm.has_component(outpost, Outpost))
         self.assertFalse(self.ecm.has_component(outpost, Collider))
         self.assertFalse(self.ecm.has_component(outpost, Health))
 
         renderable = self.ecm.get_component(outpost, Renderable)
         outpost_component = self.ecm.get_component(outpost, Outpost)
+        sprite = self.ecm.get_component(outpost, Sprite)
 
         self.assertEqual(renderable.width, OutpostSettings.SIZE)
         self.assertEqual(renderable.height, OutpostSettings.SIZE)
         self.assertEqual(renderable.color, OutpostSettings.ENEMY_COLOR)
         self.assertEqual(outpost_component.radius, OutpostSettings.RADIUS)
         self.assertFalse(outpost_component.cleared)
+        self.assertEqual(sprite.asset_key, "outpost_enemy")
 
     def test_create_npc(self):
         outpost_id = 10
@@ -153,12 +163,14 @@ class TestEntityFactory(unittest.TestCase):
         self.assertIn(npc, self.ecm.alive_entities)
         self.assertTrue(self.ecm.has_component(npc, Position))
         self.assertTrue(self.ecm.has_component(npc, Renderable))
+        self.assertTrue(self.ecm.has_component(npc, Sprite))
         self.assertTrue(self.ecm.has_component(npc, NPC))
         self.assertFalse(self.ecm.has_component(npc, Collider))
         self.assertFalse(self.ecm.has_component(npc, Health))
 
         renderable = self.ecm.get_component(npc, Renderable)
         npc_component = self.ecm.get_component(npc, NPC)
+        sprite = self.ecm.get_component(npc, Sprite)
 
         self.assertEqual(renderable.width, NPCSettings.SIZE)
         self.assertEqual(renderable.height, NPCSettings.SIZE)
@@ -167,6 +179,7 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(npc_component.quest_id, "clear_old_ruins_outpost")
         self.assertEqual(npc_component.required_outpost_id, outpost_id)
         self.assertFalse(npc_component.quest_completed)
+        self.assertEqual(sprite.asset_key, "npc_active")
 
     def test_create_capture_point(self):
         capture_point = self.entity_factory.create_capture_point(x=180, y=220)
@@ -174,12 +187,14 @@ class TestEntityFactory(unittest.TestCase):
         self.assertIn(capture_point, self.ecm.alive_entities)
         self.assertTrue(self.ecm.has_component(capture_point, Position))
         self.assertTrue(self.ecm.has_component(capture_point, Renderable))
+        self.assertTrue(self.ecm.has_component(capture_point, Sprite))
         self.assertTrue(self.ecm.has_component(capture_point, CapturePoint))
         self.assertFalse(self.ecm.has_component(capture_point, Collider))
         self.assertFalse(self.ecm.has_component(capture_point, Health))
 
         renderable = self.ecm.get_component(capture_point, Renderable)
         capture_point_component = self.ecm.get_component(capture_point, CapturePoint)
+        sprite = self.ecm.get_component(capture_point, Sprite)
 
         self.assertEqual(renderable.width, CapturePointSettings.SIZE)
         self.assertEqual(renderable.height, CapturePointSettings.SIZE)
@@ -188,6 +203,42 @@ class TestEntityFactory(unittest.TestCase):
         self.assertEqual(capture_point_component.progress, 0)
         self.assertEqual(capture_point_component.owner, "enemy")
         self.assertFalse(capture_point_component.captured)
+        self.assertEqual(sprite.asset_key, "capture_point_enemy")
+
+    def test_entity_factory_adds_player_sprite(self):
+        player = self.entity_factory.create_player(x=100, y=100)
+
+        self.assertEqual(self.ecm.get_component(player, Sprite).asset_key, "player")
+
+    def test_entity_factory_adds_enemy_sprite(self):
+        enemy = self.entity_factory.create_enemy(x=200, y=200)
+
+        self.assertEqual(self.ecm.get_component(enemy, Sprite).asset_key, "enemy")
+
+    def test_entity_factory_adds_outpost_sprite(self):
+        outpost = self.entity_factory.create_outpost(x=300, y=200)
+
+        self.assertEqual(
+            self.ecm.get_component(outpost, Sprite).asset_key,
+            "outpost_enemy",
+        )
+
+    def test_entity_factory_adds_npc_sprite(self):
+        npc = self.entity_factory.create_npc(
+            x=120,
+            y=160,
+            quest_id="clear_old_ruins_outpost",
+        )
+
+        self.assertEqual(self.ecm.get_component(npc, Sprite).asset_key, "npc_active")
+
+    def test_entity_factory_adds_capture_point_sprite(self):
+        capture_point = self.entity_factory.create_capture_point(x=180, y=220)
+
+        self.assertEqual(
+            self.ecm.get_component(capture_point, Sprite).asset_key,
+            "capture_point_enemy",
+        )
 
 
 if __name__ == "__main__":

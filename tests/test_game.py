@@ -7,6 +7,7 @@ from src.components.components import NPC, Outpost
 from src.core.event_bus import EventBus
 from src.core.game import Game
 from src.core.game_state import GameState
+from src.core.resource_manager import ResourceManager
 from src.core.save_manager import SaveData
 from src.core.scene_manager import SceneManager
 from src.events.game_events import OutpostClearedEvent, RegionLiberatedEvent
@@ -60,6 +61,7 @@ class TestGame(unittest.TestCase):
         game.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         game.event_bus = EventBus()
         game.save_manager = FakeSaveManager()
+        game.resource_manager = ResourceManager()
         game.region_scene_cache = {}
         game.region_runtime_snapshots = {}
         game.scene_manager = FakeSceneManager()
@@ -127,8 +129,32 @@ class TestGame(unittest.TestCase):
         self.assertIsInstance(scene, CastleAssaultScene)
         self.assertIs(scene.game_state, game.game_state)
         self.assertIs(scene.event_bus, game.event_bus)
+        self.assertIs(scene.resource_manager, game.resource_manager)
         self.assertIsNotNone(scene.castle_layout)
         scene.validate_castle_layout()
+
+    def test_game_creates_resource_manager(self):
+        with patch("pygame.display.set_mode"):
+            game = Game()
+
+        self.assertIsInstance(game.resource_manager, ResourceManager)
+
+    def test_build_scene_registry_passes_resource_manager_to_region_scene(self):
+        game = self.create_game_shell()
+        game.game_state.set_current_region("old_ruins")
+
+        scene = game.get_region_scene()
+
+        self.assertIs(scene.resource_manager, game.resource_manager)
+
+    def test_build_scene_registry_passes_resource_manager_to_castle_assault_scene(self):
+        game = self.create_game_shell()
+        game.game_state.set_current_region("old_ruins")
+
+        scene_registry = game.build_scene_registry()
+        scene = scene_registry[settings.CASTLE_ASSAULT_SCENE]()
+
+        self.assertIs(scene.resource_manager, game.resource_manager)
 
     def test_world_map_reenter_same_region_uses_cached_region_scene(self):
         game = self.create_game_shell()
@@ -270,6 +296,36 @@ class TestGame(unittest.TestCase):
         self.assertIs(scene_again, scene)
         self.assertFalse(outpost.cleared)
 
+    def test_continue_restores_multiple_region_runtime_objectives(self):
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        game_state.set_current_region("old_ruins")
+        save_data = SaveData(
+            game_state=game_state,
+            region_runtime={
+                "old_ruins": {
+                    "cleared_outpost_keys": [
+                        "north_ruins_outpost",
+                        "east_supply_outpost",
+                    ],
+                    "completed_npc_keys": [
+                        "scout_npc",
+                        "villager_npc",
+                    ],
+                }
+            },
+        )
+        game = self.create_game_shell()
+        game.save_manager = FakeSaveManager(save_data)
+
+        self.assertTrue(game.continue_game())
+        scene = game.get_region_scene()
+
+        for outpost_id in scene.outpost_ids:
+            self.assertTrue(scene.ecm.get_component(outpost_id, Outpost).cleared)
+
+        for npc_id in scene.npc_ids:
+            self.assertTrue(scene.ecm.get_component(npc_id, NPC).quest_completed)
+
     def test_save_current_progress_collects_cached_region_scene_snapshots(self):
         game = self.create_game_shell()
         game.game_state.set_current_region("old_ruins")
@@ -280,8 +336,9 @@ class TestGame(unittest.TestCase):
         game.save_current_progress()
 
         self.assertTrue(game.save_manager.save_called)
-        self.assertTrue(
-            game.save_manager.saved_region_runtime["old_ruins"]["outpost_cleared"]
+        self.assertEqual(
+            game.save_manager.saved_region_runtime["old_ruins"]["cleared_outpost_keys"],
+            ["north_ruins_outpost"],
         )
 
     def test_autosave_after_outpost_event_saves_updated_state_and_runtime(self):
@@ -296,11 +353,12 @@ class TestGame(unittest.TestCase):
         saved_region = game.save_manager.saved_game_state.get_region("old_ruins")
 
         self.assertTrue(game.save_manager.save_called)
-        self.assertEqual(saved_region.player_influence, 35)
-        self.assertEqual(saved_region.enemy_influence, 65)
+        self.assertEqual(saved_region.player_influence, 20)
+        self.assertEqual(saved_region.enemy_influence, 80)
         self.assertFalse(saved_region.assault_unlocked)
-        self.assertTrue(
-            game.save_manager.saved_region_runtime["old_ruins"]["outpost_cleared"]
+        self.assertEqual(
+            game.save_manager.saved_region_runtime["old_ruins"]["cleared_outpost_keys"],
+            ["north_ruins_outpost"],
         )
 
     def test_autosave_after_liberation_event_saves_liberated_and_unlocked_next(self):
