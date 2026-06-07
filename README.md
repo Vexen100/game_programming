@@ -21,9 +21,13 @@ Tower-defense + quests + metroidvania(??)
 
 В проекте сейчас есть играбельный прототип:
 - world map;
-- region scene;
+- expanded Old Ruins `RegionScene`;
 - influence;
 - outpost/NPC interactions;
+- multiple outposts, NPCs and enemy groups in the ordinary region;
+- readable tile variety: grass, dirt, road, ruins floor, water, forest and bridge;
+- minimal `ResourceManager` with generated placeholder rendering;
+- sprite-ready ECS rendering via `Sprite` + `Renderable` fallback;
 - castle assault;
 - procedural BSP castle layout in `CastleAssaultScene`;
 - widened castle corridors tuned for current player/enemy sizes;
@@ -33,7 +37,7 @@ Tower-defense + quests + metroidvania(??)
 - single-slot save/continue MVP;
 - A*, LOS, BFS validation, UniformGrid.
 
-Assault unlock is harder than before: outpost alone and outpost + NPC quest alone are not enough without additional combat contribution.
+Assault unlock is harder than before: one outpost, one outpost + one NPC quest, and even all regional objectives without combat are not enough without additional combat contribution.
 
 Ещё не реализовано:
 - multi-slot save/load UI;
@@ -43,7 +47,9 @@ Assault unlock is harder than before: outpost alone and outpost + NPC quest alon
 - full castle runtime save;
 - doors/traps/room decorations;
 - Lightmap / Perlin;
-- sprites/animations/sound.
+- production sprites;
+- sprite animations;
+- sound.
 
 ## 📝 Примечание
 Репозиторий настроен для итеративной работы. Архитектура, стек и игровые решения будут уточняться в процессе. Ключевые шаги и прогресс фиксируются в истории коммитов и документации.

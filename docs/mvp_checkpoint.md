@@ -15,17 +15,22 @@
 - SaveManager / Continue MVP.
 - Single-slot disk persistence для world progress.
 - Assault unlock now requires a fuller region loop: outpost, NPC quest and combat contribution.
+- Minimal `ResourceManager` with generated placeholder surfaces.
+- Sprite-ready rendering foundation через `Sprite` + `Renderable` fallback.
 
 ### Region loop
 
 - Вход в регион из карты мира.
 - Движение игрока.
 - Враги в обычном регионе.
+- Larger readable Old Ruins layout.
+- Multiple outposts, NPCs and enemy groups.
+- Tile variety for grass, dirt, road, ruins floor, water, forest and bridge.
 - Patrol + LOS + A*.
 - Outpost progress через удержание `E`.
 - NPC report progress через удержание `E`.
 - Influence в HUD обычного региона.
-- Assault unlock после более полного ослабления влияния врага: outpost, NPC quest и combat contribution.
+- Assault unlock после более полного ослабления влияния врага: два outposts, два NPC quests и combat contribution.
 - Повторный вход в тот же регион в рамках текущего запуска не сбрасывает runtime progress.
 - Minimal `RegionScene` runtime snapshot для Continue.
 
@@ -63,10 +68,11 @@
 - SpatialHashing не реализован.
 - Lightmap / Perlin не реализованы.
 - Enemy attack имеет AABB telegraph и windup, но полноценные animations/sound/hit effects ещё не реализованы.
-- Нет спрайтов, анимаций и звука.
+- Нет production sprites, анимаций и звука.
 - Регионы пока используют один прототип `RegionScene`.
 - Квесты пока прототипные, без диалогов и вариативности.
 - Баланс влияния пока тестовый.
+- Procedural ordinary regions не реализованы.
 
 ## 3. Почему количество шагов выросло
 
@@ -94,11 +100,10 @@ QA-фиксы не являются отклонением от плана. Он
 
 ### Milestone C - presentation
 
-1. ResourceManager.
-2. Простые sprites.
-3. Attack/death animations.
-4. Sound/hit feedback.
-5. Lightmap.
+1. Production sprites.
+2. Attack/death animations.
+3. Sound/hit feedback.
+4. Lightmap.
 
 ## 5. Definition of Done для vertical slice
 
