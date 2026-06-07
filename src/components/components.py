@@ -28,6 +28,11 @@ class Renderable:
 
 
 @dataclass
+class Sprite:
+    asset_key: str
+
+
+@dataclass
 class Health:
     current: int
     maximum: int

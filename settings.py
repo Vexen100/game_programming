@@ -8,6 +8,14 @@ FPS = 60
 BG_COLOR = (255, 0, 0)       # red
 WALL_COLOR = (128, 128, 128)  # gray
 FLOOR_COLOR = (0, 128, 0)    # green
+GRASS_COLOR = (60, 145, 70)
+DIRT_COLOR = (125, 92, 55)
+ROAD_COLOR = (150, 130, 85)
+RUINS_FLOOR_COLOR = (112, 112, 105)
+WATER_COLOR = (40, 90, 150)
+FOREST_COLOR = (35, 95, 55)
+BRIDGE_COLOR = (135, 105, 65)
+UNKNOWN_TILE_COLOR = (255, 0, 255)
 
 
 # Константы для actions (для InputManager)

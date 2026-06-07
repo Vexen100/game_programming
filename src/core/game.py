@@ -3,6 +3,7 @@ import settings
 from src.core.event_bus import EventBus
 from src.core.game_state import GameState
 from src.core.input_manager import InputManager
+from src.core.resource_manager import ResourceManager
 from src.core.save_manager import SaveManager
 from src.core.scene_manager import SceneManager
 from src.events.game_events import (
@@ -34,6 +35,7 @@ class Game:
         self.input_manager = InputManager()
         self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         self.save_manager = SaveManager(settings.SAVE_FILE_PATH)
+        self.resource_manager = ResourceManager()
         self.region_scene_cache = {}
         self.region_runtime_snapshots = {}
         self.rebuild_world_systems()
@@ -54,6 +56,7 @@ class Game:
             settings.CASTLE_ASSAULT_SCENE: lambda: CastleAssaultScene(
                 self.game_state,
                 self.event_bus,
+                resource_manager=self.resource_manager,
             ),
             settings.PAUSE_SCENE: lambda: PauseScene(),
         }
@@ -130,7 +133,11 @@ class Game:
         region_id = self.game_state.current_region_id
 
         if region_id not in self.region_scene_cache:
-            scene = RegionScene(self.game_state, self.event_bus)
+            scene = RegionScene(
+                self.game_state,
+                self.event_bus,
+                resource_manager=self.resource_manager,
+            )
             scene.apply_runtime_state(
                 self.region_runtime_snapshots.get(region_id, {})
             )

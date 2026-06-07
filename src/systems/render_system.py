@@ -1,10 +1,21 @@
 import pygame
 
-from src.components.components import AttackHitbox, Dead, Enemy, Health, Position, Renderable
+from src.components.components import (
+    AttackHitbox,
+    Dead,
+    Enemy,
+    Health,
+    Position,
+    Renderable,
+    Sprite,
+)
 
 
 class RenderSystem:
     """Рисует сущности с компонентами Position и Renderable"""
+
+    def __init__(self, resource_manager=None):
+        self.resource_manager = resource_manager
 
     def draw(self, ecm, screen, camera=None):
         for entity in ecm.get_entities_with(Position, Renderable):
@@ -15,13 +26,30 @@ class RenderSystem:
             if camera is not None:
                 x, y = camera.apply(x, y)
 
-            rect = pygame.Rect(
-                x,
-                y,
-                renderable.width,
-                renderable.height,
-            )
-            pygame.draw.rect(screen, renderable.color, rect)
+            sprite = ecm.get_component(entity, Sprite)
+            surface = self.get_entity_surface(sprite, renderable)
+
+            if surface is not None:
+                screen.blit(surface, (x, y))
+            else:
+                rect = pygame.Rect(
+                    x,
+                    y,
+                    renderable.width,
+                    renderable.height,
+                )
+                pygame.draw.rect(screen, renderable.color, rect)
+
+    def get_entity_surface(self, sprite, renderable):
+        if self.resource_manager is None or sprite is None:
+            return None
+
+        return self.resource_manager.get_entity_surface(
+            sprite.asset_key,
+            renderable.width,
+            renderable.height,
+            renderable.color,
+        )
 
     def draw_attack_hitboxes(self, ecm, screen, camera=None):
         for entity in ecm.get_entities_with(AttackHitbox):

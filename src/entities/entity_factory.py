@@ -14,6 +14,7 @@ from src.components.components import (
     PlayerControlled,
     Position,
     Renderable,
+    Sprite,
     Velocity,
 )
 from src.entities.entities_settings import (
@@ -53,6 +54,7 @@ class EntityFactory:
                 color=PlayerSettings.COLOR,
             ),
         )
+        self.ecm.add_component(player, Sprite("player"))
         self.ecm.add_component(
             player,
             Health(
@@ -103,6 +105,7 @@ class EntityFactory:
                 color=EnemySettings.COLOR,
             ),
         )
+        self.ecm.add_component(enemy, Sprite("enemy"))
         self.ecm.add_component(
             enemy,
             Health(
@@ -154,6 +157,7 @@ class EntityFactory:
                 color=OutpostSettings.ENEMY_COLOR,
             ),
         )
+        self.ecm.add_component(outpost, Sprite("outpost_enemy"))
         self.ecm.add_component(
             outpost,
             Outpost(
@@ -177,6 +181,7 @@ class EntityFactory:
                 color=NPCSettings.ACTIVE_COLOR,
             ),
         )
+        self.ecm.add_component(npc, Sprite("npc_active"))
         self.ecm.add_component(
             npc,
             NPC(
@@ -202,6 +207,7 @@ class EntityFactory:
                 color=CapturePointSettings.ENEMY_COLOR,
             ),
         )
+        self.ecm.add_component(capture_point, Sprite("capture_point_enemy"))
         self.ecm.add_component(
             capture_point,
             CapturePoint(

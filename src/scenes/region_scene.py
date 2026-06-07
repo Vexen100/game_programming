@@ -37,8 +37,8 @@ from src.systems.spatial_index_system import SpatialIndexSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
+from src.world.region_layout import create_old_ruins_region_layout
 from src.world.tile_map import TileMap
-from src.world.tile_types import FLOOR, WALL
 
 
 class RegionScene(BaseScene):
@@ -46,9 +46,17 @@ class RegionScene(BaseScene):
     Стандартная сцена региона. Поле, где бегает игрок и происходит сама игра.
     """
 
-    def __init__(self, game_state=None, event_bus=None) -> None:
+    def __init__(
+        self,
+        game_state=None,
+        event_bus=None,
+        region_layout=None,
+        resource_manager=None,
+    ) -> None:
         self.game_state = game_state
         self.event_bus = event_bus
+        self.region_layout = region_layout or create_old_ruins_region_layout()
+        self.resource_manager = resource_manager
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
         self.enemy_chase_system = EnemyChaseSystem()
@@ -62,13 +70,12 @@ class RegionScene(BaseScene):
         self.player_death_system = PlayerDeathSystem()
         self.spatial_index_system = SpatialIndexSystem()
         self.cleanup_system = CleanupSystem()
-        self.render_system = RenderSystem()
+        self.render_system = RenderSystem(self.resource_manager)
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
         self.manager = None
         self.enemy_spatial_index = None
-        self.player_spawn_tile = (3, 3)
         self.restart_region()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
@@ -79,31 +86,6 @@ class RegionScene(BaseScene):
                 raise RuntimeError(
                     f"{entity_name} was created without {component_type.__name__} component"
                 )
-
-    def create_test_map(self):
-        """Создаёт крупную ручную карту региона"""
-        width = 60
-        height = 36
-        matrix = []
-
-        for row in range(height):
-            map_row = []
-            for tile in range(width):
-                is_border = row == 0 or tile == 0 or row == height - 1 or tile == width - 1
-                is_inner_wall = (
-                    (tile == 12 and 4 <= row <= 18 and row not in (10, 11))
-                    or (row == 14 and 18 <= tile <= 36 and tile not in (26, 27))
-                    or (tile == 34 and 6 <= row <= 24 and row not in (16, 17))
-                    or (row == 24 and 8 <= tile <= 28 and tile not in (18, 19))
-                    or (tile == 46 and 10 <= row <= 30 and row not in (22, 23))
-                )
-                if is_border or is_inner_wall:
-                    map_row.append(WALL)
-                else:
-                    map_row.append(FLOOR)
-            matrix.append(map_row)
-
-        return matrix
 
     def handle_events(self, events):
         pass
@@ -145,6 +127,18 @@ class RegionScene(BaseScene):
         status_lines = [
             f"{texts.REGION_INFLUENCE_PLAYER}: {region.player_influence}",
             f"{texts.REGION_INFLUENCE_ENEMY}: {region.enemy_influence}",
+            texts.REGION_OUTPOSTS_STATUS.format(
+                cleared=self.get_cleared_outpost_count(),
+                total=len(self.outpost_ids),
+            ),
+            texts.REGION_QUESTS_STATUS.format(
+                completed=self.get_completed_npc_count(),
+                total=len(self.npc_ids),
+            ),
+            texts.REGION_ENEMIES_STATUS.format(
+                alive=self.get_alive_enemy_count(),
+                total=len(self.enemy_ids),
+            ),
         ]
 
         if region.unlocked and region.assault_unlocked:
@@ -156,6 +150,49 @@ class RegionScene(BaseScene):
             status_lines.append(texts.REGION_LIBERATED)
 
         return status_lines
+
+    def get_cleared_outpost_count(self):
+        count = 0
+
+        for outpost_id in self.outpost_ids:
+            outpost = self.ecm.get_component(outpost_id, Outpost)
+            if outpost is not None and outpost.cleared:
+                count += 1
+
+        return count
+
+    def get_completed_npc_count(self):
+        count = 0
+
+        for npc_id in self.npc_ids:
+            npc = self.ecm.get_component(npc_id, NPC)
+            if npc is not None and npc.quest_completed:
+                count += 1
+
+        return count
+
+    def get_alive_enemy_count(self):
+        count = 0
+
+        for enemy_id in self.enemy_ids:
+            if self.is_enemy_alive(enemy_id):
+                count += 1
+
+        return count
+
+    def is_enemy_alive(self, enemy_id):
+        if enemy_id not in self.ecm.alive_entities:
+            return False
+
+        if self.ecm.has_component(enemy_id, Dead):
+            return False
+
+        enemy_health = self.ecm.get_component(enemy_id, Health)
+
+        if enemy_health is not None and enemy_health.current <= 0:
+            return False
+
+        return True
 
     def get_current_region_id(self):
         if self.game_state is None:
@@ -184,10 +221,18 @@ class RegionScene(BaseScene):
 
     def restart_region(self):
         self.enemy_spatial_index = None
-        self.tile_map = TileMap(self.create_test_map())
+        self.tile_map = TileMap(self.region_layout.matrix)
         self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
+        self.player_spawn_tile = self.region_layout.player_spawn_tile
+        self.enemy_ids = []
+        self.outpost_ids = []
+        self.npc_ids = []
+        self.outpost_entity_by_key = {}
+        self.npc_entity_by_key = {}
+        self.outpost_key_by_entity_id = {}
+        self.npc_key_by_entity_id = {}
         player_x, player_y = self.tile_map.coord_tile_to_pixels(*self.player_spawn_tile)
 
         self.ecs_player_id = self.entity_factory.create_player(
@@ -196,39 +241,52 @@ class RegionScene(BaseScene):
         )
         self.check_entity_components(self.ecs_player_id, "ECS player", Position, Health)
 
-        self.enemy_ids = [
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 6,
-                y=settings.TILE_SIZE * 6,
-            ),
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 18,
-                y=settings.TILE_SIZE * 10,
-            ),
-            self.entity_factory.create_enemy(
-                x=settings.TILE_SIZE * 38,
-                y=settings.TILE_SIZE * 20,
-            ),
-        ]
-        self.enemy_id = self.enemy_ids[0]
-        self.add_patrol_routes()
+        for enemy_spawn in self.region_layout.enemy_spawns:
+            enemy_x, enemy_y = self.tile_map.coord_tile_to_pixels(*enemy_spawn.tile)
+            enemy_id = self.entity_factory.create_enemy(x=enemy_x, y=enemy_y)
+            self.enemy_ids.append(enemy_id)
+            self.ecm.add_component(
+                enemy_id,
+                PatrolRoute(
+                    patrol_tiles=list(enemy_spawn.patrol_tiles),
+                    wait_duration=0.2,
+                ),
+            )
+
+        self.enemy_id = self.enemy_ids[0] if self.enemy_ids else None
 
         for enemy_id in self.enemy_ids:
             self.check_entity_components(enemy_id, "ECS enemy", Position, Health)
 
-        self.outpost_id = self.entity_factory.create_outpost(
-            x=settings.TILE_SIZE * 8,
-            y=settings.TILE_SIZE * 6,
-        )
-        self.check_entity_components(self.outpost_id, "ECS outpost", Position, Outpost)
+        for outpost_spawn in self.region_layout.outposts:
+            outpost_x, outpost_y = self.tile_map.coord_tile_to_pixels(*outpost_spawn.tile)
+            outpost_id = self.entity_factory.create_outpost(x=outpost_x, y=outpost_y)
+            self.outpost_ids.append(outpost_id)
+            self.outpost_entity_by_key[outpost_spawn.key] = outpost_id
+            self.outpost_key_by_entity_id[outpost_id] = outpost_spawn.key
+            self.check_entity_components(outpost_id, "ECS outpost", Position, Outpost)
 
-        self.npc_id = self.entity_factory.create_npc(
-            x=settings.TILE_SIZE * 4,
-            y=settings.TILE_SIZE * 6,
-            quest_id="clear_old_ruins_outpost",
-            required_outpost_id=self.outpost_id,
-        )
-        self.check_entity_components(self.npc_id, "NPC", Position, NPC)
+        self.outpost_id = self.outpost_ids[0] if self.outpost_ids else None
+
+        for npc_spawn in self.region_layout.npcs:
+            npc_x, npc_y = self.tile_map.coord_tile_to_pixels(*npc_spawn.tile)
+            required_outpost_id = None
+            if npc_spawn.required_outpost_key is not None:
+                required_outpost_id = self.outpost_entity_by_key.get(
+                    npc_spawn.required_outpost_key
+                )
+            npc_id = self.entity_factory.create_npc(
+                x=npc_x,
+                y=npc_y,
+                quest_id=npc_spawn.quest_id,
+                required_outpost_id=required_outpost_id,
+            )
+            self.npc_ids.append(npc_id)
+            self.npc_entity_by_key[npc_spawn.key] = npc_id
+            self.npc_key_by_entity_id[npc_id] = npc_spawn.key
+            self.check_entity_components(npc_id, "NPC", Position, NPC)
+
+        self.npc_id = self.npc_ids[0] if self.npc_ids else None
         self.validate_region_layout()
         self.update_camera()
 
@@ -260,44 +318,99 @@ class RegionScene(BaseScene):
         start_tile = self.get_entity_tile(self.ecs_player_id)
         target_tiles = []
 
+        self.validate_region_content_counts()
+        self.validate_region_map_size()
+        self.validate_region_tile_variety()
+        self.validate_important_tile(start_tile, "player spawn")
+
         for enemy_id in self.enemy_ids:
             enemy_tile = self.get_entity_tile(enemy_id)
 
             if enemy_tile is not None:
+                self.validate_important_tile(enemy_tile, "enemy spawn")
                 target_tiles.append(enemy_tile)
 
             patrol_route = self.ecm.get_component(enemy_id, PatrolRoute)
 
             if patrol_route is not None:
+                for patrol_tile in patrol_route.patrol_tiles:
+                    self.validate_important_tile(patrol_tile, "enemy patrol")
                 target_tiles.extend(patrol_route.patrol_tiles)
 
-        outpost_tile = self.get_entity_tile(self.outpost_id)
-        npc_tile = self.get_entity_tile(self.npc_id)
+        for outpost_id in self.outpost_ids:
+            outpost_tile = self.get_entity_tile(outpost_id)
 
-        if outpost_tile is not None:
-            target_tiles.append(outpost_tile)
+            if outpost_tile is not None:
+                self.validate_important_tile(outpost_tile, "outpost")
+                self.validate_not_near_spawn(outpost_tile, "outpost")
+                self.validate_outpost_guarded(outpost_tile)
+                target_tiles.append(outpost_tile)
 
-        if npc_tile is not None:
-            target_tiles.append(npc_tile)
+        for npc_id in self.npc_ids:
+            npc_tile = self.get_entity_tile(npc_id)
+
+            if npc_tile is not None:
+                self.validate_important_tile(npc_tile, "npc")
+                self.validate_not_near_spawn(npc_tile, "npc")
+                target_tiles.append(npc_tile)
 
         if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
             raise ValueError("Region layout has unreachable important tiles")
 
-    def add_patrol_routes(self):
-        patrol_routes = [
-            [(6, 6), (6, 9), (9, 9), (9, 6)],
-            [(18, 10), (22, 10), (22, 12), (18, 12)],
-            [(38, 20), (42, 20), (42, 22), (38, 22)],
-        ]
+    def validate_region_content_counts(self):
+        if len(self.outpost_ids) < 2:
+            raise ValueError("Region layout must have at least two outposts")
+        if len(self.npc_ids) < 2:
+            raise ValueError("Region layout must have at least two NPCs")
+        if len(self.enemy_ids) < 7:
+            raise ValueError("Region layout must have at least seven enemies")
 
-        for enemy_id, patrol_tiles in zip(self.enemy_ids, patrol_routes):
-            self.ecm.add_component(
-                enemy_id,
-                PatrolRoute(
-                    patrol_tiles=patrol_tiles,
-                    wait_duration=0.2,
-                ),
-            )
+    def validate_region_map_size(self):
+        screen_tiles_width = settings.SCREEN_WIDTH // settings.TILE_SIZE
+        screen_tiles_height = settings.SCREEN_HEIGHT // settings.TILE_SIZE
+
+        if (
+            self.tile_map.width <= screen_tiles_width
+            or self.tile_map.height <= screen_tiles_height
+        ):
+            raise ValueError("Region layout must be larger than the viewport")
+
+    def validate_region_tile_variety(self):
+        tile_types = {
+            tile
+            for row in self.tile_map.matrix
+            for tile in row
+        }
+
+        if len(tile_types) < 5:
+            raise ValueError("Region layout must use at least five tile types")
+
+    def validate_important_tile(self, tile, label):
+        if tile is None or self.tile_map.is_tile_blocked(*tile):
+            raise ValueError(f"Region layout has blocked important tile: {label}")
+
+    def validate_not_near_spawn(self, tile, label):
+        if self.get_tile_distance(tile, self.player_spawn_tile) <= 4:
+            raise ValueError(f"Region layout {label} is too close to player spawn")
+
+    def validate_outpost_guarded(self, outpost_tile):
+        guard_radius_tiles = max(1, OutpostSettings.RADIUS // settings.TILE_SIZE)
+
+        for enemy_id in self.enemy_ids:
+            enemy_tile = self.get_entity_tile(enemy_id)
+
+            if (
+                enemy_tile is not None
+                and self.get_tile_distance(enemy_tile, outpost_tile) <= guard_radius_tiles
+            ):
+                return
+
+        raise ValueError("Region layout outpost has no nearby enemy guard")
+
+    def get_tile_distance(self, first_tile, second_tile):
+        first_x, first_y = first_tile
+        second_x, second_y = second_tile
+        return abs(first_x - second_x) + abs(first_y - second_y)
 
     def update_camera(self):
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
@@ -373,8 +486,23 @@ class RegionScene(BaseScene):
             elif enemy_health is not None and enemy_health.current <= 0:
                 defeated_enemy_indexes.append(index)
 
-        outpost = self.ecm.get_component(self.outpost_id, Outpost)
-        npc = self.ecm.get_component(self.npc_id, NPC)
+        cleared_outpost_keys = []
+        completed_npc_keys = []
+
+        for outpost_id in self.outpost_ids:
+            outpost = self.ecm.get_component(outpost_id, Outpost)
+            outpost_key = self.outpost_key_by_entity_id.get(outpost_id)
+
+            if outpost is not None and outpost.cleared and outpost_key is not None:
+                cleared_outpost_keys.append(outpost_key)
+
+        for npc_id in self.npc_ids:
+            npc = self.ecm.get_component(npc_id, NPC)
+            npc_key = self.npc_key_by_entity_id.get(npc_id)
+
+            if npc is not None and npc.quest_completed and npc_key is not None:
+                completed_npc_keys.append(npc_key)
+
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
         player_health = self.ecm.get_component(self.ecs_player_id, Health)
 
@@ -389,8 +517,8 @@ class RegionScene(BaseScene):
 
         return {
             "defeated_enemy_indexes": defeated_enemy_indexes,
-            "outpost_cleared": outpost.cleared if outpost is not None else False,
-            "npc_quest_completed": npc.quest_completed if npc is not None else False,
+            "cleared_outpost_keys": cleared_outpost_keys,
+            "completed_npc_keys": completed_npc_keys,
             "player": player_state,
         }
 
@@ -407,18 +535,35 @@ class RegionScene(BaseScene):
             if enemy_id in self.ecm.alive_entities:
                 self.ecm.destroy_entity(enemy_id)
 
-        if runtime_state.get("outpost_cleared"):
-            self.apply_outpost_runtime_state()
+        cleared_outpost_keys = runtime_state.get("cleared_outpost_keys", [])
 
-        if runtime_state.get("npc_quest_completed"):
-            self.apply_npc_runtime_state()
+        for outpost_key in cleared_outpost_keys:
+            outpost_id = self.outpost_entity_by_key.get(outpost_key)
+            if outpost_id is not None:
+                self.apply_outpost_runtime_state(outpost_id)
+
+        if runtime_state.get("outpost_cleared") and self.outpost_id is not None:
+            self.apply_outpost_runtime_state(self.outpost_id)
+
+        completed_npc_keys = runtime_state.get("completed_npc_keys", [])
+
+        for npc_key in completed_npc_keys:
+            npc_id = self.npc_entity_by_key.get(npc_key)
+            if npc_id is not None:
+                self.apply_npc_runtime_state(npc_id)
+
+        if runtime_state.get("npc_quest_completed") and self.npc_id is not None:
+            self.apply_npc_runtime_state(self.npc_id)
 
         self.apply_player_runtime_state(runtime_state.get("player", {}))
         self.update_camera()
 
-    def apply_outpost_runtime_state(self):
-        outpost = self.ecm.get_component(self.outpost_id, Outpost)
-        renderable = self.ecm.get_component(self.outpost_id, Renderable)
+    def apply_outpost_runtime_state(self, outpost_id=None):
+        if outpost_id is None:
+            outpost_id = self.outpost_id
+
+        outpost = self.ecm.get_component(outpost_id, Outpost)
+        renderable = self.ecm.get_component(outpost_id, Renderable)
 
         if outpost is not None:
             outpost.cleared = True
@@ -427,9 +572,12 @@ class RegionScene(BaseScene):
         if renderable is not None:
             renderable.color = OutpostSettings.CLEARED_COLOR
 
-    def apply_npc_runtime_state(self):
-        npc = self.ecm.get_component(self.npc_id, NPC)
-        renderable = self.ecm.get_component(self.npc_id, Renderable)
+    def apply_npc_runtime_state(self, npc_id=None):
+        if npc_id is None:
+            npc_id = self.npc_id
+
+        npc = self.ecm.get_component(npc_id, NPC)
+        renderable = self.ecm.get_component(npc_id, Renderable)
 
         if npc is not None:
             npc.quest_completed = True
@@ -534,13 +682,15 @@ class RegionScene(BaseScene):
         return prompts
 
     def add_outpost_prompt(self, prompts, player_position):
-        outpost = self.ecm.get_component(self.outpost_id, Outpost)
-        outpost_position = self.ecm.get_component(self.outpost_id, Position)
+        outpost_id = self.get_nearest_outpost_id(player_position)
 
-        if outpost is None or outpost_position is None:
+        if outpost_id is None:
             return
 
-        if self.get_distance(player_position, outpost_position) > outpost.radius:
+        outpost = self.ecm.get_component(outpost_id, Outpost)
+        outpost_position = self.ecm.get_component(outpost_id, Position)
+
+        if outpost is None or outpost_position is None:
             return
 
         if outpost.cleared:
@@ -567,13 +717,15 @@ class RegionScene(BaseScene):
             prompts.append(texts.OUTPOST_HOLD_TO_CLEAR)
 
     def add_npc_prompt(self, prompts, player_position):
-        npc = self.ecm.get_component(self.npc_id, NPC)
-        npc_position = self.ecm.get_component(self.npc_id, Position)
+        npc_id = self.get_nearest_npc_id(player_position)
 
-        if npc is None or npc_position is None:
+        if npc_id is None:
             return
 
-        if self.get_distance(player_position, npc_position) > npc.interaction_radius:
+        npc = self.ecm.get_component(npc_id, NPC)
+        npc_position = self.ecm.get_component(npc_id, Position)
+
+        if npc is None or npc_position is None:
             return
 
         if npc.quest_completed:
@@ -597,6 +749,50 @@ class RegionScene(BaseScene):
         else:
             prompts.append(texts.NPC_CLEAR_OUTPOST_FIRST)
 
+    def get_nearest_outpost_id(self, player_position):
+        nearest_outpost_id = None
+        nearest_distance = None
+
+        for outpost_id in self.outpost_ids:
+            outpost = self.ecm.get_component(outpost_id, Outpost)
+            outpost_position = self.ecm.get_component(outpost_id, Position)
+
+            if outpost is None or outpost_position is None:
+                continue
+
+            distance = self.get_distance(player_position, outpost_position)
+
+            if distance > outpost.radius:
+                continue
+
+            if nearest_distance is None or distance < nearest_distance:
+                nearest_distance = distance
+                nearest_outpost_id = outpost_id
+
+        return nearest_outpost_id
+
+    def get_nearest_npc_id(self, player_position):
+        nearest_npc_id = None
+        nearest_distance = None
+
+        for npc_id in self.npc_ids:
+            npc = self.ecm.get_component(npc_id, NPC)
+            npc_position = self.ecm.get_component(npc_id, Position)
+
+            if npc is None or npc_position is None:
+                continue
+
+            distance = self.get_distance(player_position, npc_position)
+
+            if distance > npc.interaction_radius:
+                continue
+
+            if nearest_distance is None or distance < nearest_distance:
+                nearest_distance = distance
+                nearest_npc_id = npc_id
+
+        return nearest_npc_id
+
     def get_progress_percent(self, progress, duration):
         if duration <= 0:
             return 100
@@ -609,7 +805,7 @@ class RegionScene(BaseScene):
         return (dx ** 2 + dy ** 2) ** 0.5
 
     def draw(self, screen: pygame.Surface):
-        self.tile_map.draw(screen, self.camera)
+        self.tile_map.draw(screen, self.camera, self.resource_manager)
         self.render_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
         self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)

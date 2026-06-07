@@ -1,6 +1,30 @@
 import pygame
 import settings
-from src.world.tile_types import FLOOR, WALL
+from src.world.tile_types import (
+    BLOCKING_TILES,
+    BRIDGE,
+    DIRT,
+    FLOOR,
+    FOREST,
+    GRASS,
+    ROAD,
+    RUINS_FLOOR,
+    WALL,
+    WATER,
+)
+
+
+TILE_COLORS = {
+    FLOOR: settings.FLOOR_COLOR,
+    WALL: settings.WALL_COLOR,
+    GRASS: settings.GRASS_COLOR,
+    DIRT: settings.DIRT_COLOR,
+    ROAD: settings.ROAD_COLOR,
+    RUINS_FLOOR: settings.RUINS_FLOOR_COLOR,
+    WATER: settings.WATER_COLOR,
+    FOREST: settings.FOREST_COLOR,
+    BRIDGE: settings.BRIDGE_COLOR,
+}
 
 
 class TileMap:
@@ -10,7 +34,7 @@ class TileMap:
         self.height = len(matrix)
         self.width = len(matrix[0])
 
-    def draw(self, screen: pygame.Surface, camera=None):
+    def draw(self, screen: pygame.Surface, camera=None, resource_manager=None):
         """Рисует тайлы карты (по сути рисует саму карту)"""
         for row in range(self.height):
             for tile in range(self.width):
@@ -18,10 +42,19 @@ class TileMap:
                 if camera is not None:
                     x, y = camera.apply(x, y)
                 rect = (x, y, self.tile_size, self.tile_size)
-                if self.matrix[row][tile] == FLOOR:
-                    pygame.draw.rect(screen, settings.FLOOR_COLOR, rect)
-                elif self.matrix[row][tile] == WALL:
-                    pygame.draw.rect(screen, settings.WALL_COLOR, rect)
+                tile_id = self.matrix[row][tile]
+
+                if resource_manager is not None:
+                    surface = resource_manager.get_tile_surface(tile_id, self.tile_size)
+                    if surface is not None:
+                        screen.blit(surface, (x, y))
+                        continue
+
+                pygame.draw.rect(
+                    screen,
+                    TILE_COLORS.get(tile_id, settings.UNKNOWN_TILE_COLOR),
+                    rect,
+                )
 
     def coord_tile_to_pixels(self, tile_x, tile_y):
         """Преобразует индекс тайла в матрице карты в пиксельные координаты"""
@@ -40,7 +73,7 @@ class TileMap:
         if tile_x < 0 or tile_y < 0 or tile_x >= self.width or tile_y >= self.height:
             return True
 
-        return self.matrix[tile_y][tile_x] == WALL
+        return self.matrix[tile_y][tile_x] in BLOCKING_TILES
 
     def is_point_blocked(self, x, y):
         """Проверяет, заблокирована ли точка по пиксельным координатам"""

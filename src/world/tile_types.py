@@ -1,2 +1,26 @@
 FLOOR = 0
 WALL = 1
+GRASS = 2
+DIRT = 3
+ROAD = 4
+RUINS_FLOOR = 5
+WATER = 6
+FOREST = 7
+BRIDGE = 8
+
+
+WALKABLE_TILES = {
+    FLOOR,
+    GRASS,
+    DIRT,
+    ROAD,
+    RUINS_FLOOR,
+    BRIDGE,
+}
+
+
+BLOCKING_TILES = {
+    WALL,
+    WATER,
+    FOREST,
+}

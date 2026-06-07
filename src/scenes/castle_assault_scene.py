@@ -45,9 +45,11 @@ class CastleAssaultScene(BaseScene):
         event_bus=None,
         castle_layout: CastleLayout | None = None,
         castle_seed=None,
+        resource_manager=None,
     ) -> None:
         self.game_state = game_state
         self.event_bus = event_bus
+        self.resource_manager = resource_manager
         self.castle_seed = self.resolve_castle_seed(castle_seed)
         self.castle_layout = castle_layout or self.generate_castle_layout()
         self.final_room_tile = self.castle_layout.final_room_tile
@@ -67,7 +69,7 @@ class CastleAssaultScene(BaseScene):
         self.player_death_system = PlayerDeathSystem()
         self.spatial_index_system = SpatialIndexSystem()
         self.cleanup_system = CleanupSystem()
-        self.render_system = RenderSystem()
+        self.render_system = RenderSystem(self.resource_manager)
         self.hud = HUD()
         self.debug_overlay = DebugOverlay()
         self.current_dt = 0
@@ -394,7 +396,7 @@ class CastleAssaultScene(BaseScene):
         )
 
     def draw(self, screen: pygame.Surface):
-        self.tile_map.draw(screen)
+        self.tile_map.draw(screen, resource_manager=self.resource_manager)
         self.render_system.draw(self.ecm, screen)
         self.render_system.draw_attack_hitboxes(self.ecm, screen)
         self.render_system.draw_enemy_health_bars(self.ecm, screen)
