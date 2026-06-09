@@ -12,12 +12,32 @@ from src.components.components import (
 
 
 class RenderSystem:
-    """Рисует сущности с компонентами Position и Renderable"""
+    """Инкапсулирует gameplay-логику системы: render system.
+
+    """
 
     def __init__(self, resource_manager=None):
+        """Инициализирует `RenderSystem` и сохраняет начальные зависимости.
+
+        Args:
+            resource_manager: Менеджер графических ресурсов и placeholder-изображений.
+
+        Returns:
+            None.
+        """
         self.resource_manager = resource_manager
 
     def draw(self, ecm, screen, camera=None):
+        """Рисует объект на переданной поверхности.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+            camera: Камера, задающая смещение видимой области карты.
+
+        Returns:
+            None.
+        """
         for entity in ecm.get_entities_with(Position, Renderable):
             position = ecm.get_component(entity, Position)
             renderable = ecm.get_component(entity, Renderable)
@@ -41,6 +61,15 @@ class RenderSystem:
                 pygame.draw.rect(screen, renderable.color, rect)
 
     def get_entity_surface(self, sprite, renderable):
+        """Возвращает сущность поверхность.
+
+        Args:
+            sprite: Значение `sprite`, используемое в логике метода.
+            renderable: Значение `renderable`, используемое в логике метода.
+
+        Returns:
+            Найденное или вычисленное значение: сущность поверхность.
+        """
         if self.resource_manager is None or sprite is None:
             return None
 
@@ -52,6 +81,16 @@ class RenderSystem:
         )
 
     def draw_attack_hitboxes(self, ecm, screen, camera=None):
+        """Рисует атака hitboxes.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+            camera: Камера, задающая смещение видимой области карты.
+
+        Returns:
+            None.
+        """
         for entity in ecm.get_entities_with(AttackHitbox):
             if ecm.has_component(entity, Dead):
                 continue
@@ -75,6 +114,16 @@ class RenderSystem:
             pygame.draw.rect(screen, color, rect, 2)
 
     def draw_enemy_health_bars(self, ecm, screen, camera=None):
+        """Рисует враг health bars.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+            camera: Камера, задающая смещение видимой области карты.
+
+        Returns:
+            None.
+        """
         for enemy_id in ecm.get_entities_with(Enemy, Position, Renderable, Health):
             if ecm.has_component(enemy_id, Dead):
                 continue
