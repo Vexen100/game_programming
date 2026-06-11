@@ -22,9 +22,16 @@ from src.systems.region_liberation_system import RegionLiberationSystem
 
 
 class Game:
-    """Основной игровой цикл"""
+    """Координирует окно PyGame, менеджеры, сцены и основной игровой цикл.
+
+    """
 
     def __init__(self) -> None:
+        """Инициализирует `Game` и сохраняет начальные зависимости.
+
+        Returns:
+            None.
+        """
         pygame.init()
         self.screen = pygame.display.set_mode((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
         pygame.display.set_caption(settings.WINDOW_TITLE)
@@ -45,6 +52,11 @@ class Game:
         self.scene_manager.process_scene_change()
 
     def build_scene_registry(self):
+        """Собирает сцена реестр.
+
+        Returns:
+            Созданный результат: сцена реестр.
+        """
         return {
             settings.MAIN_MENU_SCENE: lambda: MainMenuScene(
                 on_new_game=self.start_new_game,
@@ -62,6 +74,11 @@ class Game:
         }
 
     def rebuild_world_systems(self):
+        """Пересобирает системы мира и подписки на события.
+
+        Returns:
+            None.
+        """
         self.event_bus = EventBus()
         self.influence_system = InfluenceSystem(self.game_state)
         self.influence_system.subscribe(self.event_bus)
@@ -70,15 +87,33 @@ class Game:
         self.subscribe_autosave_events()
 
     def subscribe_autosave_events(self):
+        """Подписывает autosave на события прогресса мира.
+
+        Returns:
+            None.
+        """
         self.event_bus.subscribe(EnemyKilledEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(OutpostClearedEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(QuestCompletedEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(RegionLiberatedEvent, self.on_world_progress_changed)
 
     def on_world_progress_changed(self, event):
+        """Обрабатывает событие изменения мирового прогресса.
+
+        Args:
+            event: Событие PyGame или событие внутренней игровой шины.
+
+        Returns:
+            None.
+        """
         self.save_current_progress()
 
     def collect_region_runtime_snapshots(self):
+        """Собирает runtime-снимки активных региональных сцен.
+
+        Returns:
+            Результат выполнения `collect_region_runtime_snapshots`.
+        """
         snapshots = dict(self.region_runtime_snapshots)
 
         for region_id, scene in self.region_scene_cache.items():
@@ -87,18 +122,33 @@ class Game:
         return snapshots
 
     def save_current_progress(self):
+        """Сохраняет текущий прогресс игры.
+
+        Returns:
+            None.
+        """
         self.save_manager.save(
             self.game_state,
             region_runtime=self.collect_region_runtime_snapshots(),
         )
 
     def reset_world_for_new_game(self):
+        """Создает чистое состояние мира для новой игры.
+
+        Returns:
+            None.
+        """
         self.game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
         self.region_scene_cache = {}
         self.region_runtime_snapshots = {}
         self.rebuild_world_systems()
 
     def load_saved_game(self):
+        """Загружает сохраненный прогресс в Game.
+
+        Returns:
+            Результат выполнения `load_saved_game`.
+        """
         save_data = self.save_manager.load()
 
         if save_data is None:
@@ -111,6 +161,11 @@ class Game:
         return True
 
     def start_new_game(self):
+        """Сбрасывает прогресс и начинает новую игру.
+
+        Returns:
+            Результат выполнения `start_new_game`.
+        """
         self.save_manager.delete_save()
         self.reset_world_for_new_game()
         self.save_current_progress()
@@ -118,6 +173,11 @@ class Game:
         return True
 
     def continue_game(self):
+        """Пробует продолжить игру из сохранения.
+
+        Returns:
+            `True`, если сохранение успешно загружено, иначе `False`.
+        """
         try:
             loaded = self.load_saved_game()
         except ValueError:
@@ -130,6 +190,11 @@ class Game:
         return True
 
     def get_region_scene(self):
+        """Возвращает регион сцена.
+
+        Returns:
+            Найденное или вычисленное значение: регион сцена.
+        """
         region_id = self.game_state.current_region_id
 
         if region_id not in self.region_scene_cache:
@@ -146,7 +211,11 @@ class Game:
         return self.region_scene_cache[region_id]
 
     def run(self):
-        """Запускает игровой цикл"""
+        """Выполняет основной игровой цикл до закрытия приложения.
+
+        Returns:
+            None.
+        """
         while self.running:
             self.handle_events()
             self.update()
@@ -163,7 +232,11 @@ class Game:
         pygame.quit()
 
     def handle_events(self):
-        """Обрабатывает системные события и передаёт нажатия клавиш менеджеру ввода"""
+        """Обрабатывает события текущего кадра.
+
+        Returns:
+            None.
+        """
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
@@ -176,6 +249,11 @@ class Game:
         self.scene_manager.handle_events(events)
 
     def toggle_fullscreen(self):
+        """Переключает полноэкранный режим окна.
+
+        Returns:
+            None.
+        """
         self.fullscreen = not self.fullscreen
         flags = pygame.FULLSCREEN if self.fullscreen else 0
         self.screen = pygame.display.set_mode(
@@ -184,11 +262,18 @@ class Game:
         )
 
     def update(self):
-        """
-        Обновление положения, анимаций (просто передаётся: менеджеру сцен -> сцене -> объектам)
+        """Обновляет состояние объекта за один кадр.
+
+        Returns:
+            None.
         """
         self.scene_manager.update(self.dt, self.input_manager)
 
     def draw(self):
+        """Рисует объект на переданной поверхности.
+
+        Returns:
+            None.
+        """
         self.scene_manager.draw(self.screen)
         pygame.display.flip()

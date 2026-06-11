@@ -42,8 +42,8 @@ from src.world.tile_map import TileMap
 
 
 class RegionScene(BaseScene):
-    """
-    Стандартная сцена региона. Поле, где бегает игрок и происходит сама игра.
+    """Запускает региональную сцену с игроком, врагами и объектами прогресса.
+
     """
 
     def __init__(
@@ -53,6 +53,17 @@ class RegionScene(BaseScene):
         region_layout=None,
         resource_manager=None,
     ) -> None:
+        """Инициализирует `RegionScene` и сохраняет начальные зависимости.
+
+        Args:
+            game_state: Глобальное состояние мира, регионов и прогресса игрока.
+            event_bus: Шина событий для связи систем без прямых зависимостей.
+            region_layout: Описание карты региона, точек интереса и стартовых позиций.
+            resource_manager: Менеджер графических ресурсов и placeholder-изображений.
+
+        Returns:
+            None.
+        """
         self.game_state = game_state
         self.event_bus = event_bus
         self.region_layout = region_layout or create_old_ruins_region_layout()
@@ -79,7 +90,16 @@ class RegionScene(BaseScene):
         self.restart_region()
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
-        """Проверяет, что сущность создана с нужными компонентами"""
+        """Проверяет обязательные компоненты сущности.
+
+        Args:
+            entity_id: Идентификатор сущности в EntityComponentManager.
+            entity_name: Человекочитаемое имя сущности для диагностики.
+            *component_types: Типы компонентов, наличие которых нужно проверить.
+
+        Returns:
+            None.
+        """
         for component_type in component_types:
             component = self.ecm.get_component(entity_id, component_type)
             if component is None:
@@ -88,12 +108,30 @@ class RegionScene(BaseScene):
                 )
 
     def handle_events(self, events):
+        """Обрабатывает события текущего кадра.
+
+        Args:
+            events: Список событий PyGame за текущий кадр.
+
+        Returns:
+            None.
+        """
         pass
 
     def is_player_defeated(self):
+        """Проверяет, побежден ли игрок.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return self.ecm.has_component(self.ecs_player_id, PlayerDefeated)
 
     def request_world_map(self):
+        """Запрашивает переход на карту мира.
+
+        Returns:
+            None.
+        """
         if self.manager is not None:
             if hasattr(self.manager, "open_world_map"):
                 self.manager.open_world_map(return_scene=self)
@@ -101,10 +139,20 @@ class RegionScene(BaseScene):
                 self.manager.request_change(settings.WORLD_MAP_SCENE)
 
     def request_pause(self):
+        """Запрашивает переход в сцену паузы.
+
+        Returns:
+            None.
+        """
         if self.manager is not None:
             self.manager.request_pause(settings.PAUSE_SCENE)
 
     def get_region_title(self):
+        """Возвращает регион заголовок.
+
+        Returns:
+            Найденное или вычисленное значение: регион заголовок.
+        """
         if self.game_state is None:
             return "Регион"
 
@@ -116,6 +164,11 @@ class RegionScene(BaseScene):
         return region.name
 
     def get_region_status_lines(self):
+        """Возвращает регион статус lines.
+
+        Returns:
+            Найденное или вычисленное значение: регион статус lines.
+        """
         if self.game_state is None:
             return []
 
@@ -152,6 +205,11 @@ class RegionScene(BaseScene):
         return status_lines
 
     def get_cleared_outpost_count(self):
+        """Возвращает cleared аванпост count.
+
+        Returns:
+            Найденное или вычисленное значение: cleared аванпост count.
+        """
         count = 0
 
         for outpost_id in self.outpost_ids:
@@ -162,6 +220,11 @@ class RegionScene(BaseScene):
         return count
 
     def get_completed_npc_count(self):
+        """Возвращает completed NPC count.
+
+        Returns:
+            Найденное или вычисленное значение: completed NPC count.
+        """
         count = 0
 
         for npc_id in self.npc_ids:
@@ -172,6 +235,11 @@ class RegionScene(BaseScene):
         return count
 
     def get_alive_enemy_count(self):
+        """Возвращает alive враг count.
+
+        Returns:
+            Найденное или вычисленное значение: alive враг count.
+        """
         count = 0
 
         for enemy_id in self.enemy_ids:
@@ -181,6 +249,14 @@ class RegionScene(BaseScene):
         return count
 
     def is_enemy_alive(self, enemy_id):
+        """Проверяет, жив ли враг.
+
+        Args:
+            enemy_id: Идентификатор сущности врага.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if enemy_id not in self.ecm.alive_entities:
             return False
 
@@ -195,12 +271,22 @@ class RegionScene(BaseScene):
         return True
 
     def get_current_region_id(self):
+        """Возвращает текущий регион id.
+
+        Returns:
+            Найденное или вычисленное значение: текущий регион id.
+        """
         if self.game_state is None:
             return None
 
         return self.game_state.current_region_id
 
     def is_assault_unlocked(self):
+        """Проверяет, открыт ли штурм региона.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if self.game_state is None:
             return False
 
@@ -212,6 +298,11 @@ class RegionScene(BaseScene):
         return region.unlocked and region.assault_unlocked
 
     def request_castle_assault(self):
+        """Запрашивает переход к штурму замка.
+
+        Returns:
+            Результат выполнения `request_castle_assault`.
+        """
         if not self.is_assault_unlocked():
             return False
 
@@ -220,6 +311,11 @@ class RegionScene(BaseScene):
         return True
 
     def restart_region(self):
+        """Перезапускает текущий регион.
+
+        Returns:
+            None.
+        """
         self.enemy_spatial_index = None
         self.tile_map = TileMap(self.region_layout.matrix)
         self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
@@ -291,6 +387,11 @@ class RegionScene(BaseScene):
         self.update_camera()
 
     def rebuild_enemy_spatial_index(self):
+        """Пересобирает пространственный индекс живых врагов.
+
+        Returns:
+            None.
+        """
         self.enemy_spatial_index = self.spatial_index_system.build_enemy_index(
             self.ecm,
             self.tile_map.width * self.tile_map.tile_size,
@@ -299,6 +400,14 @@ class RegionScene(BaseScene):
         )
 
     def get_entity_tile(self, entity_id):
+        """Возвращает сущность тайл.
+
+        Args:
+            entity_id: Идентификатор сущности в EntityComponentManager.
+
+        Returns:
+            Найденное или вычисленное значение: сущность тайл.
+        """
         position = self.ecm.get_component(entity_id, Position)
 
         if position is None:
@@ -315,6 +424,11 @@ class RegionScene(BaseScene):
         )
 
     def validate_region_layout(self):
+        """Проверяет корректность layout региона.
+
+        Returns:
+            None.
+        """
         start_tile = self.get_entity_tile(self.ecs_player_id)
         target_tiles = []
 
@@ -358,6 +472,11 @@ class RegionScene(BaseScene):
             raise ValueError("Region layout has unreachable important tiles")
 
     def validate_region_content_counts(self):
+        """Проверяет количество ключевых объектов региона.
+
+        Returns:
+            None.
+        """
         if len(self.outpost_ids) < 2:
             raise ValueError("Region layout must have at least two outposts")
         if len(self.npc_ids) < 2:
@@ -366,6 +485,11 @@ class RegionScene(BaseScene):
             raise ValueError("Region layout must have at least seven enemies")
 
     def validate_region_map_size(self):
+        """Проверяет размер карты региона.
+
+        Returns:
+            None.
+        """
         screen_tiles_width = settings.SCREEN_WIDTH // settings.TILE_SIZE
         screen_tiles_height = settings.SCREEN_HEIGHT // settings.TILE_SIZE
 
@@ -376,6 +500,11 @@ class RegionScene(BaseScene):
             raise ValueError("Region layout must be larger than the viewport")
 
     def validate_region_tile_variety(self):
+        """Проверяет разнообразие тайлов региона.
+
+        Returns:
+            None.
+        """
         tile_types = {
             tile
             for row in self.tile_map.matrix
@@ -386,14 +515,40 @@ class RegionScene(BaseScene):
             raise ValueError("Region layout must use at least five tile types")
 
     def validate_important_tile(self, tile, label):
+        """Проверяет важный тайл региона.
+
+        Args:
+            tile: Координаты тайла в формате `(x, y)`.
+            label: Человекочитаемая подпись для ошибки или проверки.
+
+        Returns:
+            None.
+        """
         if tile is None or self.tile_map.is_tile_blocked(*tile):
             raise ValueError(f"Region layout has blocked important tile: {label}")
 
     def validate_not_near_spawn(self, tile, label):
+        """Проверяет выполнение условия: validate not near появление.
+
+        Args:
+            tile: Координаты тайла в формате `(x, y)`.
+            label: Человекочитаемая подпись для ошибки или проверки.
+
+        Returns:
+            None.
+        """
         if self.get_tile_distance(tile, self.player_spawn_tile) <= 4:
             raise ValueError(f"Region layout {label} is too close to player spawn")
 
     def validate_outpost_guarded(self, outpost_tile):
+        """Проверяет выполнение условия: validate аванпост guarded.
+
+        Args:
+            outpost_tile: Координаты тайла аванпоста.
+
+        Returns:
+            None.
+        """
         guard_radius_tiles = max(1, OutpostSettings.RADIUS // settings.TILE_SIZE)
 
         for enemy_id in self.enemy_ids:
@@ -408,11 +563,25 @@ class RegionScene(BaseScene):
         raise ValueError("Region layout outpost has no nearby enemy guard")
 
     def get_tile_distance(self, first_tile, second_tile):
+        """Возвращает тайл дистанция.
+
+        Args:
+            first_tile: Координаты первого тайла.
+            second_tile: Координаты второго тайла.
+
+        Returns:
+            Найденное или вычисленное значение: тайл дистанция.
+        """
         first_x, first_y = first_tile
         second_x, second_y = second_tile
         return abs(first_x - second_x) + abs(first_y - second_y)
 
     def update_camera(self):
+        """Обновляет камера.
+
+        Returns:
+            None.
+        """
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
         player_collider = self.ecm.get_component(self.ecs_player_id, Collider)
 
@@ -434,6 +603,11 @@ class RegionScene(BaseScene):
         )
 
     def respawn_player_after_defeat(self):
+        """Возрождает игрока после поражения и сбрасывает его боевое состояние.
+
+        Returns:
+            None.
+        """
         player_health = self.ecm.get_component(self.ecs_player_id, Health)
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
         player_velocity = self.ecm.get_component(self.ecs_player_id, Velocity)
@@ -472,6 +646,11 @@ class RegionScene(BaseScene):
         self.update_camera()
 
     def export_runtime_state(self):
+        """Собирает runtime-состояние сцены для сохранения.
+
+        Returns:
+            Словарь runtime-состояния сцены.
+        """
         defeated_enemy_indexes = []
 
         for index, enemy_id in enumerate(self.enemy_ids):
@@ -523,6 +702,14 @@ class RegionScene(BaseScene):
         }
 
     def apply_runtime_state(self, runtime_state):
+        """Применяет runtime-состояние сцены после загрузки.
+
+        Args:
+            runtime_state: Сохраненное runtime-состояние сцены региона.
+
+        Returns:
+            None.
+        """
         if not runtime_state:
             return
 
@@ -559,6 +746,14 @@ class RegionScene(BaseScene):
         self.update_camera()
 
     def apply_outpost_runtime_state(self, outpost_id=None):
+        """Применяет аванпост runtime состояние.
+
+        Args:
+            outpost_id: Идентификатор сущности аванпоста.
+
+        Returns:
+            None.
+        """
         if outpost_id is None:
             outpost_id = self.outpost_id
 
@@ -573,6 +768,14 @@ class RegionScene(BaseScene):
             renderable.color = OutpostSettings.CLEARED_COLOR
 
     def apply_npc_runtime_state(self, npc_id=None):
+        """Применяет NPC runtime состояние.
+
+        Args:
+            npc_id: Идентификатор сущности NPC.
+
+        Returns:
+            None.
+        """
         if npc_id is None:
             npc_id = self.npc_id
 
@@ -587,6 +790,14 @@ class RegionScene(BaseScene):
             renderable.color = NPCSettings.COMPLETED_COLOR
 
     def apply_player_runtime_state(self, player_state):
+        """Применяет игрок runtime состояние.
+
+        Args:
+            player_state: Сохраненное runtime-состояние игрока.
+
+        Returns:
+            None.
+        """
         if not player_state:
             return
 
@@ -608,6 +819,15 @@ class RegionScene(BaseScene):
             self.ecm.remove_component(self.ecs_player_id, PlayerDefeated)
 
     def update(self, dt, input_manager):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            None.
+        """
         self.current_dt = dt
 
         if input_manager.was_pressed(settings.DEBUG):
@@ -667,6 +887,11 @@ class RegionScene(BaseScene):
         self.update_camera()
 
     def get_contextual_prompts(self):
+        """Возвращает контекстные prompts.
+
+        Returns:
+            Найденное или вычисленное значение: контекстные prompts.
+        """
         prompts = []
 
         if self.is_assault_unlocked():
@@ -682,6 +907,15 @@ class RegionScene(BaseScene):
         return prompts
 
     def add_outpost_prompt(self, prompts, player_position):
+        """Добавляет аванпост prompt.
+
+        Args:
+            prompts: Список контекстных подсказок HUD.
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            None.
+        """
         outpost_id = self.get_nearest_outpost_id(player_position)
 
         if outpost_id is None:
@@ -717,6 +951,15 @@ class RegionScene(BaseScene):
             prompts.append(texts.OUTPOST_HOLD_TO_CLEAR)
 
     def add_npc_prompt(self, prompts, player_position):
+        """Добавляет NPC prompt.
+
+        Args:
+            prompts: Список контекстных подсказок HUD.
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            None.
+        """
         npc_id = self.get_nearest_npc_id(player_position)
 
         if npc_id is None:
@@ -750,6 +993,14 @@ class RegionScene(BaseScene):
             prompts.append(texts.NPC_CLEAR_OUTPOST_FIRST)
 
     def get_nearest_outpost_id(self, player_position):
+        """Возвращает nearest аванпост id.
+
+        Args:
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            Найденное или вычисленное значение: nearest аванпост id.
+        """
         nearest_outpost_id = None
         nearest_distance = None
 
@@ -772,6 +1023,14 @@ class RegionScene(BaseScene):
         return nearest_outpost_id
 
     def get_nearest_npc_id(self, player_position):
+        """Возвращает nearest NPC id.
+
+        Args:
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            Найденное или вычисленное значение: nearest NPC id.
+        """
         nearest_npc_id = None
         nearest_distance = None
 
@@ -794,17 +1053,43 @@ class RegionScene(BaseScene):
         return nearest_npc_id
 
     def get_progress_percent(self, progress, duration):
+        """Возвращает прогресс percent.
+
+        Args:
+            progress: Текущий накопленный прогресс действия.
+            duration: Длительность действия или таймера в секундах.
+
+        Returns:
+            Прогресс в процентах от 0 до 100.
+        """
         if duration <= 0:
             return 100
 
         return min(100, int(100 * progress / duration))
 
     def get_distance(self, first_position, second_position):
+        """Возвращает дистанция.
+
+        Args:
+            first_position: Позиция первого объекта в пикселях.
+            second_position: Позиция второго объекта в пикселях.
+
+        Returns:
+            Расстояние между двумя позициями.
+        """
         dx = second_position.x - first_position.x
         dy = second_position.y - first_position.y
         return (dx ** 2 + dy ** 2) ** 0.5
 
     def draw(self, screen: pygame.Surface):
+        """Рисует объект на переданной поверхности.
+
+        Args:
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+
+        Returns:
+            None.
+        """
         self.tile_map.draw(screen, self.camera, self.resource_manager)
         self.render_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)

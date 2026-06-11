@@ -9,6 +9,7 @@ from src.components.components import (
     PlayerDefeated,
     Position,
 )
+from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
@@ -33,11 +34,17 @@ from src.world.castle_generator import CastleGenerator, CastleLayout
 
 
 class CastleAssaultScene(BaseScene):
-    """Сцена штурма замка"""
+    """Запускает сцену штурма замка со сгенерированной картой и A* врагами.
+
+    Attributes:
+        DEFAULT_CASTLE_SEED: Значение `default замок seed`, используемое в логике метода.
+        CASTLE_LAYOUT_WIDTH: Значение `замок layout width`, используемое в логике метода.
+        CASTLE_LAYOUT_HEIGHT: Значение `замок layout height`, используемое в логике метода.
+    """
 
     DEFAULT_CASTLE_SEED = 41042
-    CASTLE_LAYOUT_WIDTH = settings.SCREEN_WIDTH // settings.TILE_SIZE
-    CASTLE_LAYOUT_HEIGHT = settings.SCREEN_HEIGHT // settings.TILE_SIZE + 1
+    CASTLE_LAYOUT_WIDTH = 72
+    CASTLE_LAYOUT_HEIGHT = 48
 
     def __init__(
         self,
@@ -47,11 +54,24 @@ class CastleAssaultScene(BaseScene):
         castle_seed=None,
         resource_manager=None,
     ) -> None:
+        """Инициализирует `CastleAssaultScene` и сохраняет начальные зависимости.
+
+        Args:
+            game_state: Глобальное состояние мира, регионов и прогресса игрока.
+            event_bus: Шина событий для связи систем без прямых зависимостей.
+            castle_layout: Значение `замок layout`, используемое в логике метода.
+            castle_seed: Seed генерации замка; если не задан, берется seed текущего региона.
+            resource_manager: Менеджер графических ресурсов и placeholder-изображений.
+
+        Returns:
+            None.
+        """
         self.game_state = game_state
         self.event_bus = event_bus
         self.resource_manager = resource_manager
         self.castle_seed = self.resolve_castle_seed(castle_seed)
         self.castle_layout = castle_layout or self.generate_castle_layout()
+        self.castle_layout_fingerprint = self.castle_layout.fingerprint()
         self.final_room_tile = self.castle_layout.final_room_tile
         self.capture_point_tiles = list(self.castle_layout.capture_point_tiles)
         self.enemy_spawn_tiles = list(self.castle_layout.enemy_spawn_tiles)
@@ -78,6 +98,14 @@ class CastleAssaultScene(BaseScene):
         self.restart_castle()
 
     def resolve_castle_seed(self, castle_seed):
+        """Вычисляет seed генерации замка.
+
+        Args:
+            castle_seed: Seed генерации замка; если не задан, берется seed текущего региона.
+
+        Returns:
+            Результат выполнения `resolve_castle_seed`.
+        """
         if castle_seed is not None:
             return castle_seed
 
@@ -88,6 +116,14 @@ class CastleAssaultScene(BaseScene):
         return self.DEFAULT_CASTLE_SEED + self.make_stable_seed_from_text(region_id)
 
     def make_stable_seed_from_text(self, text):
+        """Создает стабильный числовой seed из текстовой строки.
+
+        Args:
+            text: Текстовая строка для отображения или преобразования.
+
+        Returns:
+            Стабильное целое число для использования как seed.
+        """
         total = 0
 
         for index, character in enumerate(text):
@@ -96,15 +132,37 @@ class CastleAssaultScene(BaseScene):
         return total
 
     def generate_castle_layout(self):
+        """Генерирует layout замка.
+
+        Returns:
+            Созданный результат: замок layout.
+        """
         return CastleGenerator(
             self.CASTLE_LAYOUT_WIDTH,
             self.CASTLE_LAYOUT_HEIGHT,
             seed=self.castle_seed,
+            min_leaf_size=10,
+            max_depth=5,
+            min_room_size=5,
+            corridor_width=2,
         ).generate()
 
     def validate_castle_layout_data(self):
+        """Проверяет корректность данных layout замка.
+
+        Returns:
+            None.
+        """
         if not self.castle_layout.matrix:
             raise ValueError("Castle layout matrix is empty")
+
+        layout_width = len(self.castle_layout.matrix[0])
+        layout_height = len(self.castle_layout.matrix)
+        screen_tiles_width = settings.SCREEN_WIDTH // settings.TILE_SIZE
+        screen_tiles_height = settings.SCREEN_HEIGHT // settings.TILE_SIZE
+
+        if layout_width <= screen_tiles_width or layout_height <= screen_tiles_height:
+            raise ValueError("Castle layout must be larger than the viewport")
 
         if not self.capture_point_tiles:
             raise ValueError("Castle layout has no capture point tiles")
@@ -116,7 +174,16 @@ class CastleAssaultScene(BaseScene):
             raise ValueError("Castle layout has no wave spawn tiles")
 
     def check_entity_components(self, entity_id, entity_name, *component_types):
-        """Проверяет, что сущность создана с нужными компонентами"""
+        """Проверяет обязательные компоненты сущности.
+
+        Args:
+            entity_id: Идентификатор сущности в EntityComponentManager.
+            entity_name: Человекочитаемое имя сущности для диагностики.
+            *component_types: Типы компонентов, наличие которых нужно проверить.
+
+        Returns:
+            None.
+        """
         for component_type in component_types:
             component = self.ecm.get_component(entity_id, component_type)
             if component is None:
@@ -125,12 +192,30 @@ class CastleAssaultScene(BaseScene):
                 )
 
     def handle_events(self, events):
+        """Обрабатывает события текущего кадра.
+
+        Args:
+            events: Список событий PyGame за текущий кадр.
+
+        Returns:
+            None.
+        """
         pass
 
     def is_player_defeated(self):
+        """Проверяет, побежден ли игрок.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return self.ecm.has_component(self.ecs_player_id, PlayerDefeated)
 
     def request_world_map(self):
+        """Запрашивает переход на карту мира.
+
+        Returns:
+            None.
+        """
         if self.manager is not None:
             if self.assault_completed:
                 self.manager.request_change(settings.WORLD_MAP_SCENE)
@@ -140,16 +225,31 @@ class CastleAssaultScene(BaseScene):
                 self.manager.request_change(settings.WORLD_MAP_SCENE)
 
     def request_pause(self):
+        """Запрашивает переход в сцену паузы.
+
+        Returns:
+            None.
+        """
         if self.manager is not None:
             self.manager.request_pause(settings.PAUSE_SCENE)
 
     def get_current_region_id(self):
+        """Возвращает текущий регион id.
+
+        Returns:
+            Найденное или вычисленное значение: текущий регион id.
+        """
         if self.game_state is None:
             return None
 
         return self.game_state.current_region_id
 
     def get_castle_title(self):
+        """Возвращает замок заголовок.
+
+        Returns:
+            Найденное или вычисленное значение: замок заголовок.
+        """
         if self.game_state is None:
             return "Штурм замка"
 
@@ -161,6 +261,14 @@ class CastleAssaultScene(BaseScene):
         return f"Штурм: {region.name}"
 
     def get_entity_tile(self, entity_id):
+        """Возвращает сущность тайл.
+
+        Args:
+            entity_id: Идентификатор сущности в EntityComponentManager.
+
+        Returns:
+            Найденное или вычисленное значение: сущность тайл.
+        """
         position = self.ecm.get_component(entity_id, Position)
         collider = self.ecm.get_component(entity_id, Collider)
 
@@ -173,6 +281,11 @@ class CastleAssaultScene(BaseScene):
         )
 
     def validate_castle_layout(self):
+        """Проверяет корректность layout замка.
+
+        Returns:
+            None.
+        """
         start_tile = self.get_entity_tile(self.ecs_player_id)
         target_tiles = [self.final_room_tile]
 
@@ -193,6 +306,11 @@ class CastleAssaultScene(BaseScene):
             raise ValueError("Castle layout has unreachable important tiles")
 
     def are_all_capture_points_captured(self):
+        """Проверяет, захвачены ли все точки захвата.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if not self.capture_point_ids:
             return False
 
@@ -205,6 +323,11 @@ class CastleAssaultScene(BaseScene):
         return True
 
     def complete_assault_if_ready(self):
+        """Завершает штурм, когда выполнены условия победы.
+
+        Returns:
+            None.
+        """
         if self.assault_completed:
             return
 
@@ -214,9 +337,15 @@ class CastleAssaultScene(BaseScene):
         self.assault_completed = True
 
     def restart_castle(self):
+        """Перезапускает сцену штурма замка.
+
+        Returns:
+            None.
+        """
         self.assault_completed = False
         self.enemy_spatial_index = None
         self.tile_map = self.castle_layout.to_tile_map()
+        self.camera = Camera(settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         self.ecm = EntityComponentManager()
         self.entity_factory = EntityFactory(self.ecm)
         self.castle_wave_system = CastleWaveSystem(
@@ -265,12 +394,26 @@ class CastleAssaultScene(BaseScene):
         self.validate_castle_layout()
         self.capture_system.reset()
         self.castle_wave_system.reset()
+        self.update_camera()
 
     def tile_to_pixels(self, tile):
+        """Переводит координаты тайла в пиксели.
+
+        Args:
+            tile: Координаты тайла в формате `(x, y)`.
+
+        Returns:
+            Результат выполнения `tile_to_pixels`.
+        """
         tile_x, tile_y = tile
         return self.tile_map.coord_tile_to_pixels(tile_x, tile_y)
 
     def rebuild_enemy_spatial_index(self):
+        """Пересобирает пространственный индекс живых врагов.
+
+        Returns:
+            None.
+        """
         self.enemy_spatial_index = self.spatial_index_system.build_enemy_index(
             self.ecm,
             self.tile_map.width * self.tile_map.tile_size,
@@ -279,6 +422,11 @@ class CastleAssaultScene(BaseScene):
         )
 
     def add_patrol_routes(self):
+        """Добавляет врагам маршруты патруля.
+
+        Returns:
+            None.
+        """
         for enemy_id, spawn_tile in zip(self.enemy_ids, self.enemy_spawn_tiles):
             self.ecm.add_component(
                 enemy_id,
@@ -289,6 +437,14 @@ class CastleAssaultScene(BaseScene):
             )
 
     def create_patrol_tiles(self, spawn_tile):
+        """Создает патруль тайлы.
+
+        Args:
+            spawn_tile: Координаты тайла появления сущности.
+
+        Returns:
+            Созданный результат: патруль тайлы.
+        """
         patrol_tiles = []
 
         for radius in range(0, 4):
@@ -307,6 +463,15 @@ class CastleAssaultScene(BaseScene):
         return patrol_tiles
 
     def get_square_ring_tiles(self, center_tile, radius):
+        """Возвращает square ring тайлы.
+
+        Args:
+            center_tile: Координаты тайла `центр тайл` в формате `(x, y)`.
+            radius: Радиус области действия или отрисовки.
+
+        Returns:
+            Найденное или вычисленное значение: square ring тайлы.
+        """
         center_x, center_y = center_tile
 
         if radius == 0:
@@ -324,7 +489,42 @@ class CastleAssaultScene(BaseScene):
 
         return tiles
 
+    def update_camera(self):
+        """Обновляет камера.
+
+        Returns:
+            None.
+        """
+        player_position = self.ecm.get_component(self.ecs_player_id, Position)
+        player_collider = self.ecm.get_component(self.ecs_player_id, Collider)
+
+        if player_position is None:
+            return
+
+        if player_collider is None:
+            center_x = player_position.x + settings.TILE_SIZE / 2
+            center_y = player_position.y + settings.TILE_SIZE / 2
+        else:
+            center_x = player_position.x + player_collider.width / 2
+            center_y = player_position.y + player_collider.height / 2
+
+        self.camera.follow(
+            center_x,
+            center_y,
+            self.tile_map.width * self.tile_map.tile_size,
+            self.tile_map.height * self.tile_map.tile_size,
+        )
+
     def update(self, dt, input_manager):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            None.
+        """
         self.current_dt = dt
 
         if input_manager.was_pressed(settings.DEBUG):
@@ -379,8 +579,17 @@ class CastleAssaultScene(BaseScene):
             self.complete_assault_if_ready()
 
         self.cleanup_system.update(self.ecm)
+        self.update_camera()
 
     def draw_assault_completed_message(self, screen):
+        """Рисует штурм completed message.
+
+        Args:
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+
+        Returns:
+            None.
+        """
         font = pygame.font.Font(None, 36)
         text_surface = font.render(
             texts.ASSAULT_COMPLETED,
@@ -396,10 +605,18 @@ class CastleAssaultScene(BaseScene):
         )
 
     def draw(self, screen: pygame.Surface):
-        self.tile_map.draw(screen, resource_manager=self.resource_manager)
-        self.render_system.draw(self.ecm, screen)
-        self.render_system.draw_attack_hitboxes(self.ecm, screen)
-        self.render_system.draw_enemy_health_bars(self.ecm, screen)
+        """Рисует объект на переданной поверхности.
+
+        Args:
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+
+        Returns:
+            None.
+        """
+        self.tile_map.draw(screen, self.camera, self.resource_manager)
+        self.render_system.draw(self.ecm, screen, self.camera)
+        self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
+        self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)
         self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen, texts.DEFEATED_RESTART)

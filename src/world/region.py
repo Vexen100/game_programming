@@ -8,6 +8,19 @@ LOCKED_CONTROL = "locked"
 
 @dataclass
 class RegionState:
+    """Хранит прогресс отдельного региона на глобальной карте.
+
+    Attributes:
+        id: Идентификатор объекта `id`.
+        name: Значение `name`, используемое в логике метода.
+        unlocked: Флаг, показывающий, открыт ли регион.
+        control_state: Текущее состояние контроля региона.
+        player_influence: Текущее влияние игрока в регионе.
+        enemy_influence: Текущее влияние врага в регионе.
+        assault_unlocked: Флаг доступности штурма замка в регионе.
+        liberated: Флаг, показывающий, освобожден ли регион.
+        unlocks_on_liberation: Список регионов, открываемых после освобождения.
+    """
     id: str
     name: str
     unlocked: bool
@@ -20,6 +33,14 @@ class RegionState:
 
     @classmethod
     def from_dict(cls, data):
+        """Создает объект из словаря сериализованных данных.
+
+        Args:
+            data: Словарь или структура данных из JSON или другого источника.
+
+        Returns:
+            Восстановленный объект нужного типа.
+        """
         return cls(
             id=data["id"],
             name=data["name"],
@@ -33,6 +54,11 @@ class RegionState:
         )
 
     def to_dict(self):
+        """Преобразует объект в словарь для сериализации.
+
+        Returns:
+            Словарь с сериализованным состоянием объекта.
+        """
         return {
             "id": self.id,
             "name": self.name,
