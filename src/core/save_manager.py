@@ -7,20 +7,53 @@ from src.core.game_state import GameState
 
 @dataclass
 class SaveData:
+    """Хранит восстановленные данные save-файла.
+
+    Attributes:
+        game_state: Глобальное состояние мира, регионов и прогресса игрока.
+        region_runtime: Значение `регион runtime`, используемое в логике метода.
+    """
     game_state: GameState
     region_runtime: dict
 
 
 class SaveManager:
+    """Читает, валидирует и записывает сохранения игры.
+
+    Attributes:
+        SAVE_VERSION: Поддерживаемая версия формата save-файла.
+    """
     SAVE_VERSION = 1
 
     def __init__(self, save_file_path):
+        """Инициализирует `SaveManager` и сохраняет начальные зависимости.
+
+        Args:
+            save_file_path: Значение `сохранение file путь`, используемое в логике метода.
+
+        Returns:
+            None.
+        """
         self.save_file_path = Path(save_file_path)
 
     def has_save(self):
+        """Проверяет, есть ли сохранение.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return self.save_file_path.is_file()
 
     def save(self, game_state, region_runtime=None):
+        """Сохраняет текущее состояние во внешний источник.
+
+        Args:
+            game_state: Глобальное состояние мира, регионов и прогресса игрока.
+            region_runtime: Значение `регион runtime`, используемое в логике метода.
+
+        Returns:
+            None.
+        """
         self.save_file_path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "version": self.SAVE_VERSION,
@@ -37,6 +70,11 @@ class SaveManager:
         temp_file_path.replace(self.save_file_path)
 
     def load(self):
+        """Загружает данные из внешнего источника.
+
+        Returns:
+            Загруженные данные или `None`, если источника нет.
+        """
         if not self.has_save():
             return None
 
@@ -54,6 +92,11 @@ class SaveManager:
         )
 
     def _load_json(self):
+        """Читает JSON-файл сохранения и превращает его в Python-данные.
+
+        Returns:
+            Данные из JSON-файла.
+        """
         try:
             with open(self.save_file_path, encoding="utf-8") as file:
                 return json.load(file)
@@ -61,6 +104,14 @@ class SaveManager:
             raise ValueError("Save file contains invalid JSON") from error
 
     def _validate_save_data(self, data):
+        """Проверяет базовую схему сохранения перед восстановлением состояния.
+
+        Args:
+            data: Словарь или структура данных из JSON или другого источника.
+
+        Returns:
+            Проверенные данные `game_state` и `region_runtime`.
+        """
         if not isinstance(data, dict):
             raise ValueError("Save file root must be an object")
 
@@ -85,4 +136,9 @@ class SaveManager:
         return game_state_data, region_runtime
 
     def delete_save(self):
+        """Удаляет файл сохранения или отмечает удаление в тестовом фейке.
+
+        Returns:
+            None.
+        """
         self.save_file_path.unlink(missing_ok=True)

@@ -14,9 +14,22 @@ from src.entities.entities_settings import PlayerSettings
 
 
 class MeleeAttackSystem:
-    """Обрабатывает ближнюю атаку игрока по врагу"""
+    """Инкапсулирует gameplay-логику системы: melee атака system.
+
+    """
 
     def update(self, ecm, dt, tile_map=None, enemy_spatial_index=None):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            None.
+        """
         for attacker_id in ecm.get_entities_with(
             PlayerControlled,
             Position,
@@ -59,6 +72,15 @@ class MeleeAttackSystem:
             attack_intent.requested = False
 
     def update_hitbox_timer(self, hitbox, dt):
+        """Обновляет hitbox таймер.
+
+        Args:
+            hitbox: Активный hitbox атаки.
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+
+        Returns:
+            None.
+        """
         if hitbox is None or not hitbox.active:
             return
 
@@ -68,6 +90,16 @@ class MeleeAttackSystem:
             hitbox.active = False
 
     def build_attack_rect(self, position, collider, facing):
+        """Собирает атака прямоугольник.
+
+        Args:
+            position: Позиция объекта в пикселях.
+            collider: Коллайдер сущности для столкновений и попаданий.
+            facing: Направение взгляда или удара сущности.
+
+        Returns:
+            Созданный результат: атака прямоугольник.
+        """
         facing_x = 1
         facing_y = 0
 
@@ -112,6 +144,17 @@ class MeleeAttackSystem:
         )
 
     def create_rect(self, x, y, width, height):
+        """Создает прямоугольник.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+
+        Returns:
+            Созданный результат: прямоугольник.
+        """
         return {
             "x": x,
             "y": y,
@@ -130,6 +173,21 @@ class MeleeAttackSystem:
         tile_map,
         enemy_spatial_index=None,
     ):
+        """Применяет hitbox урон.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            attacker_position: Позиция атакующей сущности в пикселях.
+            attacker_collider: Коллайдер атакующей сущности.
+            facing: Направение взгляда или удара сущности.
+            attack: Компонент атаки с уроном, дальностью и таймерами.
+            attack_rect: Прямоугольная область активного удара.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            Результат выполнения `apply_hitbox_damage`.
+        """
         hit_landed = False
         attacker_center_x, attacker_center_y = self.get_center(attacker_position, attacker_collider)
         fallback_x, fallback_y = self.get_knockback_fallback(facing)
@@ -182,6 +240,18 @@ class MeleeAttackSystem:
         attacker_collider,
         enemy_spatial_index,
     ):
+        """Возвращает враг candidates.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            attack_rect: Прямоугольная область активного удара.
+            attacker_position: Позиция атакующей сущности в пикселях.
+            attacker_collider: Коллайдер атакующей сущности.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            Найденное или вычисленное значение: враг candidates.
+        """
         if enemy_spatial_index is None:
             return ecm.get_entities_with(Enemy, Position, Collider, Health)
 
@@ -202,6 +272,15 @@ class MeleeAttackSystem:
         return candidates
 
     def is_damageable_enemy(self, ecm, entity_id):
+        """Проверяет, можно ли нанести урон врагу.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            entity_id: Идентификатор сущности в EntityComponentManager.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if ecm.has_component(entity_id, Dead):
             return False
 
@@ -213,12 +292,30 @@ class MeleeAttackSystem:
         )
 
     def get_knockback_fallback(self, facing):
+        """Возвращает отталкивание fallback.
+
+        Args:
+            facing: Направение взгляда или удара сущности.
+
+        Returns:
+            Найденное или вычисленное значение: отталкивание fallback.
+        """
         if facing is None:
             return 1, 0
 
         return facing.x, facing.y
 
     def rects_intersect(self, attack_rect, target_position, target_collider):
+        """Проверяет пересечение прямоугольников.
+
+        Args:
+            attack_rect: Прямоугольная область активного удара.
+            target_position: Позиция цели в пикселях.
+            target_collider: Коллайдер цели.
+
+        Returns:
+            Результат выполнения `rects_intersect`.
+        """
         return (
             attack_rect["x"] < target_position.x + target_collider.width
             and attack_rect["x"] + attack_rect["width"] > target_position.x
@@ -233,6 +330,17 @@ class MeleeAttackSystem:
         target_position,
         target_collider,
     ):
+        """Проверяет пересечение цели с телом атакующего.
+
+        Args:
+            attacker_position: Позиция атакующей сущности в пикселях.
+            attacker_collider: Коллайдер атакующей сущности.
+            target_position: Позиция цели в пикселях.
+            target_collider: Коллайдер цели.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         attacker_rect = self.create_rect(
             attacker_position.x,
             attacker_position.y,
@@ -252,6 +360,21 @@ class MeleeAttackSystem:
         fallback_x=1,
         fallback_y=0,
     ):
+        """Применяет отталкивание.
+
+        Args:
+            target_position: Позиция цели в пикселях.
+            target_collider: Коллайдер цели.
+            attacker_center_x: Координата центра атакующего по оси X.
+            attacker_center_y: Координата центра атакующего по оси Y.
+            knockback_distance: Дистанция отталкивания цели после попадания.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+            fallback_x: Запасное направление отталкивания по оси X.
+            fallback_y: Запасное направление отталкивания по оси Y.
+
+        Returns:
+            None.
+        """
         if knockback_distance <= 0:
             return
 
@@ -285,6 +408,16 @@ class MeleeAttackSystem:
         target_position.y = next_y
 
     def activate_hitbox(self, hitbox, attack_rect, hit_landed):
+        """Активирует hitbox атаки.
+
+        Args:
+            hitbox: Активный hitbox атаки.
+            attack_rect: Прямоугольная область активного удара.
+            hit_landed: Флаг, показывающий, было ли уже засчитано попадание.
+
+        Returns:
+            None.
+        """
         if hitbox is None:
             return
 
@@ -297,6 +430,15 @@ class MeleeAttackSystem:
         hitbox.hit_landed = hit_landed
 
     def get_center(self, position, collider):
+        """Возвращает центр.
+
+        Args:
+            position: Позиция объекта в пикселях.
+            collider: Коллайдер сущности для столкновений и попаданий.
+
+        Returns:
+            Найденное или вычисленное значение: центр.
+        """
         center_x = position.x + collider.width / 2
         center_y = position.y + collider.height / 2
         return center_x, center_y

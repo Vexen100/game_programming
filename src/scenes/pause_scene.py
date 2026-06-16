@@ -5,13 +5,24 @@ from src.ui import texts
 
 
 class PauseScene(BaseScene):
-    """Минимальное меню паузы"""
+    """Показывает меню паузы поверх игрового процесса.
+
+    Attributes:
+        BACKGROUND_COLOR: Цвет `фон цвет` в формате PyGame.
+        TEXT_COLOR: Цвет `текст цвет` в формате PyGame.
+        SELECTED_COLOR: Цвет `выбранный цвет` в формате PyGame.
+    """
 
     BACKGROUND_COLOR = (18, 18, 26)
     TEXT_COLOR = (230, 230, 230)
     SELECTED_COLOR = (220, 190, 40)
 
     def __init__(self) -> None:
+        """Инициализирует `PauseScene` и сохраняет начальные зависимости.
+
+        Returns:
+            None.
+        """
         self.items = [
             (texts.RESUME, "resume"),
             (texts.WORLD_MAP, "world_map"),
@@ -23,9 +34,26 @@ class PauseScene(BaseScene):
         self.manager = None
 
     def handle_events(self, events):
+        """Обрабатывает события текущего кадра.
+
+        Args:
+            events: Список событий PyGame за текущий кадр.
+
+        Returns:
+            None.
+        """
         pass
 
     def update(self, dt, input_manager):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            None.
+        """
         if input_manager.was_pressed(settings.MOVE_UP):
             self.selected_index = (self.selected_index - 1) % len(self.items)
 
@@ -49,6 +77,14 @@ class PauseScene(BaseScene):
             self.select_current_item()
 
     def update_mouse_selection(self, input_manager):
+        """Обновляет мышь selection.
+
+        Args:
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            None.
+        """
         mouse_position = getattr(input_manager, "mouse_position", None)
         if mouse_position is None:
             return
@@ -59,6 +95,14 @@ class PauseScene(BaseScene):
                 return
 
     def get_clicked_item_index(self, input_manager):
+        """Возвращает clicked пункт индекс.
+
+        Args:
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            Найденное или вычисленное значение: clicked пункт индекс.
+        """
         if not hasattr(input_manager, "was_mouse_pressed"):
             return None
 
@@ -77,6 +121,15 @@ class PauseScene(BaseScene):
         return None
 
     def get_item_rect(self, index, screen_width=settings.SCREEN_WIDTH):
+        """Возвращает пункт прямоугольник.
+
+        Args:
+            index: Индекс элемента в списке меню или коллекции.
+            screen_width: Ширина окна или экрана в пикселях.
+
+        Returns:
+            Найденное или вычисленное значение: пункт прямоугольник.
+        """
         return pygame.Rect(
             0,
             0,
@@ -88,6 +141,11 @@ class PauseScene(BaseScene):
         )
 
     def select_current_item(self):
+        """Активирует текущий выбранный пункт меню.
+
+        Returns:
+            None.
+        """
         label, action = self.items[self.selected_index]
 
         if action == "resume":
@@ -106,10 +164,23 @@ class PauseScene(BaseScene):
             self.manager.request_change(settings.MAIN_MENU_SCENE)
 
     def resume(self):
+        """Возобновляет игровой процесс.
+
+        Returns:
+            None.
+        """
         if self.manager is not None:
             self.manager.resume_scene()
 
     def draw(self, screen):
+        """Рисует объект на переданной поверхности.
+
+        Args:
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+
+        Returns:
+            None.
+        """
         screen.fill(self.BACKGROUND_COLOR)
 
         title_surface = self.title_font.render(texts.PAUSED, True, self.TEXT_COLOR)

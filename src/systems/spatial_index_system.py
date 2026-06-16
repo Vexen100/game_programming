@@ -3,9 +3,22 @@ from src.components.components import Collider, Dead, Enemy, Position
 
 
 class SpatialIndexSystem:
-    """Строит временные spatial indexes из текущего ECS-состояния"""
+    """Инкапсулирует gameplay-логику системы: пространственный индекс system.
+
+    """
 
     def build_enemy_index(self, ecm, world_width, world_height, cell_size):
+        """Собирает враг индекс.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            world_width: Значение `мир width`, используемое в логике метода.
+            world_height: Значение `мир height`, используемое в логике метода.
+            cell_size: Размер одной ячейки spatial grid в пикселях.
+
+        Returns:
+            Созданный результат: враг индекс.
+        """
         enemy_index = UniformGrid(world_width, world_height, cell_size)
 
         for enemy_id in ecm.get_entities_with(Enemy, Position, Collider):

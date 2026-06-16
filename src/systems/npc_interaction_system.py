@@ -12,12 +12,33 @@ from src.events.game_events import QuestCompletedEvent
 
 
 class NPCInteractionSystem:
-    """Обрабатывает простое взаимодействие игрока с NPC"""
+    """Инкапсулирует gameplay-логику системы: NPC interaction system.
+
+    """
 
     def __init__(self, event_bus=None):
+        """Инициализирует `NPCInteractionSystem` и сохраняет начальные зависимости.
+
+        Args:
+            event_bus: Шина событий для связи систем без прямых зависимостей.
+
+        Returns:
+            None.
+        """
         self.event_bus = event_bus
 
     def update(self, ecm, input_manager, region_id=None, dt=0):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+            region_id: Идентификатор региона на карте мира.
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+
+        Returns:
+            None.
+        """
         player_entities = ecm.get_entities_with(PlayerControlled, Position)
 
         if not player_entities:
@@ -76,12 +97,29 @@ class NPCInteractionSystem:
                 )
 
     def is_interact_held(self, input_manager):
+        """Проверяет, удерживается ли действие взаимодействия.
+
+        Args:
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if not hasattr(input_manager, "is_pressed"):
             return False
 
         return input_manager.is_pressed(settings.INTERACT)
 
     def is_required_outpost_cleared(self, ecm, outpost_id):
+        """Проверяет, зачищен ли обязательный аванпост.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            outpost_id: Идентификатор сущности аванпоста.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if outpost_id is None:
             return True
 
@@ -93,6 +131,15 @@ class NPCInteractionSystem:
         return outpost.cleared
 
     def get_distance(self, first_position, second_position):
+        """Возвращает дистанция.
+
+        Args:
+            first_position: Позиция первого объекта в пикселях.
+            second_position: Позиция второго объекта в пикселях.
+
+        Returns:
+            Расстояние между двумя позициями.
+        """
         dx = second_position.x - first_position.x
         dy = second_position.y - first_position.y
         return (dx ** 2 + dy ** 2) ** 0.5

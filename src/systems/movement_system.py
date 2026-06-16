@@ -2,9 +2,20 @@ from src.components.components import Position, Velocity
 
 
 class MovementSystem:
-    """Применяет Velocity к Position"""
+    """Инкапсулирует gameplay-логику системы: movement system.
+
+    """
 
     def update(self, ecm, dt):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+
+        Returns:
+            Результат выполнения `update`.
+        """
         previous_positions = {}
 
         for entity in ecm.get_entities_with(Position, Velocity):

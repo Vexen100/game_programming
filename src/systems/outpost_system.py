@@ -13,12 +13,34 @@ import settings
 
 
 class OutpostSystem:
-    """Проверяет зачистку аванпостов"""
+    """Инкапсулирует gameplay-логику системы: аванпост system.
+
+    """
 
     def __init__(self, event_bus=None):
+        """Инициализирует `OutpostSystem` и сохраняет начальные зависимости.
+
+        Args:
+            event_bus: Шина событий для связи систем без прямых зависимостей.
+
+        Returns:
+            None.
+        """
         self.event_bus = event_bus
 
     def update(self, ecm, input_manager=None, region_id=None, dt=0, enemy_spatial_index=None):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+            region_id: Идентификатор региона на карте мира.
+            dt: Время, прошедшее с предыдущего кадра, в секундах.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            None.
+        """
         if input_manager is None:
             return
 
@@ -79,12 +101,31 @@ class OutpostSystem:
                 self.event_bus.publish(OutpostClearedEvent(outpost_id, region_id))
 
     def is_interact_held(self, input_manager):
+        """Проверяет, удерживается ли действие взаимодействия.
+
+        Args:
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if not hasattr(input_manager, "is_pressed"):
             return False
 
         return input_manager.is_pressed(settings.INTERACT)
 
     def has_living_enemy_near_outpost(self, ecm, outpost_position, radius, enemy_spatial_index=None):
+        """Проверяет выполнение условия: has живой враг near аванпост.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            outpost_position: Позиция `аванпост position` в пикселях.
+            radius: Радиус области действия или отрисовки.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         for enemy_id in self.get_enemy_candidates(ecm, outpost_position, radius, enemy_spatial_index):
             if not self.is_living_enemy(ecm, enemy_id):
                 continue
@@ -97,6 +138,17 @@ class OutpostSystem:
         return False
 
     def get_enemy_candidates(self, ecm, outpost_position, radius, enemy_spatial_index):
+        """Возвращает враг candidates.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            outpost_position: Позиция `аванпост position` в пикселях.
+            radius: Радиус области действия или отрисовки.
+            enemy_spatial_index: Пространственный индекс врагов для быстрых проверок рядом.
+
+        Returns:
+            Найденное или вычисленное значение: враг candidates.
+        """
         if enemy_spatial_index is None:
             return ecm.get_entities_with(Enemy, Position)
 
@@ -108,6 +160,15 @@ class OutpostSystem:
         )
 
     def is_living_enemy(self, ecm, enemy_id):
+        """Проверяет, является ли сущность живым врагом.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            enemy_id: Идентификатор сущности врага.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return (
             ecm.has_component(enemy_id, Enemy)
             and ecm.has_component(enemy_id, Position)
@@ -115,6 +176,15 @@ class OutpostSystem:
         )
 
     def get_distance(self, first_position, second_position):
+        """Возвращает дистанция.
+
+        Args:
+            first_position: Позиция первого объекта в пикселях.
+            second_position: Позиция второго объекта в пикселях.
+
+        Returns:
+            Расстояние между двумя позициями.
+        """
         dx = second_position.x - first_position.x
         dy = second_position.y - first_position.y
         return (dx ** 2 + dy ** 2) ** 0.5

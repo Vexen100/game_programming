@@ -10,10 +10,28 @@ DIRECTIONS_4 = (
 
 
 def manhattan_distance(start_tile, goal_tile):
+    """Вычисляет манхэттенское расстояние между тайлами.
+
+    Args:
+        start_tile: Координаты стартового тайла.
+        goal_tile: Координаты целевого тайла для поиска пути.
+
+    Returns:
+        Манхэттенское расстояние между двумя тайлами.
+    """
     return abs(goal_tile[0] - start_tile[0]) + abs(goal_tile[1] - start_tile[1])
 
 
 def reconstruct_path(came_from, current):
+    """Восстанавливает путь A* по таблице переходов.
+
+    Args:
+        came_from: Значение `came from`, используемое в логике метода.
+        current: Значение `текущий`, используемое в логике метода.
+
+    Returns:
+        Список тайлов восстановленного пути.
+    """
     path = [current]
 
     while current in came_from:
@@ -25,6 +43,16 @@ def reconstruct_path(came_from, current):
 
 
 def find_path(tile_map, start_tile, goal_tile):
+    """Ищет путь между тайлами алгоритмом A*.
+
+    Args:
+        tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+        start_tile: Координаты стартового тайла.
+        goal_tile: Координаты целевого тайла для поиска пути.
+
+    Returns:
+        Список тайлов пути; пустой список, если путь не найден.
+    """
     if tile_map.is_tile_blocked(start_tile[0], start_tile[1]):
         return []
 

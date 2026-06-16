@@ -3,12 +3,31 @@ from src.entities.entities_settings import PlayerSettings
 
 
 class PlayerInputSystem:
-    """Записывает ввод игрока в Velocity"""
+    """Инкапсулирует gameplay-логику системы: игрок ввод system.
+
+    """
 
     def __init__(self, speed=PlayerSettings.SPEED) -> None:
+        """Инициализирует `PlayerInputSystem` и сохраняет начальные зависимости.
+
+        Args:
+            speed: Скорость движения сущности.
+
+        Returns:
+            None.
+        """
         self.speed = speed
 
     def update(self, ecm, input_manager):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            input_manager: Менеджер ввода, который хранит состояние клавиш и мыши.
+
+        Returns:
+            None.
+        """
         direction = input_manager.get_velocity_direction()
 
         for entity in ecm.get_entities_with(PlayerControlled, Velocity):

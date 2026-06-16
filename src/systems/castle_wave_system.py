@@ -2,19 +2,46 @@ from src.components.components import CapturePoint
 
 
 class CastleWaveSystem:
-    """Создаёт минимальные подкрепления в замке после захвата точек"""
+    """Инкапсулирует gameplay-логику системы: замок волна system.
+
+    """
 
     def __init__(self, spawn_tiles, enemies_per_wave=2):
+        """Инициализирует `CastleWaveSystem` и сохраняет начальные зависимости.
+
+        Args:
+            spawn_tiles: Список координат тайлов `появление тайлы`.
+            enemies_per_wave: Значение `враги per волна`, используемое в логике метода.
+
+        Returns:
+            None.
+        """
         self.spawn_tiles = spawn_tiles
         self.enemies_per_wave = enemies_per_wave
         self.spawned_for_capture_point_ids = set()
         self.next_spawn_index = 0
 
     def reset(self):
+        """Сбрасывает внутреннее состояние системы.
+
+        Returns:
+            None.
+        """
         self.spawned_for_capture_point_ids.clear()
         self.next_spawn_index = 0
 
     def update(self, ecm, entity_factory, tile_map, capture_point_ids):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            entity_factory: Фабрика ECS-сущностей стандартных игровых архетипов.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+            capture_point_ids: Список идентификаторов точек захвата.
+
+        Returns:
+            Результат выполнения `update`.
+        """
         capture_point_ids = list(capture_point_ids)
 
         if self.are_all_capture_points_captured(ecm, capture_point_ids):
@@ -37,6 +64,15 @@ class CastleWaveSystem:
         return spawned_enemy_ids
 
     def are_all_capture_points_captured(self, ecm, capture_point_ids):
+        """Проверяет, захвачены ли все точки захвата.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            capture_point_ids: Список идентификаторов точек захвата.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         if not capture_point_ids:
             return False
 
@@ -49,6 +85,15 @@ class CastleWaveSystem:
         return True
 
     def spawn_wave(self, entity_factory, tile_map):
+        """Создает следующую волну врагов замка.
+
+        Args:
+            entity_factory: Фабрика ECS-сущностей стандартных игровых архетипов.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+
+        Returns:
+            Список идентификаторов созданных врагов.
+        """
         spawned_enemy_ids = []
 
         for _ in range(self.enemies_per_wave):
@@ -59,6 +104,14 @@ class CastleWaveSystem:
         return spawned_enemy_ids
 
     def get_next_spawn_tile(self, tile_map):
+        """Возвращает next появление тайл.
+
+        Args:
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+
+        Returns:
+            Найденное или вычисленное значение: next появление тайл.
+        """
         if not self.spawn_tiles:
             raise ValueError("Castle wave spawn tiles are not configured")
 

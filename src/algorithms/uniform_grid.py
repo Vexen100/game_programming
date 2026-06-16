@@ -4,7 +4,20 @@ from src.algorithms.spatial_index import SpatialIndex
 
 
 class UniformGrid(SpatialIndex):
+    """Хранит spatial grid для быстрых запросов объектов по области.
+
+    """
     def __init__(self, width, height, cell_size):
+        """Инициализирует `UniformGrid` и сохраняет начальные зависимости.
+
+        Args:
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+            cell_size: Размер одной ячейки spatial grid в пикселях.
+
+        Returns:
+            None.
+        """
         if width <= 0:
             raise ValueError("width must be greater than 0")
         if height <= 0:
@@ -21,16 +34,38 @@ class UniformGrid(SpatialIndex):
         self.cells = self.create_cells()
 
     def create_cells(self):
+        """Создает пустую таблицу ячеек spatial grid.
+
+        Returns:
+            Двумерный список пустых множеств ячеек.
+        """
         return [
             [set() for _ in range(self.columns)]
             for _ in range(self.rows)
         ]
 
     def clear(self):
+        """Очищает накопленное состояние объекта.
+
+        Returns:
+            None.
+        """
         self.objects.clear()
         self.cells = self.create_cells()
 
     def insert(self, entity_id, x, y, width=1, height=1):
+        """Добавляет объект в пространственный индекс.
+
+        Args:
+            entity_id: Идентификатор сущности в EntityComponentManager.
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+
+        Returns:
+            None.
+        """
         if width <= 0 or height <= 0:
             return
 
@@ -47,6 +82,17 @@ class UniformGrid(SpatialIndex):
                 self.cells[row][column].add(entity_id)
 
     def query_rect(self, x, y, width, height):
+        """Ищет объекты spatial grid в прямоугольной области.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+
+        Returns:
+            Результат выполнения `query_rect`.
+        """
         cell_range = self.get_cell_range(x, y, width, height)
 
         if cell_range is None:
@@ -62,6 +108,16 @@ class UniformGrid(SpatialIndex):
         return entity_ids
 
     def query_radius(self, x, y, radius):
+        """Ищет объекты spatial grid в радиусе.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            radius: Радиус области действия или отрисовки.
+
+        Returns:
+            Результат выполнения `query_radius`.
+        """
         if radius < 0:
             return set()
 
@@ -91,6 +147,17 @@ class UniformGrid(SpatialIndex):
         return result
 
     def get_cell_range(self, x, y, width, height):
+        """Возвращает ячейка range.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+
+        Returns:
+            Найденное или вычисленное значение: ячейка range.
+        """
         if width <= 0 or height <= 0:
             return None
 
@@ -110,4 +177,13 @@ class UniformGrid(SpatialIndex):
         return start_column, end_column, start_row, end_row
 
     def clamp_cell_index(self, value, maximum):
+        """Ограничивает индекс ячейки границами spatial grid.
+
+        Args:
+            value: Значение, которое нужно проверить, ограничить или преобразовать.
+            maximum: Максимально допустимое значение.
+
+        Returns:
+            Результат выполнения `clamp_cell_index`.
+        """
         return max(0, min(maximum - 1, int(value)))

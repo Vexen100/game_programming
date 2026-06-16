@@ -27,13 +27,31 @@ from src.entities.entities_settings import (
 
 
 class EntityFactory:
-    """Создаёт сущности с готовым набором компонентов"""
+    """Создает сущности игры из стандартных ECS-компонентов.
+
+    """
 
     def __init__(self, ecm) -> None:
+        """Инициализирует `EntityFactory` и сохраняет начальные зависимости.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+
+        Returns:
+            None.
+        """
         self.ecm = ecm
 
     def create_player(self, x, y):
-        """Создаёт ECS-сущность игрока"""
+        """Создает игрок.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            Созданный результат: игрок.
+        """
         player = self.ecm.create_entity(tag="player")
 
         self.ecm.add_component(player, Position(x, y))
@@ -84,7 +102,15 @@ class EntityFactory:
         return player
 
     def create_enemy(self, x, y):
-        """Создаёт ECS-сущность врага"""
+        """Создает враг.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            Созданный результат: враг.
+        """
         enemy = self.ecm.create_entity(tag="enemy")
 
         self.ecm.add_component(enemy, Position(x, y))
@@ -145,7 +171,15 @@ class EntityFactory:
         return enemy
 
     def create_outpost(self, x, y):
-        """Создаёт ECS-сущность аванпоста"""
+        """Создает аванпост.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            Созданный результат: аванпост.
+        """
         outpost = self.ecm.create_entity(tag="outpost")
 
         self.ecm.add_component(outpost, Position(x, y))
@@ -169,7 +203,17 @@ class EntityFactory:
         return outpost
 
     def create_npc(self, x, y, quest_id, required_outpost_id=None):
-        """Создаёт ECS-сущность NPC с простым заданием"""
+        """Создает NPC.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+            quest_id: Идентификатор задания NPC.
+            required_outpost_id: Идентификатор аванпоста, необходимого для задания NPC.
+
+        Returns:
+            Созданный результат: NPC.
+        """
         npc = self.ecm.create_entity(tag="npc")
 
         self.ecm.add_component(npc, Position(x, y))
@@ -195,7 +239,15 @@ class EntityFactory:
         return npc
 
     def create_capture_point(self, x, y):
-        """Создаёт ECS-сущность точки захвата"""
+        """Создает точка захвата точка.
+
+        Args:
+            x: Координата по оси X в пикселях или тайлах, в зависимости от контекста.
+            y: Координата по оси Y в пикселях или тайлах, в зависимости от контекста.
+
+        Returns:
+            Созданный результат: точка захвата точка.
+        """
         capture_point = self.ecm.create_entity(tag="capture_point")
 
         self.ecm.add_component(capture_point, Position(x, y))

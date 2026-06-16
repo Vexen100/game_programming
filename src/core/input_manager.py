@@ -3,12 +3,16 @@ import settings
 
 
 class InputManager:
-    """
-    Менеджер ввода. По сути самостоятельный слой обработки ввода.
-    Системы и компоненты обращаются к нему по постоянным строкам actions.
+    """Хранит состояние клавиатуры и мыши между кадрами.
+
     """
 
     def __init__(self) -> None:
+        """Инициализирует `InputManager` и сохраняет начальные зависимости.
+
+        Returns:
+            None.
+        """
         self.down_keys = set()
         self.released_keys = set()
         self.pressed_keys = set()
@@ -31,7 +35,14 @@ class InputManager:
         }
 
     def update_events(self, event):
-        """Записывает новое положение клавиш в кадре"""
+        """Обновляет события.
+
+        Args:
+            event: Событие PyGame или событие внутренней игровой шины.
+
+        Returns:
+            None.
+        """
         if event.type == pygame.KEYDOWN:
             self.down_keys.add(event.key)
             self.pressed_keys.add(event.key)
@@ -45,13 +56,24 @@ class InputManager:
             self.mouse_buttons_pressed.add(event.button)
 
     def clear(self):
-        """Очищает данные об однократных нажатиях и отпущенных клавишах за кадр"""
+        """Очищает накопленное состояние объекта.
+
+        Returns:
+            None.
+        """
         self.released_keys.clear()
         self.pressed_keys.clear()
         self.mouse_buttons_pressed.clear()
 
     def was_pressed(self, action):
-        """Проверяет была ли один раз нажата клавиша в этом кадре"""
+        """Проверяет, было ли действие нажато в текущем кадре.
+
+        Args:
+            action: Имя игрового действия из таблицы привязок ввода.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         key = self.bindings.get(action)
         if key is None:
             return False
@@ -60,7 +82,14 @@ class InputManager:
         return key in self.pressed_keys
 
     def is_pressed(self, action):
-        """Проверяет зажата ли клавиша в этом кадре"""
+        """Проверяет, удерживается ли действие прямо сейчас.
+
+        Args:
+            action: Имя игрового действия из таблицы привязок ввода.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         key = self.bindings.get(action)
         if key is None:
             return False
@@ -69,10 +98,22 @@ class InputManager:
         return key in self.down_keys
 
     def was_mouse_pressed(self, button=1):
+        """Проверяет, была ли кнопка мыши нажата в текущем кадре.
+
+        Args:
+            button: Кнопка мыши, состояние которой нужно проверить.
+
+        Returns:
+            `True`, если условие выполнено, иначе `False`.
+        """
         return button in self.mouse_buttons_pressed
 
     def get_velocity_direction(self):
-        """Считает направление вектора скорости игрока в этом кадре"""
+        """Возвращает нормализованное направление движения по вводу.
+
+        Returns:
+            Найденное или вычисленное значение: скорость direction.
+        """
         direction = pygame.Vector2(0, 0)
         if self.is_pressed(settings.MOVE_UP):
             direction.y -= 1

@@ -10,11 +10,29 @@ DIRECTIONS_4 = (
 
 
 def is_blocked(tile_map, tile):
+    """Проверяет, заблокирована ли точка на карте.
+
+    Args:
+        tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+        tile: Координаты тайла в формате `(x, y)`.
+
+    Returns:
+        `True`, если условие выполнено, иначе `False`.
+    """
     tile_x, tile_y = tile
     return tile_map.is_tile_blocked(tile_x, tile_y)
 
 
 def get_reachable_tiles(tile_map, start_tile):
+    """Находит все достижимые тайлы через flood fill.
+
+    Args:
+        tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+        start_tile: Координаты стартового тайла.
+
+    Returns:
+        Множество координат достижимых тайлов.
+    """
     if is_blocked(tile_map, start_tile):
         return set()
 
@@ -40,6 +58,16 @@ def get_reachable_tiles(tile_map, start_tile):
 
 
 def is_tile_reachable(tile_map, start_tile, target_tile):
+    """Проверяет, достижим ли целевой тайл.
+
+    Args:
+        tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+        start_tile: Координаты стартового тайла.
+        target_tile: Координаты тайла, к которому нужно двигаться.
+
+    Returns:
+        `True`, если условие выполнено, иначе `False`.
+    """
     if is_blocked(tile_map, target_tile):
         return False
 
@@ -47,6 +75,16 @@ def is_tile_reachable(tile_map, start_tile, target_tile):
 
 
 def are_tiles_reachable(tile_map, start_tile, target_tiles):
+    """Проверяет, достижимы ли все целевые тайлы.
+
+    Args:
+        tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+        start_tile: Координаты стартового тайла.
+        target_tiles: Список целевых тайлов для проверки достижимости.
+
+    Returns:
+        `True`, если условие выполнено, иначе `False`.
+    """
     reachable_tiles = get_reachable_tiles(tile_map, start_tile)
 
     for target_tile in target_tiles:

@@ -2,9 +2,21 @@ from src.components.components import Collider, Position
 
 
 class CollisionSystem:
-    """Проверяет столкновения сущностей с тайловой картой"""
+    """Инкапсулирует gameplay-логику системы: collision system.
+
+    """
 
     def update(self, ecm, tile_map, previous_positions):
+        """Обновляет состояние объекта за один кадр.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            tile_map: Тайловая карта для проверки стен, пола и координат тайлов.
+            previous_positions: Значение `previous positions`, используемое в логике метода.
+
+        Returns:
+            None.
+        """
         for entity in ecm.get_entities_with(Position, Collider):
             if entity not in previous_positions:
                 continue
