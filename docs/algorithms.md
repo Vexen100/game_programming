@@ -70,15 +70,40 @@
 
 ---
 
-## ResourceManager placeholder rendering
+## ResourceManager image loading + placeholder fallback
 
 `ResourceManager` — инфраструктура отрисовки, а не gameplay algorithm.
 
-Он кэширует загруженные изображения и generated placeholder surfaces, чтобы `TileMap` и `RenderSystem` могли быть sprite-ready без обязательных внешних assets.
+Он кэширует загруженные изображения и generated placeholder surfaces, чтобы `TileMap` и `RenderSystem` могли использовать PNG assets без потери fallback-пути.
+
+Сейчас `ResourceManager` умеет брать static PNG для tile ids и `Sprite.asset_key` из `assets/images/`.
 
 Если изображения нет, используется placeholder surface с fallback-цветом из `Renderable` или tile color.
 
-Это не sprite sheet animation, не production art pipeline, не sound loading и не asset manifest.
+Это не sprite sheet animation, не sound loading и не asset manifest.
+
+Сложность: простая.
+
+---
+
+## Asset slicing pipeline
+
+Asset pipeline — это tooling, а не gameplay algorithm.
+
+Сейчас есть Pillow-based инструменты:
+
+- `tools/asset_pipeline/slice_tilesheet.py`;
+- `tools/asset_pipeline/slice_spritesheet.py`;
+- `tools/asset_pipeline/process_current_assets.py`;
+- `tools/asset_pipeline/export_castle_preview.py`.
+
+Они подготавливают game-ready PNG в `assets/images/` из raw source art в `assets/source/`.
+
+`assets/source/` не должен попадать в git.
+
+Нарезанные walk/attack frames пока не используются runtime-анимацией.
+
+Это не `AnimationManager`, не asset manifest, не sound pipeline и не редактор assets.
 
 Сложность: простая.
 
@@ -480,6 +505,10 @@ Rooms соединяются L-shaped corridors.
 
 `final_room_tile` участвует в gameplay как последняя capture point.
 
+Комнаты и коридоры замка используют отдельные visual tile ids: `CASTLE_FLOOR`, `CASTLE_WALL`, `CRACKED_STONE_FLOOR` и `DARK_CORRIDOR_FLOOR`.
+
+`CastleLayout.fingerprint()` даёт короткий диагностический hash layout-матрицы и важных координат.
+
 Enemy spawn tiles выбираются рядом с capture points как guard-позиции до появления Behavior Tree.
 
 Wave spawn tiles выбираются около не-финальных capture points или на подходах к ним.
@@ -497,6 +526,8 @@ Layout всё ещё data-only: gameplay scene создаёт ECS entities по 
 BFS validation используется и в generator, и на уровне сцены.
 
 Текущий scope — procedural layout для штурма.
+
+Для визуальной диагностики layout можно экспортировать в PNG через `tools/asset_pipeline/export_castle_preview.py`.
 
 Это не decorations, doors, traps, locked rooms, lighting, room themes или boss/final room gameplay.
 
@@ -536,6 +567,6 @@ BFS validation используется и в generator, и на уровне с
 - систему снабжения;
 - сложный ИИ отрядов.
 - sprite sheet animation;
-- production art pipeline.
+- полноценный production art pass и asset manifest.
 
 Эти алгоритмы стоит добавлять только после появления рабочего игрового ядра.

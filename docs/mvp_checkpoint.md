@@ -17,6 +17,8 @@
 - Assault unlock now requires a fuller region loop: outpost, NPC quest and combat contribution.
 - Minimal `ResourceManager` with generated placeholder surfaces.
 - Sprite-ready rendering foundation через `Sprite` + `Renderable` fallback.
+- Первый static PNG asset pass для tiles/entities.
+- Минимальный Pillow-based asset pipeline.
 
 ### Region loop
 
@@ -38,6 +40,8 @@
 
 - Вход в штурм после unlock.
 - BSP-generated layout in `CastleAssaultScene`.
+- Larger 72x48 castle layout with camera follow.
+- Castle-specific visual tile ids and layout fingerprint diagnostics.
 - Widened procedural corridors.
 - Capture points, включая final room capture point.
 - Starting enemies guarding capture points.
@@ -68,7 +72,7 @@
 - SpatialHashing не реализован.
 - Lightmap / Perlin не реализованы.
 - Enemy attack имеет AABB telegraph и windup, но полноценные animations/sound/hit effects ещё не реализованы.
-- Нет production sprites, анимаций и звука.
+- Первый static PNG pass есть, но полноценный production art pass, runtime sprite animations и звук ещё не реализованы.
 - Регионы пока используют один прототип `RegionScene`.
 - Квесты пока прототипные, без диалогов и вариативности.
 - Баланс влияния пока тестовый.
@@ -100,7 +104,7 @@ QA-фиксы не являются отклонением от плана. Он
 
 ### Milestone C - presentation
 
-1. Production sprites.
+1. Полноценный production art pass.
 2. Attack/death animations.
 3. Sound/hit feedback.
 4. Lightmap.

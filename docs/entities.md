@@ -240,7 +240,11 @@ Sprite = asset_key
 
 Если `RenderSystem` получает `ResourceManager`, он может получить surface по `Sprite.asset_key`.
 
+Сейчас default keys `player`, `enemy`, `outpost_enemy`, `npc_active` и `capture_point_enemy` могут загружать static PNG из `assets/images/entities/`.
+
 Если `ResourceManager` не передан или реального изображения нет, сущность всё равно рисуется через generated placeholder или старый rectangle fallback.
+
+`Sprite` пока не управляет кадрами walk/attack animation.
 
 ---
 
@@ -259,10 +263,14 @@ Sprite = asset_key
 - `WATER`;
 - `FOREST`;
 - `BRIDGE`.
+- `CASTLE_FLOOR`;
+- `CASTLE_WALL`;
+- `CRACKED_STONE_FLOOR`;
+- `DARK_CORRIDOR_FLOOR`.
 
-`WALL`, `WATER` и `FOREST` блокируют движение.
+`WALL`, `WATER`, `FOREST` и `CASTLE_WALL` блокируют движение.
 
-`FLOOR`, `GRASS`, `DIRT`, `ROAD`, `RUINS_FLOOR` и `BRIDGE` проходимы.
+`FLOOR`, `GRASS`, `DIRT`, `ROAD`, `RUINS_FLOOR`, `BRIDGE`, `CASTLE_FLOOR`, `CRACKED_STONE_FLOOR` и `DARK_CORRIDOR_FLOOR` проходимы.
 
 `TileMap` отвечает за:
 

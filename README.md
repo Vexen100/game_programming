@@ -28,8 +28,11 @@ Tower-defense + quests + metroidvania(??)
 - readable tile variety: grass, dirt, road, ruins floor, water, forest and bridge;
 - minimal `ResourceManager` with generated placeholder rendering;
 - sprite-ready ECS rendering via `Sprite` + `Renderable` fallback;
+- first static PNG asset pass for tiles/entities;
+- minimal Pillow-based asset pipeline;
 - castle assault;
 - procedural BSP castle layout in `CastleAssaultScene`;
+- larger 72x48 castle layout with camera follow and layout fingerprint diagnostics;
 - widened castle corridors tuned for current player/enemy sizes;
 - capture points;
 - final castle room participates as the final capture point;
@@ -47,8 +50,8 @@ Assault unlock is harder than before: one outpost, one outpost + one NPC quest, 
 - full castle runtime save;
 - doors/traps/room decorations;
 - Lightmap / Perlin;
-- production sprites;
-- sprite animations;
+- full production art pass;
+- runtime sprite animations;
 - sound.
 
 ## 📝 Примечание

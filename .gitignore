@@ -52,3 +52,11 @@ config_local.ini
 config_local.yaml
 REVIEW_BUNDLE.MD
 REVIEW_BUNDLE.md
+
+# Raw/user-provided source art and temporary asset pipeline output
+assets/source/
+assets/tmp/
+assets/generated_tmp/
+tools/asset_pipeline/_local/
+*.aseprite
+*.psd
