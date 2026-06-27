@@ -1094,6 +1094,7 @@ class RegionScene(BaseScene):
         self.render_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
         self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)
+        self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)
         self.hud.draw(
             screen,
             self.ecm,
@@ -1104,4 +1105,3 @@ class RegionScene(BaseScene):
         )
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen, texts.DEFEATED_RECOVER)
-        self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

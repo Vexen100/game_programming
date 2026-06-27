@@ -617,9 +617,9 @@ class CastleAssaultScene(BaseScene):
         self.render_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
         self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)
+        self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)
         self.hud.draw(screen, self.ecm, self.ecs_player_id, self.get_castle_title())
         if self.is_player_defeated():
             self.hud.draw_defeat_message(screen, texts.DEFEATED_RESTART)
         if self.assault_completed:
             self.draw_assault_completed_message(screen)
-        self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)

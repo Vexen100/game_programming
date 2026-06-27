@@ -61,3 +61,52 @@ class TestResourceManagerTiles(unittest.TestCase):
 
             self.assertEqual(surface.get_size(), (32, 32))
             self.assertFalse(resource_manager.has_image(f"tile_{GRASS}"))
+
+    def test_resource_manager_loads_existing_entity_asset(self):
+        """Проверяет загрузку existing entity PNG.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / "entities" / "player.png"
+            image_path.parent.mkdir(parents=True)
+            Image.new("RGBA", (16, 16), (100, 50, 200, 255)).save(image_path)
+            resource_manager = ResourceManager(
+                image_root=tmp,
+                tile_assets={},
+                entity_assets={"player": "entities/player.png"},
+            )
+
+            surface = resource_manager.get_entity_surface(
+                "player",
+                32,
+                32,
+                (255, 0, 0),
+            )
+
+            self.assertEqual(surface.get_size(), (32, 32))
+            self.assertEqual(surface.get_at((16, 16))[:3], (100, 50, 200))
+
+    def test_resource_manager_falls_back_for_missing_entity_asset(self):
+        """Проверяет fallback для отсутствующего entity PNG.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            resource_manager = ResourceManager(
+                image_root=tmp,
+                tile_assets={},
+                entity_assets={"player": "entities/missing.png"},
+            )
+
+            surface = resource_manager.get_entity_surface(
+                "player",
+                32,
+                32,
+                (255, 0, 0),
+            )
+
+            self.assertEqual(surface.get_size(), (32, 32))
+            self.assertGreater(surface.get_at((16, 16)).a, 0)

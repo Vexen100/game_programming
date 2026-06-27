@@ -38,7 +38,7 @@ class RenderSystem:
         Returns:
             None.
         """
-        for entity in ecm.get_entities_with(Position, Renderable):
+        for entity in self.get_render_order(ecm):
             position = ecm.get_component(entity, Position)
             renderable = ecm.get_component(entity, Renderable)
             x, y = position.x, position.y
@@ -59,6 +59,26 @@ class RenderSystem:
                     renderable.height,
                 )
                 pygame.draw.rect(screen, renderable.color, rect)
+
+    def get_render_order(self, ecm):
+        """Возвращает порядок отрисовки world entities с Y-sort.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+
+        Returns:
+            Список entity id, отсортированный по visual baseline и id.
+        """
+        entities = []
+
+        for entity in ecm.get_entities_with(Position, Renderable):
+            position = ecm.get_component(entity, Position)
+            renderable = ecm.get_component(entity, Renderable)
+            baseline_y = position.y + renderable.height
+            entities.append((baseline_y, entity))
+
+        entities.sort()
+        return [entity for _, entity in entities]
 
     def get_entity_surface(self, sprite, renderable):
         """Возвращает сущность поверхность.

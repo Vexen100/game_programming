@@ -238,11 +238,15 @@ Sprite = asset_key
 
 `Renderable` остаётся рядом со `Sprite` и продолжает задавать размер и fallback-цвет.
 
-Если `RenderSystem` получает `ResourceManager`, он может получить surface по `Sprite.asset_key`.
+Если `RenderSystem` получает `ResourceManager`, он может получить static PNG surface по `Sprite.asset_key`.
 
 Сейчас default keys `player`, `enemy`, `outpost_enemy`, `npc_active` и `capture_point_enemy` могут загружать static PNG из `assets/images/entities/`.
 
 Если `ResourceManager` не передан или реального изображения нет, сущность всё равно рисуется через generated placeholder или старый rectangle fallback.
+
+Обычные world entities рисуются через `RenderSystem` в Y-sort порядке по visual baseline `Position.y + Renderable.height`.
+
+Attack hitboxes, enemy HP bars, debug overlay и HUD остаются отдельными слоями и не участвуют в Y-sort.
 
 `Sprite` пока не управляет кадрами walk/attack animation.
 

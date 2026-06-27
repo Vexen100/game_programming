@@ -119,7 +119,19 @@ Surface tileset v2 создает финальные `32x32` PNG:
 
 `ResourceManager` знает default mapping для текущих tile ids и `Sprite.asset_key`.
 
+Static entity PNG подключаются через `Sprite.asset_key` и `ResourceManager.get_entity_surface(...)`.
+
+Текущие entity keys:
+
+- `player`;
+- `enemy`;
+- `outpost_enemy`;
+- `npc_active`;
+- `capture_point_enemy`.
+
 Если PNG отсутствует, `ResourceManager` возвращает generated placeholder с fallback-цветом тайла или `Renderable`.
+
+World entities отрисовываются через `RenderSystem` с Y-sort по visual baseline, но это не добавляет runtime animation или новый visual framework.
 
 ---
 

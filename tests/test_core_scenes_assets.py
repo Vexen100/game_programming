@@ -113,6 +113,161 @@ class FakeInput:
         return False
 
 
+class SpyTileMap:
+    """Запоминает вызов TileMap.draw для проверки порядка слоев."""
+
+    def __init__(self, calls):
+        """Инициализирует список вызовов.
+
+        Args:
+            calls: Общий список, куда записываются названия слоев.
+
+        Returns:
+            None.
+        """
+        self.calls = calls
+
+    def draw(self, screen, camera=None, resource_manager=None):
+        """Запоминает отрисовку tile map.
+
+        Args:
+            screen: Поверхность PyGame.
+            camera: Камера сцены.
+            resource_manager: Менеджер ресурсов сцены.
+
+        Returns:
+            None.
+        """
+        self.calls.append("tile_map")
+
+
+class SpyRenderSystem:
+    """Запоминает вызовы RenderSystem для проверки layering."""
+
+    def __init__(self, calls):
+        """Инициализирует список вызовов.
+
+        Args:
+            calls: Общий список, куда записываются названия слоев.
+
+        Returns:
+            None.
+        """
+        self.calls = calls
+
+    def draw(self, ecm, screen, camera=None):
+        """Запоминает отрисовку world entities.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов.
+            screen: Поверхность PyGame.
+            camera: Камера сцены.
+
+        Returns:
+            None.
+        """
+        self.calls.append("entities")
+
+    def draw_attack_hitboxes(self, ecm, screen, camera=None):
+        """Запоминает отрисовку attack hitboxes.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов.
+            screen: Поверхность PyGame.
+            camera: Камера сцены.
+
+        Returns:
+            None.
+        """
+        self.calls.append("hitboxes")
+
+    def draw_enemy_health_bars(self, ecm, screen, camera=None):
+        """Запоминает отрисовку enemy health bars.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов.
+            screen: Поверхность PyGame.
+            camera: Камера сцены.
+
+        Returns:
+            None.
+        """
+        self.calls.append("health_bars")
+
+
+class SpyDebugOverlay:
+    """Запоминает вызов debug overlay."""
+
+    def __init__(self, calls):
+        """Инициализирует список вызовов.
+
+        Args:
+            calls: Общий список, куда записываются названия слоев.
+
+        Returns:
+            None.
+        """
+        self.calls = calls
+
+    def draw(self, screen, ecm, player_id, tile_map, dt):
+        """Запоминает отрисовку debug overlay.
+
+        Args:
+            screen: Поверхность PyGame.
+            ecm: Менеджер сущностей и компонентов.
+            player_id: Идентификатор игрока.
+            tile_map: Тайловая карта сцены.
+            dt: Длительность кадра.
+
+        Returns:
+            None.
+        """
+        self.calls.append("debug")
+
+
+class SpyHUD:
+    """Запоминает вызовы HUD."""
+
+    def __init__(self, calls):
+        """Инициализирует список вызовов.
+
+        Args:
+            calls: Общий список, куда записываются названия слоев.
+
+        Returns:
+            None.
+        """
+        self.calls = calls
+
+    def draw(self, screen, ecm, player_id, scene_name, contextual_prompts=None, status_lines=None):
+        """Запоминает отрисовку HUD.
+
+        Args:
+            screen: Поверхность PyGame.
+            ecm: Менеджер сущностей и компонентов.
+            player_id: Идентификатор игрока.
+            scene_name: Название сцены.
+            contextual_prompts: Контекстные подсказки.
+            status_lines: Строки статуса.
+
+        Returns:
+            None.
+        """
+        self.calls.append("hud")
+
+    def draw_defeat_message(self, screen, message):
+        """Запоминает сообщение поражения.
+
+        Args:
+            screen: Поверхность PyGame.
+            message: Текст сообщения.
+
+        Returns:
+            None.
+        """
+        self.calls.append("defeat")
+
+
 class TestCoreScenesAssets(unittest.TestCase):
     """Проверяет ключевое поведение: test core scenes ассеты.
 
@@ -248,6 +403,27 @@ class TestCoreScenesAssets(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertEqual(scene.manager.requested_scene_ids, [settings.CASTLE_ASSAULT_SCENE])
+
+    def test_region_scene_draw_layers_debug_before_hud(self):
+        """Проверяет порядок слоев RegionScene: world, debug, HUD.
+
+        Returns:
+            None.
+        """
+        scene = RegionScene(game_state=self.load_game_state())
+        calls = []
+        scene.tile_map = SpyTileMap(calls)
+        scene.render_system = SpyRenderSystem(calls)
+        scene.debug_overlay = SpyDebugOverlay(calls)
+        scene.hud = SpyHUD(calls)
+        screen = pygame.Surface((320, 240))
+
+        scene.draw(screen)
+
+        self.assertEqual(
+            calls,
+            ["tile_map", "entities", "hitboxes", "health_bars", "debug", "hud"],
+        )
 
     def test_castle_assault_scene_builds_layout_and_capture_points(self):
         """Проверяет сценарий: замок штурм сцена builds layout and точка захвата точки.

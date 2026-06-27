@@ -546,11 +546,17 @@ Enemy attack telegraph не является Behavior Tree, sprite animation, so
 
 `RenderSystem` умеет рисовать сущности с camera offset, enemy HP bars живых врагов и active attack hitboxes.
 
-Если `RenderSystem` создан с `ResourceManager` и сущность имеет `Sprite`, он получает entity surface по `Sprite.asset_key`, `Renderable.width`, `Renderable.height` и `Renderable.color`.
+Если `RenderSystem` создан с `ResourceManager` и сущность имеет `Sprite`, он получает static entity surface по `Sprite.asset_key`, `Renderable.width`, `Renderable.height` и `Renderable.color`.
 
 При наличии соответствующего PNG `ResourceManager` загружает sprite image из `assets/images/entities/`.
 
 Если `ResourceManager` не передан, `Sprite` отсутствует или surface не получен, остаётся старая rectangle fallback-отрисовка через `Renderable`.
+
+Обычные world entities сортируются перед отрисовкой по visual baseline: `Position.y + Renderable.height`.
+
+При одинаковом baseline порядок остаётся deterministic за счёт `entity_id`.
+
+Y-sort применяется только к обычным world entities. Attack hitboxes, enemy HP bars, debug overlay и HUD рисуются отдельными слоями поверх текущего world rendering path.
 
 `RenderSystem` не создаёт `ResourceManager` самостоятельно и не импортирует сцены.
 
