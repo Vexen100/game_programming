@@ -86,6 +86,28 @@
 
 ---
 
+## Combat feel runtime effects
+
+Combat feel layer — это runtime visual feedback, а не gameplay algorithm.
+
+`VisualEffectSystem` обновляет через deltaTime и рисует:
+
+- `HitFlash` при реальном попадании игрока по врагу;
+- `DamagePopup` с числом нанесённого урона;
+- короткий slash effect при принятой melee-атаке игрока.
+
+Эффекты не меняют damage, HP, cooldowns, AI, influence, collision или save schema.
+
+Эффекты не сохраняются и не чинят/мигрируют старые save-файлы.
+
+Screen shake пока отложен, чтобы не менять camera offset и поведение HUD.
+
+Это не `AnimationManager`, не runtime sprite animation, не sound, не particles system и не Behavior Tree.
+
+Сложность: простая.
+
+---
+
 ## Asset slicing pipeline
 
 Asset pipeline — это tooling, а не gameplay algorithm.

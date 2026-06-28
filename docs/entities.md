@@ -252,6 +252,24 @@ Attack hitboxes, enemy HP bars, debug overlay и HUD остаются отдел
 
 ---
 
+## Combat Visual Effects
+
+`HitFlash`, `DamagePopup` и `TemporaryVisualEffect` — лёгкие ECS-компоненты для runtime feedback боя.
+
+`HitFlash` кратко подсвечивает врага после реального попадания игрока.
+
+`DamagePopup` хранит текст урона, таймер, стартовую высоту и параметры подъёма текста.
+
+`TemporaryVisualEffect` сейчас используется для короткого slash effect при принятой melee-атаке игрока.
+
+Эти компоненты не являются gameplay state, не влияют на damage, HP, cooldowns, AI, influence или collision и не сохраняются в `SaveManager`.
+
+Таймеры эффектов обновляются через deltaTime в `VisualEffectSystem`.
+
+Runtime sprite animation и `AnimationManager` пока не реализованы.
+
+---
+
 ## TileMap
 
 Карта хранится как двумерный список тайлов.

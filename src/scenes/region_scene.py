@@ -34,6 +34,7 @@ from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
 from src.systems.spatial_index_system import SpatialIndexSystem
+from src.systems.visual_effect_system import VisualEffectSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
@@ -73,7 +74,8 @@ class RegionScene(BaseScene):
         self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
-        self.melee_attack_system = MeleeAttackSystem()
+        self.visual_effect_system = VisualEffectSystem()
+        self.melee_attack_system = MeleeAttackSystem(self.visual_effect_system)
         self.enemy_death_system = EnemyDeathSystem(self.event_bus)
         self.outpost_system = OutpostSystem(self.event_bus)
         self.npc_interaction_system = NPCInteractionSystem(self.event_bus)
@@ -850,8 +852,11 @@ class RegionScene(BaseScene):
         if self.is_player_defeated():
             if input_manager.was_pressed(settings.RESTART):
                 self.respawn_player_after_defeat()
+            else:
+                self.visual_effect_system.update(self.ecm, dt)
             return
 
+        self.visual_effect_system.update(self.ecm, dt)
         self.player_input_system.update(self.ecm, input_manager)
         self.player_attack_input_system.update(self.ecm, input_manager)
         self.enemy_chase_system.update(self.ecm, self.tile_map, dt)
@@ -1093,6 +1098,7 @@ class RegionScene(BaseScene):
         self.tile_map.draw(screen, self.camera, self.resource_manager)
         self.render_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_attack_hitboxes(self.ecm, screen, self.camera)
+        self.visual_effect_system.draw(self.ecm, screen, self.camera)
         self.render_system.draw_enemy_health_bars(self.ecm, screen, self.camera)
         self.debug_overlay.draw(screen, self.ecm, self.ecs_player_id, self.tile_map, self.current_dt)
         self.hud.draw(

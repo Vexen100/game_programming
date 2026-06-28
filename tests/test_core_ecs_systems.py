@@ -13,6 +13,8 @@ from src.components.components import (
     Enemy,
     FacingDirection,
     Health,
+    HitFlash,
+    DamagePopup,
     NPC,
     Outpost,
     PlayerControlled,
@@ -20,6 +22,7 @@ from src.components.components import (
     Position,
     Renderable,
     Sprite,
+    TemporaryVisualEffect,
     Velocity,
 )
 from src.ecs.entity_component_manager import EntityComponentManager
@@ -36,6 +39,7 @@ from src.systems.npc_interaction_system import NPCInteractionSystem
 from src.systems.outpost_system import OutpostSystem
 from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
+from src.systems.visual_effect_system import VisualEffectSystem
 from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
 
@@ -249,6 +253,55 @@ class TestCoreECSSystems(unittest.TestCase):
 
         self.assertLess(ecm.get_component(enemy, Health).current, ecm.get_component(enemy, Health).maximum)
         self.assertTrue(ecm.get_component(player, AttackHitbox).active)
+
+    def test_melee_hit_adds_hit_flash_to_enemy(self):
+        """Проверяет, что реальное попадание добавляет HitFlash врагу.
+
+        Returns:
+            None.
+        """
+        ecm, factory = self.create_ecm_and_factory()
+        player = factory.create_player(32, 32)
+        enemy = factory.create_enemy(60, 32)
+        ecm.get_component(player, AttackIntent).requested = True
+
+        MeleeAttackSystem().update(ecm, dt=0.1)
+
+        self.assertTrue(ecm.has_component(enemy, HitFlash))
+
+    def test_damage_popup_spawned_on_melee_hit(self):
+        """Проверяет, что попадание игрока создает damage popup.
+
+        Returns:
+            None.
+        """
+        ecm, factory = self.create_ecm_and_factory()
+        visual_effects = VisualEffectSystem()
+        player = factory.create_player(32, 32)
+        factory.create_enemy(60, 32)
+        ecm.get_component(player, AttackIntent).requested = True
+
+        MeleeAttackSystem(visual_effects).update(ecm, dt=0.1)
+
+        self.assertEqual(len(ecm.get_entities_with(DamagePopup)), 1)
+
+    def test_slash_effect_spawned_when_player_attacks(self):
+        """Проверяет, что принятая melee-атака создает slash effect.
+
+        Returns:
+            None.
+        """
+        ecm, factory = self.create_ecm_and_factory()
+        visual_effects = VisualEffectSystem()
+        player = factory.create_player(32, 32)
+        ecm.get_component(player, AttackIntent).requested = True
+
+        MeleeAttackSystem(visual_effects).update(ecm, dt=0.1)
+
+        effect_ids = ecm.get_entities_with(TemporaryVisualEffect)
+        self.assertEqual(len(effect_ids), 1)
+        effect = ecm.get_component(next(iter(effect_ids)), TemporaryVisualEffect)
+        self.assertEqual(effect.effect_type, "slash")
 
     def test_enemy_death_marks_dead_and_publishes_event(self):
         """Проверяет сценарий: враг death marks dead and publishes событие.

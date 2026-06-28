@@ -5,6 +5,7 @@ from src.components.components import (
     Dead,
     Enemy,
     Health,
+    HitFlash,
     Position,
     Renderable,
     Sprite,
@@ -60,6 +61,8 @@ class RenderSystem:
                 )
                 pygame.draw.rect(screen, renderable.color, rect)
 
+            self.draw_hit_flash(ecm, entity, screen, x, y, renderable)
+
     def get_render_order(self, ecm):
         """Возвращает порядок отрисовки world entities с Y-sort.
 
@@ -100,6 +103,37 @@ class RenderSystem:
             renderable.color,
         )
 
+    def draw_hit_flash(self, ecm, entity_id, screen, x, y, renderable):
+        """Рисует white overlay для активного hit flash.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            entity_id: Идентификатор сущности в EntityComponentManager.
+            screen: Поверхность PyGame, на которую выполняется отрисовка.
+            x: Screen X-координата сущности.
+            y: Screen Y-координата сущности.
+            renderable: Компонент отрисовки сущности.
+
+        Returns:
+            None.
+        """
+        hit_flash = ecm.get_component(entity_id, HitFlash)
+
+        if hit_flash is None or hit_flash.timer <= 0:
+            return
+
+        if hit_flash.duration <= 0:
+            alpha = 150
+        else:
+            alpha = int(150 * min(1, hit_flash.timer / hit_flash.duration))
+
+        overlay = pygame.Surface(
+            (renderable.width, renderable.height),
+            pygame.SRCALPHA,
+        )
+        overlay.fill((*hit_flash.color, max(40, alpha)))
+        screen.blit(overlay, (x, y))
+
     def draw_attack_hitboxes(self, ecm, screen, camera=None):
         """Рисует атака hitboxes.
 
@@ -126,12 +160,13 @@ class RenderSystem:
                 x, y = camera.apply(x, y)
 
             if ecm.has_component(entity, Enemy):
-                color = (255, 90, 70) if hitbox.hit_landed else (255, 150, 80)
+                color = (255, 80, 60) if hitbox.hit_landed else (255, 180, 60)
             else:
                 color = (255, 230, 80) if hitbox.hit_landed else (180, 180, 180)
 
             rect = pygame.Rect(x, y, hitbox.width, hitbox.height)
-            pygame.draw.rect(screen, color, rect, 2)
+            width = 3 if ecm.has_component(entity, Enemy) else 2
+            pygame.draw.rect(screen, color, rect, width)
 
     def draw_enemy_health_bars(self, ecm, screen, camera=None):
         """Рисует враг health bars.

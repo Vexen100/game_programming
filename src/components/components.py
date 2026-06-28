@@ -265,3 +265,55 @@ class MeleeAttack:
     cooldown: float
     cooldown_timer: float = 0
     knockback_distance: float = 0
+
+
+@dataclass
+class HitFlash:
+    """Хранит runtime-состояние краткого мигания после попадания.
+
+    Attributes:
+        duration: Полная длительность flash-эффекта в секундах.
+        timer: Оставшееся время flash-эффекта в секундах.
+        color: Цвет overlay-вспышки.
+    """
+    duration: float = 0.12
+    timer: float = 0.0
+    color: tuple[int, int, int] = (255, 255, 255)
+
+
+@dataclass
+class DamagePopup:
+    """Хранит runtime-состояние всплывающего текста урона.
+
+    Attributes:
+        text: Текст, который нужно показать над целью.
+        timer: Оставшееся время жизни popup в секундах.
+        duration: Полная длительность popup в секундах.
+        start_y: Исходная world Y-координата popup.
+        rise_distance: Дистанция подъема popup за время жизни.
+        color: Цвет текста popup.
+    """
+    text: str
+    timer: float
+    duration: float
+    start_y: float
+    rise_distance: float = 18.0
+    color: tuple[int, int, int] = (255, 230, 120)
+
+
+@dataclass
+class TemporaryVisualEffect:
+    """Хранит runtime-состояние короткого визуального эффекта.
+
+    Attributes:
+        effect_type: Тип эффекта, например `slash`.
+        timer: Оставшееся время жизни эффекта в секундах.
+        duration: Полная длительность эффекта в секундах.
+        direction: Направление эффекта, если оно нужно для отрисовки.
+        color: Цвет эффекта.
+    """
+    effect_type: str
+    timer: float
+    duration: float
+    direction: str | None = None
+    color: tuple[int, int, int] = (220, 240, 255)

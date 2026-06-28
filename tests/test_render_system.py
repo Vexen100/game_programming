@@ -6,7 +6,7 @@ from pathlib import Path
 import pygame
 from PIL import Image
 
-from src.components.components import Position, Renderable, Sprite
+from src.components.components import HitFlash, Position, Renderable, Sprite
 from src.core.resource_manager import ResourceManager
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.systems.render_system import RenderSystem
@@ -116,3 +116,18 @@ class TestRenderSystem(unittest.TestCase):
         order = RenderSystem().get_render_order(ecm)
 
         self.assertEqual(order, [first, second])
+
+    def test_render_system_draws_hit_flash_overlay_without_crash(self):
+        """Проверяет отрисовку hit flash overlay без падения.
+
+        Returns:
+            None.
+        """
+        ecm = EntityComponentManager()
+        entity = self.create_entity(ecm, 0, 0, color=(10, 20, 30))
+        ecm.add_component(entity, HitFlash(timer=0.12))
+        screen = pygame.Surface((32, 32), pygame.SRCALPHA)
+
+        RenderSystem().draw(ecm, screen)
+
+        self.assertGreater(screen.get_at((8, 8)).r, 10)

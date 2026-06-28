@@ -6,6 +6,7 @@ from src.components.components import (
     Enemy,
     FacingDirection,
     Health,
+    HitFlash,
     MeleeAttack,
     PlayerControlled,
     Position,
@@ -17,6 +18,17 @@ class MeleeAttackSystem:
     """Инкапсулирует gameplay-логику системы: melee атака system.
 
     """
+
+    def __init__(self, visual_effect_system=None):
+        """Инициализирует систему melee-атаки.
+
+        Args:
+            visual_effect_system: Необязательная runtime-система визуальных эффектов.
+
+        Returns:
+            None.
+        """
+        self.visual_effect_system = visual_effect_system
 
     def update(self, ecm, dt, tile_map=None, enemy_spatial_index=None):
         """Обновляет состояние объекта за один кадр.
@@ -55,6 +67,7 @@ class MeleeAttackSystem:
                 continue
 
             attack_rect = self.build_attack_rect(attacker_position, attacker_collider, facing)
+            self.spawn_slash_effect(ecm, attack_rect, facing)
             hit_landed = self.apply_hitbox_damage(
                 ecm,
                 attacker_position,
@@ -218,6 +231,13 @@ class MeleeAttackSystem:
 
             target_health = ecm.get_component(target_id, Health)
             target_health.current = max(0, target_health.current - attack.damage)
+            self.trigger_hit_feedback(
+                ecm,
+                target_id,
+                target_position,
+                target_collider,
+                attack.damage,
+            )
             self.apply_knockback(
                 target_position,
                 target_collider,
@@ -231,6 +251,83 @@ class MeleeAttackSystem:
             hit_landed = True
 
         return hit_landed
+
+    def spawn_slash_effect(self, ecm, attack_rect, facing):
+        """Создает slash effect для принятой атаки игрока.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            attack_rect: Прямоугольная область активного удара.
+            facing: Направение взгляда или удара сущности.
+
+        Returns:
+            None.
+        """
+        if self.visual_effect_system is None:
+            return
+
+        self.visual_effect_system.spawn_slash_effect(
+            ecm,
+            attack_rect,
+            self.get_direction_name(facing),
+        )
+
+    def trigger_hit_feedback(self, ecm, target_id, target_position, target_collider, damage):
+        """Запускает hit flash и damage popup после реального попадания.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            target_id: Идентификатор сущности, получившей урон.
+            target_position: Позиция цели в пикселях.
+            target_collider: Коллайдер цели.
+            damage: Количество нанесенного урона.
+
+        Returns:
+            None.
+        """
+        self.add_hit_flash(ecm, target_id)
+
+        if self.visual_effect_system is None:
+            return
+
+        popup_x = target_position.x + target_collider.width / 2
+        popup_y = target_position.y - 6
+        self.visual_effect_system.spawn_damage_popup(ecm, popup_x, popup_y, damage)
+
+    def add_hit_flash(self, ecm, target_id):
+        """Добавляет или обновляет flash-компонент цели.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            target_id: Идентификатор сущности, получившей урон.
+
+        Returns:
+            None.
+        """
+        hit_flash = ecm.get_component(target_id, HitFlash)
+
+        if hit_flash is None:
+            hit_flash = HitFlash()
+            ecm.add_component(target_id, hit_flash)
+
+        hit_flash.timer = hit_flash.duration
+
+    def get_direction_name(self, facing):
+        """Возвращает имя направления для slash effect.
+
+        Args:
+            facing: Направение взгляда или удара сущности.
+
+        Returns:
+            Текстовое направление эффекта.
+        """
+        if facing is None:
+            return "right"
+
+        if abs(facing.y) > abs(facing.x):
+            return "down" if facing.y > 0 else "up"
+
+        return "left" if facing.x < 0 else "right"
 
     def get_enemy_candidates(
         self,

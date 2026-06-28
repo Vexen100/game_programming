@@ -225,6 +225,34 @@ class SpyDebugOverlay:
         self.calls.append("debug")
 
 
+class SpyVisualEffectSystem:
+    """Запоминает вызов visual effects layer."""
+
+    def __init__(self, calls):
+        """Инициализирует список вызовов.
+
+        Args:
+            calls: Общий список, куда записываются названия слоев.
+
+        Returns:
+            None.
+        """
+        self.calls = calls
+
+    def draw(self, ecm, screen, camera=None):
+        """Запоминает отрисовку visual effects.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов.
+            screen: Поверхность PyGame.
+            camera: Камера сцены.
+
+        Returns:
+            None.
+        """
+        self.calls.append("visual_effects")
+
+
 class SpyHUD:
     """Запоминает вызовы HUD."""
 
@@ -405,7 +433,7 @@ class TestCoreScenesAssets(unittest.TestCase):
         self.assertEqual(scene.manager.requested_scene_ids, [settings.CASTLE_ASSAULT_SCENE])
 
     def test_region_scene_draw_layers_debug_before_hud(self):
-        """Проверяет порядок слоев RegionScene: world, debug, HUD.
+        """Проверяет порядок слоев RegionScene: world, effects, debug, HUD.
 
         Returns:
             None.
@@ -414,6 +442,7 @@ class TestCoreScenesAssets(unittest.TestCase):
         calls = []
         scene.tile_map = SpyTileMap(calls)
         scene.render_system = SpyRenderSystem(calls)
+        scene.visual_effect_system = SpyVisualEffectSystem(calls)
         scene.debug_overlay = SpyDebugOverlay(calls)
         scene.hud = SpyHUD(calls)
         screen = pygame.Surface((320, 240))
@@ -422,8 +451,27 @@ class TestCoreScenesAssets(unittest.TestCase):
 
         self.assertEqual(
             calls,
-            ["tile_map", "entities", "hitboxes", "health_bars", "debug", "hud"],
+            [
+                "tile_map",
+                "entities",
+                "hitboxes",
+                "visual_effects",
+                "health_bars",
+                "debug",
+                "hud",
+            ],
         )
+
+    def test_region_scene_has_visual_effect_system(self):
+        """Проверяет, что RegionScene создает систему визуальных эффектов.
+
+        Returns:
+            None.
+        """
+        scene = RegionScene(game_state=self.load_game_state())
+
+        self.assertIsNotNone(scene.visual_effect_system)
+        self.assertIs(scene.melee_attack_system.visual_effect_system, scene.visual_effect_system)
 
     def test_castle_assault_scene_builds_layout_and_capture_points(self):
         """Проверяет сценарий: замок штурм сцена builds layout and точка захвата точки.
@@ -437,6 +485,18 @@ class TestCoreScenesAssets(unittest.TestCase):
         self.assertEqual(scene.castle_layout_fingerprint, layout.fingerprint())
         self.assertEqual(len(scene.capture_point_ids), len(layout.capture_point_tiles))
         self.assertGreater(len(scene.enemy_ids), 0)
+
+    def test_castle_assault_scene_has_visual_effect_system(self):
+        """Проверяет, что CastleAssaultScene создает систему визуальных эффектов.
+
+        Returns:
+            None.
+        """
+        layout = CastleGenerator(48, 36, seed=31).generate()
+        scene = CastleAssaultScene(game_state=self.load_game_state(), castle_layout=layout)
+
+        self.assertIsNotNone(scene.visual_effect_system)
+        self.assertIs(scene.melee_attack_system.visual_effect_system, scene.visual_effect_system)
 
     def test_world_map_enters_unlocked_region(self):
         """Проверяет сценарий: мир карта enters открытые регион.
