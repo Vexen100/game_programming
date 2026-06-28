@@ -39,6 +39,18 @@ class QuestCompletedEvent:
     region_id: str
 
 
+@dataclass(frozen=True)
+class SupplyCacheDestroyedEvent:
+    """Сообщает, что в регионе уничтожен склад снабжения.
+
+    Attributes:
+        region_id: Идентификатор региона на карте мира.
+        supply_cache_key: Стабильный ключ склада из `RegionLayout`.
+    """
+    region_id: str
+    supply_cache_key: str
+
+
 @dataclass
 class CapturePointTakenEvent:
     """Описывает объект проекта: точка захвата точка taken событие.

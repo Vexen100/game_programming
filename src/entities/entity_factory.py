@@ -1,4 +1,5 @@
 from src.components.components import (
+    Animation,
     AttackIntent,
     AttackHitbox,
     CapturePoint,
@@ -15,6 +16,7 @@ from src.components.components import (
     Position,
     Renderable,
     Sprite,
+    SupplyCache,
     Velocity,
 )
 from src.entities.entities_settings import (
@@ -23,6 +25,7 @@ from src.entities.entities_settings import (
     NPCSettings,
     OutpostSettings,
     PlayerSettings,
+    SupplyCacheSettings,
 )
 
 
@@ -73,6 +76,7 @@ class EntityFactory:
             ),
         )
         self.ecm.add_component(player, Sprite("player"))
+        self.ecm.add_component(player, Animation(animation_key="player"))
         self.ecm.add_component(
             player,
             Health(
@@ -132,6 +136,7 @@ class EntityFactory:
             ),
         )
         self.ecm.add_component(enemy, Sprite("enemy"))
+        self.ecm.add_component(enemy, Animation(animation_key="enemy"))
         self.ecm.add_component(
             enemy,
             Health(
@@ -237,6 +242,41 @@ class EntityFactory:
         )
 
         return npc
+
+    def create_supply_cache(self, x, y, key):
+        """Создает вражеский склад снабжения.
+
+        Args:
+            x: Координата склада по оси X в пикселях.
+            y: Координата склада по оси Y в пикселях.
+            key: Стабильный ключ склада из layout региона.
+
+        Returns:
+            Идентификатор созданной ECS-сущности склада.
+        """
+        supply_cache = self.ecm.create_entity(tag="supply_cache")
+
+        self.ecm.add_component(supply_cache, Position(x, y))
+        self.ecm.add_component(
+            supply_cache,
+            Collider(
+                width=SupplyCacheSettings.SIZE,
+                height=SupplyCacheSettings.SIZE,
+                solid=True,
+            ),
+        )
+        self.ecm.add_component(
+            supply_cache,
+            Renderable(
+                width=SupplyCacheSettings.SIZE,
+                height=SupplyCacheSettings.SIZE,
+                color=SupplyCacheSettings.ENEMY_COLOR,
+            ),
+        )
+        self.ecm.add_component(supply_cache, Sprite("supply_cache_enemy"))
+        self.ecm.add_component(supply_cache, SupplyCache(key=key))
+
+        return supply_cache
 
     def create_capture_point(self, x, y):
         """Создает точка захвата точка.

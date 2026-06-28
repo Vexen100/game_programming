@@ -1,4 +1,5 @@
 from src.components.components import (
+    AnimationRequest,
     AttackHitbox,
     AttackIntent,
     Collider,
@@ -12,6 +13,7 @@ from src.components.components import (
     Position,
 )
 from src.entities.entities_settings import PlayerSettings
+from src.systems.animation_system import direction_from_vector
 
 
 class MeleeAttackSystem:
@@ -67,6 +69,7 @@ class MeleeAttackSystem:
                 continue
 
             attack_rect = self.build_attack_rect(attacker_position, attacker_collider, facing)
+            self.add_attack_animation_request(ecm, attacker_id, facing)
             self.spawn_slash_effect(ecm, attack_rect, facing)
             hit_landed = self.apply_hitbox_damage(
                 ecm,
@@ -108,7 +111,7 @@ class MeleeAttackSystem:
         Args:
             position: Позиция объекта в пикселях.
             collider: Коллайдер сущности для столкновений и попаданий.
-            facing: Направение взгляда или удара сущности.
+            facing: Направление взгляда или удара сущности.
 
         Returns:
             Созданный результат: атака прямоугольник.
@@ -272,6 +275,28 @@ class MeleeAttackSystem:
             self.get_direction_name(facing),
         )
 
+    def add_attack_animation_request(self, ecm, attacker_id, facing):
+        """Запрашивает visual-only attack animation игрока.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            attacker_id: Идентификатор атакующей сущности.
+            facing: Направение взгляда или удара сущности.
+
+        Returns:
+            None.
+        """
+        duration = 0.28
+        ecm.add_component(
+            attacker_id,
+            AnimationRequest(
+                state="attack",
+                direction=self.get_direction_name(facing),
+                duration=duration,
+                frame_duration=duration / 4,
+            ),
+        )
+
     def trigger_hit_feedback(self, ecm, target_id, target_position, target_collider, damage):
         """Запускает hit flash и damage popup после реального попадания.
 
@@ -324,10 +349,7 @@ class MeleeAttackSystem:
         if facing is None:
             return "right"
 
-        if abs(facing.y) > abs(facing.x):
-            return "down" if facing.y > 0 else "up"
-
-        return "left" if facing.x < 0 else "right"
+        return direction_from_vector(facing.x, facing.y, "right")
 
     def get_enemy_candidates(
         self,

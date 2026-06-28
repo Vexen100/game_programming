@@ -1,4 +1,9 @@
-from src.events.game_events import EnemyKilledEvent, OutpostClearedEvent, QuestCompletedEvent
+from src.events.game_events import (
+    EnemyKilledEvent,
+    OutpostClearedEvent,
+    QuestCompletedEvent,
+    SupplyCacheDestroyedEvent,
+)
 
 
 class InfluenceSystem:
@@ -11,6 +16,8 @@ class InfluenceSystem:
         OUTPOST_CLEAR_ENEMY_INFLUENCE_LOSS: Значение `аванпост clear враг influence loss`, используемое в логике метода.
         QUEST_COMPLETE_PLAYER_INFLUENCE_GAIN: Значение `задание complete игрок influence gain`, используемое в логике метода.
         QUEST_COMPLETE_ENEMY_INFLUENCE_LOSS: Значение `задание complete враг influence loss`, используемое в логике метода.
+        SUPPLY_CACHE_DESTROY_PLAYER_INFLUENCE_GAIN: Влияние игрока за уничтожение склада.
+        SUPPLY_CACHE_DESTROY_ENEMY_INFLUENCE_LOSS: Потеря влияния врага за уничтожение склада.
         ASSAULT_UNLOCK_ENEMY_INFLUENCE_THRESHOLD: Значение `штурм unlock враг influence threshold`, используемое в логике метода.
     """
 
@@ -20,6 +27,8 @@ class InfluenceSystem:
     OUTPOST_CLEAR_ENEMY_INFLUENCE_LOSS = -20
     QUEST_COMPLETE_PLAYER_INFLUENCE_GAIN = 15
     QUEST_COMPLETE_ENEMY_INFLUENCE_LOSS = -15
+    SUPPLY_CACHE_DESTROY_PLAYER_INFLUENCE_GAIN = 4
+    SUPPLY_CACHE_DESTROY_ENEMY_INFLUENCE_LOSS = -4
     ASSAULT_UNLOCK_ENEMY_INFLUENCE_THRESHOLD = 25
 
     def __init__(self, game_state):
@@ -45,6 +54,7 @@ class InfluenceSystem:
         event_bus.subscribe(EnemyKilledEvent, self.on_enemy_killed)
         event_bus.subscribe(OutpostClearedEvent, self.on_outpost_cleared)
         event_bus.subscribe(QuestCompletedEvent, self.on_quest_completed)
+        event_bus.subscribe(SupplyCacheDestroyedEvent, self.on_supply_cache_destroyed)
 
     def on_enemy_killed(self, event):
         """Обрабатывает событие убийства врага.
@@ -89,6 +99,21 @@ class InfluenceSystem:
             event.region_id,
             self.QUEST_COMPLETE_PLAYER_INFLUENCE_GAIN,
             self.QUEST_COMPLETE_ENEMY_INFLUENCE_LOSS,
+        )
+
+    def on_supply_cache_destroyed(self, event):
+        """Обрабатывает событие уничтожения склада снабжения.
+
+        Args:
+            event: Событие уничтожения склада снабжения в регионе.
+
+        Returns:
+            None.
+        """
+        self.apply_influence_change(
+            event.region_id,
+            self.SUPPLY_CACHE_DESTROY_PLAYER_INFLUENCE_GAIN,
+            self.SUPPLY_CACHE_DESTROY_ENEMY_INFLUENCE_LOSS,
         )
 
     def apply_influence_change(self, region_id, delta_player, delta_enemy):

@@ -10,7 +10,13 @@ from src.core.game_state import GameState
 from src.core.resource_manager import ResourceManager
 from src.core.save_manager import SaveData, SaveManager
 from src.core.scene_manager import SceneManager
-from src.events.game_events import EnemyKilledEvent
+from src.events.game_events import (
+    EnemyKilledEvent,
+    OutpostClearedEvent,
+    QuestCompletedEvent,
+    SupplyCacheDestroyedEvent,
+)
+from src.systems.influence_system import InfluenceSystem
 from src.scenes.base_scene import BaseScene
 from src.world.region import ENEMY_CONTROL, LOCKED_CONTROL, PLAYER_CONTROL, RegionState
 
@@ -307,6 +313,71 @@ class TestCoreStateSave(unittest.TestCase):
 
         self.assertEqual(len(received), 1)
         self.assertEqual(received[0].enemy_id, 1)
+
+    def test_supply_cache_destroyed_event_changes_influence(self):
+        """Проверяет влияние события уничтожения склада снабжения.
+
+        Returns:
+            None.
+        """
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        event_bus = EventBus()
+        InfluenceSystem(game_state).subscribe(event_bus)
+
+        event_bus.publish(SupplyCacheDestroyedEvent("old_ruins", "east_supply_cache"))
+
+        region = game_state.get_region("old_ruins")
+        self.assertEqual(region.player_influence, 4)
+        self.assertEqual(region.enemy_influence, 96)
+
+    def test_supply_cache_alone_does_not_unlock_assault(self):
+        """Проверяет, что один склад не открывает штурм региона.
+
+        Returns:
+            None.
+        """
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        event_bus = EventBus()
+        InfluenceSystem(game_state).subscribe(event_bus)
+
+        event_bus.publish(SupplyCacheDestroyedEvent("old_ruins", "east_supply_cache"))
+
+        self.assertFalse(game_state.get_region("old_ruins").assault_unlocked)
+
+    def test_supply_cache_keeps_non_combat_objectives_below_assault_unlock(self):
+        """Проверяет баланс objectives без отдельного combat contribution.
+
+        Returns:
+            None.
+        """
+        game_state = GameState.load_from_file(settings.REGIONS_DATA_PATH)
+        event_bus = EventBus()
+        InfluenceSystem(game_state).subscribe(event_bus)
+
+        event_bus.publish(OutpostClearedEvent(1, "old_ruins"))
+        event_bus.publish(OutpostClearedEvent(2, "old_ruins"))
+        event_bus.publish(QuestCompletedEvent("quest_a", 1, "old_ruins"))
+        event_bus.publish(QuestCompletedEvent("quest_b", 2, "old_ruins"))
+        event_bus.publish(SupplyCacheDestroyedEvent("old_ruins", "east_supply_cache"))
+
+        region = game_state.get_region("old_ruins")
+        self.assertEqual(region.enemy_influence, 26)
+        self.assertFalse(region.assault_unlocked)
+
+    def test_game_autosaves_after_supply_cache_destroyed_event(self):
+        """Проверяет autosave после события уничтожения склада.
+
+        Returns:
+            None.
+        """
+        save_manager = FakeSaveManager()
+        game = self.create_game_shell(save_manager)
+        game.event_bus = EventBus()
+        Game.subscribe_autosave_events(game)
+
+        game.event_bus.publish(SupplyCacheDestroyedEvent("old_ruins", "east_supply_cache"))
+
+        self.assertTrue(save_manager.save_called)
 
     def test_scene_manager_ignores_calls_without_current_scene(self):
         """Проверяет сценарий: сцена manager ignores calls without текущий сцена.

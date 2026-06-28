@@ -1,6 +1,7 @@
 import pygame
 
 from src.components.components import (
+    Animation,
     AttackHitbox,
     Dead,
     Enemy,
@@ -47,8 +48,12 @@ class RenderSystem:
             if camera is not None:
                 x, y = camera.apply(x, y)
 
-            sprite = ecm.get_component(entity, Sprite)
-            surface = self.get_entity_surface(sprite, renderable)
+            animation = ecm.get_component(entity, Animation)
+            surface = self.get_animation_surface(animation, renderable)
+
+            if surface is None:
+                sprite = ecm.get_component(entity, Sprite)
+                surface = self.get_entity_surface(sprite, renderable)
 
             if surface is not None:
                 screen.blit(surface, (x, y))
@@ -98,6 +103,29 @@ class RenderSystem:
 
         return self.resource_manager.get_entity_surface(
             sprite.asset_key,
+            renderable.width,
+            renderable.height,
+            renderable.color,
+        )
+
+    def get_animation_surface(self, animation, renderable):
+        """Возвращает кадр runtime-анимации сущности.
+
+        Args:
+            animation: Компонент runtime-анимации сущности.
+            renderable: Компонент отрисовки сущности.
+
+        Returns:
+            Surface кадра или `None`, если кадр недоступен.
+        """
+        if self.resource_manager is None or animation is None:
+            return None
+
+        return self.resource_manager.get_animation_frame_surface(
+            animation.animation_key,
+            animation.state,
+            animation.direction,
+            animation.frame_index,
             renderable.width,
             renderable.height,
             renderable.color,

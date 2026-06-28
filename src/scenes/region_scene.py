@@ -13,13 +13,15 @@ from src.components.components import (
     PlayerDefeated,
     Position,
     Renderable,
+    SupplyCache,
     Velocity,
 )
 from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
-from src.entities.entities_settings import NPCSettings, OutpostSettings
+from src.entities.entities_settings import NPCSettings, OutpostSettings, SupplyCacheSettings
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
+from src.systems.animation_system import AnimationSystem
 from src.systems.cleanup_system import CleanupSystem
 from src.systems.collision_system import CollisionSystem
 from src.systems.enemy_attack_system import EnemyAttackSystem
@@ -34,6 +36,7 @@ from src.systems.player_death_system import PlayerDeathSystem
 from src.systems.player_input_system import PlayerInputSystem
 from src.systems.render_system import RenderSystem
 from src.systems.spatial_index_system import SpatialIndexSystem
+from src.systems.supply_cache_system import SupplyCacheSystem
 from src.systems.visual_effect_system import VisualEffectSystem
 from src.ui import texts
 from src.ui.debug_overlay import DebugOverlay
@@ -71,6 +74,7 @@ class RegionScene(BaseScene):
         self.resource_manager = resource_manager
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
+        self.animation_system = AnimationSystem()
         self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
@@ -78,6 +82,7 @@ class RegionScene(BaseScene):
         self.melee_attack_system = MeleeAttackSystem(self.visual_effect_system)
         self.enemy_death_system = EnemyDeathSystem(self.event_bus)
         self.outpost_system = OutpostSystem(self.event_bus)
+        self.supply_cache_system = SupplyCacheSystem(self.event_bus)
         self.npc_interaction_system = NPCInteractionSystem(self.event_bus)
         self.enemy_attack_system = EnemyAttackSystem()
         self.player_death_system = PlayerDeathSystem()
@@ -186,6 +191,10 @@ class RegionScene(BaseScene):
                 cleared=self.get_cleared_outpost_count(),
                 total=len(self.outpost_ids),
             ),
+            texts.REGION_SUPPLY_CACHES_STATUS.format(
+                destroyed=self.get_destroyed_supply_cache_count(),
+                total=len(self.supply_cache_ids),
+            ),
             texts.REGION_QUESTS_STATUS.format(
                 completed=self.get_completed_npc_count(),
                 total=len(self.npc_ids),
@@ -217,6 +226,21 @@ class RegionScene(BaseScene):
         for outpost_id in self.outpost_ids:
             outpost = self.ecm.get_component(outpost_id, Outpost)
             if outpost is not None and outpost.cleared:
+                count += 1
+
+        return count
+
+    def get_destroyed_supply_cache_count(self):
+        """Возвращает количество уничтоженных складов снабжения.
+
+        Returns:
+            Количество уничтоженных supply cache объектов.
+        """
+        count = 0
+
+        for supply_cache_id in self.supply_cache_ids:
+            supply_cache = self.ecm.get_component(supply_cache_id, SupplyCache)
+            if supply_cache is not None and supply_cache.destroyed:
                 count += 1
 
         return count
@@ -326,10 +350,13 @@ class RegionScene(BaseScene):
         self.player_spawn_tile = self.region_layout.player_spawn_tile
         self.enemy_ids = []
         self.outpost_ids = []
+        self.supply_cache_ids = []
         self.npc_ids = []
         self.outpost_entity_by_key = {}
+        self.supply_cache_entity_by_key = {}
         self.npc_entity_by_key = {}
         self.outpost_key_by_entity_id = {}
+        self.supply_cache_key_by_entity_id = {}
         self.npc_key_by_entity_id = {}
         player_x, player_y = self.tile_map.coord_tile_to_pixels(*self.player_spawn_tile)
 
@@ -365,6 +392,27 @@ class RegionScene(BaseScene):
             self.check_entity_components(outpost_id, "ECS outpost", Position, Outpost)
 
         self.outpost_id = self.outpost_ids[0] if self.outpost_ids else None
+
+        for supply_cache_spawn in self.region_layout.supply_caches:
+            supply_cache_x, supply_cache_y = self.tile_map.coord_tile_to_pixels(
+                supply_cache_spawn.x,
+                supply_cache_spawn.y,
+            )
+            supply_cache_id = self.entity_factory.create_supply_cache(
+                x=supply_cache_x,
+                y=supply_cache_y,
+                key=supply_cache_spawn.key,
+            )
+            self.supply_cache_ids.append(supply_cache_id)
+            self.supply_cache_entity_by_key[supply_cache_spawn.key] = supply_cache_id
+            self.supply_cache_key_by_entity_id[supply_cache_id] = supply_cache_spawn.key
+            self.check_entity_components(
+                supply_cache_id,
+                "supply cache",
+                Position,
+                SupplyCache,
+                Collider,
+            )
 
         for npc_spawn in self.region_layout.npcs:
             npc_x, npc_y = self.tile_map.coord_tile_to_pixels(*npc_spawn.tile)
@@ -437,6 +485,7 @@ class RegionScene(BaseScene):
         self.validate_region_content_counts()
         self.validate_region_map_size()
         self.validate_region_tile_variety()
+        self.validate_supply_cache_keys_unique()
         self.validate_important_tile(start_tile, "player spawn")
 
         for enemy_id in self.enemy_ids:
@@ -470,6 +519,16 @@ class RegionScene(BaseScene):
                 self.validate_not_near_spawn(npc_tile, "npc")
                 target_tiles.append(npc_tile)
 
+        for supply_cache_id in self.supply_cache_ids:
+            supply_cache_tile = self.get_entity_tile(supply_cache_id)
+
+            if supply_cache_tile is not None:
+                self.validate_important_tile(supply_cache_tile, "supply cache")
+                self.validate_not_near_spawn(supply_cache_tile, "supply cache")
+                self.validate_supply_cache_not_overlapping(supply_cache_tile)
+                self.validate_supply_cache_guarded(supply_cache_tile)
+                target_tiles.append(supply_cache_tile)
+
         if not are_tiles_reachable(self.tile_map, start_tile, target_tiles):
             raise ValueError("Region layout has unreachable important tiles")
 
@@ -485,6 +544,19 @@ class RegionScene(BaseScene):
             raise ValueError("Region layout must have at least two NPCs")
         if len(self.enemy_ids) < 7:
             raise ValueError("Region layout must have at least seven enemies")
+        if len(self.supply_cache_ids) < 1:
+            raise ValueError("Region layout must have at least one supply cache")
+
+    def validate_supply_cache_keys_unique(self):
+        """Проверяет уникальность ключей складов снабжения.
+
+        Returns:
+            None.
+        """
+        keys = [spawn.key for spawn in self.region_layout.supply_caches]
+
+        if len(keys) != len(set(keys)):
+            raise ValueError("Region layout supply cache keys must be unique")
 
     def validate_region_map_size(self):
         """Проверяет размер карты региона.
@@ -563,6 +635,47 @@ class RegionScene(BaseScene):
                 return
 
         raise ValueError("Region layout outpost has no nearby enemy guard")
+
+    def validate_supply_cache_not_overlapping(self, supply_cache_tile):
+        """Проверяет, что склад не стоит поверх других важных объектов.
+
+        Args:
+            supply_cache_tile: Координаты тайла склада снабжения.
+
+        Returns:
+            None.
+        """
+        occupied_tiles = [self.player_spawn_tile]
+
+        for entity_id in self.enemy_ids + self.outpost_ids + self.npc_ids:
+            entity_tile = self.get_entity_tile(entity_id)
+            if entity_tile is not None:
+                occupied_tiles.append(entity_tile)
+
+        if supply_cache_tile in occupied_tiles:
+            raise ValueError("Region layout supply cache overlaps important entity")
+
+    def validate_supply_cache_guarded(self, supply_cache_tile):
+        """Проверяет, что рядом со складом есть хотя бы один враг-охранник.
+
+        Args:
+            supply_cache_tile: Координаты тайла склада снабжения.
+
+        Returns:
+            None.
+        """
+        guard_radius_tiles = 5
+
+        for enemy_id in self.enemy_ids:
+            enemy_tile = self.get_entity_tile(enemy_id)
+
+            if (
+                enemy_tile is not None
+                and self.get_tile_distance(enemy_tile, supply_cache_tile) <= guard_radius_tiles
+            ):
+                return
+
+        raise ValueError("Region layout supply cache has no nearby enemy guard")
 
     def get_tile_distance(self, first_tile, second_tile):
         """Возвращает тайл дистанция.
@@ -668,6 +781,7 @@ class RegionScene(BaseScene):
                 defeated_enemy_indexes.append(index)
 
         cleared_outpost_keys = []
+        destroyed_supply_cache_keys = []
         completed_npc_keys = []
 
         for outpost_id in self.outpost_ids:
@@ -684,6 +798,17 @@ class RegionScene(BaseScene):
             if npc is not None and npc.quest_completed and npc_key is not None:
                 completed_npc_keys.append(npc_key)
 
+        for supply_cache_id in self.supply_cache_ids:
+            supply_cache = self.ecm.get_component(supply_cache_id, SupplyCache)
+            supply_cache_key = self.supply_cache_key_by_entity_id.get(supply_cache_id)
+
+            if (
+                supply_cache is not None
+                and supply_cache.destroyed
+                and supply_cache_key is not None
+            ):
+                destroyed_supply_cache_keys.append(supply_cache_key)
+
         player_position = self.ecm.get_component(self.ecs_player_id, Position)
         player_health = self.ecm.get_component(self.ecs_player_id, Health)
 
@@ -699,6 +824,7 @@ class RegionScene(BaseScene):
         return {
             "defeated_enemy_indexes": defeated_enemy_indexes,
             "cleared_outpost_keys": cleared_outpost_keys,
+            "destroyed_supply_cache_keys": destroyed_supply_cache_keys,
             "completed_npc_keys": completed_npc_keys,
             "player": player_state,
         }
@@ -734,6 +860,13 @@ class RegionScene(BaseScene):
         if runtime_state.get("outpost_cleared") and self.outpost_id is not None:
             self.apply_outpost_runtime_state(self.outpost_id)
 
+        destroyed_supply_cache_keys = runtime_state.get("destroyed_supply_cache_keys", [])
+
+        for supply_cache_key in destroyed_supply_cache_keys:
+            supply_cache_id = self.supply_cache_entity_by_key.get(supply_cache_key)
+            if supply_cache_id is not None:
+                self.apply_supply_cache_runtime_state(supply_cache_id)
+
         completed_npc_keys = runtime_state.get("completed_npc_keys", [])
 
         for npc_key in completed_npc_keys:
@@ -768,6 +901,25 @@ class RegionScene(BaseScene):
 
         if renderable is not None:
             renderable.color = OutpostSettings.CLEARED_COLOR
+
+    def apply_supply_cache_runtime_state(self, supply_cache_id):
+        """Применяет runtime-состояние уничтоженного склада снабжения.
+
+        Args:
+            supply_cache_id: Идентификатор сущности склада.
+
+        Returns:
+            None.
+        """
+        supply_cache = self.ecm.get_component(supply_cache_id, SupplyCache)
+        renderable = self.ecm.get_component(supply_cache_id, Renderable)
+
+        if supply_cache is not None:
+            supply_cache.destroyed = True
+            supply_cache.destroy_progress = supply_cache.destroy_duration
+
+        if renderable is not None:
+            renderable.color = SupplyCacheSettings.DESTROYED_COLOR
 
     def apply_npc_runtime_state(self, npc_id=None):
         """Применяет NPC runtime состояние.
@@ -854,6 +1006,7 @@ class RegionScene(BaseScene):
                 self.respawn_player_after_defeat()
             else:
                 self.visual_effect_system.update(self.ecm, dt)
+                self.animation_system.update(self.ecm, dt)
             return
 
         self.visual_effect_system.update(self.ecm, dt)
@@ -887,7 +1040,15 @@ class RegionScene(BaseScene):
                 self.get_current_region_id(),
                 dt,
             )
+            self.supply_cache_system.update(
+                self.ecm,
+                input_manager,
+                self.get_current_region_id(),
+                dt,
+                self.enemy_spatial_index,
+            )
 
+        self.animation_system.update(self.ecm, dt)
         self.cleanup_system.update(self.ecm)
         self.update_camera()
 
@@ -908,6 +1069,7 @@ class RegionScene(BaseScene):
             return prompts
 
         self.add_outpost_prompt(prompts, player_position)
+        self.add_supply_cache_prompt(prompts, player_position)
         self.add_npc_prompt(prompts, player_position)
         return prompts
 
@@ -954,6 +1116,50 @@ class RegionScene(BaseScene):
             )
         else:
             prompts.append(texts.OUTPOST_HOLD_TO_CLEAR)
+
+    def add_supply_cache_prompt(self, prompts, player_position):
+        """Добавляет prompt склада снабжения.
+
+        Args:
+            prompts: Список контекстных подсказок HUD.
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            None.
+        """
+        supply_cache_id = self.get_nearest_supply_cache_id(player_position)
+
+        if supply_cache_id is None:
+            return
+
+        supply_cache = self.ecm.get_component(supply_cache_id, SupplyCache)
+        supply_cache_position = self.ecm.get_component(supply_cache_id, Position)
+
+        if supply_cache is None or supply_cache_position is None:
+            return
+
+        if supply_cache.destroyed:
+            prompts.append(texts.SUPPLY_CACHE_DESTROYED)
+            return
+
+        if self.supply_cache_system.has_living_enemy_near_cache(
+            self.ecm,
+            supply_cache_position,
+            supply_cache,
+            self.enemy_spatial_index,
+        ):
+            prompts.append(texts.SUPPLY_CACHE_CLEAR_ENEMIES)
+        elif supply_cache.destroy_progress > 0:
+            prompts.append(
+                texts.SUPPLY_CACHE_DESTROY_PROGRESS.format(
+                    percent=self.get_progress_percent(
+                        supply_cache.destroy_progress,
+                        supply_cache.destroy_duration,
+                    )
+                )
+            )
+        else:
+            prompts.append(texts.SUPPLY_CACHE_HOLD_TO_DESTROY)
 
     def add_npc_prompt(self, prompts, player_position):
         """Добавляет NPC prompt.
@@ -1026,6 +1232,36 @@ class RegionScene(BaseScene):
                 nearest_outpost_id = outpost_id
 
         return nearest_outpost_id
+
+    def get_nearest_supply_cache_id(self, player_position):
+        """Возвращает ближайший склад снабжения в радиусе interaction.
+
+        Args:
+            player_position: Позиция игрока в пикселях.
+
+        Returns:
+            Идентификатор склада или `None`.
+        """
+        nearest_supply_cache_id = None
+        nearest_distance = None
+
+        for supply_cache_id in self.supply_cache_ids:
+            supply_cache = self.ecm.get_component(supply_cache_id, SupplyCache)
+            supply_cache_position = self.ecm.get_component(supply_cache_id, Position)
+
+            if supply_cache is None or supply_cache_position is None:
+                continue
+
+            distance = self.get_distance(player_position, supply_cache_position)
+
+            if distance > supply_cache.interaction_radius:
+                continue
+
+            if nearest_distance is None or distance < nearest_distance:
+                nearest_distance = distance
+                nearest_supply_cache_id = supply_cache_id
+
+        return nearest_supply_cache_id
 
     def get_nearest_npc_id(self, player_position):
         """Возвращает nearest NPC id.

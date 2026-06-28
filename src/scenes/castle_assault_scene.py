@@ -13,6 +13,7 @@ from src.core.camera import Camera
 from src.ecs.entity_component_manager import EntityComponentManager
 from src.entities.entity_factory import EntityFactory
 from src.scenes.base_scene import BaseScene
+from src.systems.animation_system import AnimationSystem
 from src.systems.capture_system import CaptureSystem
 from src.systems.castle_wave_system import CastleWaveSystem
 from src.systems.cleanup_system import CleanupSystem
@@ -80,6 +81,7 @@ class CastleAssaultScene(BaseScene):
         self.validate_castle_layout_data()
         self.player_input_system = PlayerInputSystem()
         self.player_attack_input_system = PlayerAttackInputSystem()
+        self.animation_system = AnimationSystem()
         self.enemy_chase_system = EnemyChaseSystem()
         self.movement_system = MovementSystem()
         self.collision_system = CollisionSystem()
@@ -542,6 +544,7 @@ class CastleAssaultScene(BaseScene):
 
         if self.assault_completed:
             self.visual_effect_system.update(self.ecm, dt)
+            self.animation_system.update(self.ecm, dt)
             return
 
         if self.is_player_defeated():
@@ -549,6 +552,7 @@ class CastleAssaultScene(BaseScene):
                 self.restart_castle()
             else:
                 self.visual_effect_system.update(self.ecm, dt)
+                self.animation_system.update(self.ecm, dt)
             return
 
         self.visual_effect_system.update(self.ecm, dt)
@@ -584,6 +588,7 @@ class CastleAssaultScene(BaseScene):
             self.enemy_ids.extend(spawned_enemy_ids)
             self.complete_assault_if_ready()
 
+        self.animation_system.update(self.ecm, dt)
         self.cleanup_system.update(self.ecm)
         self.update_camera()
 

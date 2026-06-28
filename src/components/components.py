@@ -64,6 +64,46 @@ class Sprite:
 
 
 @dataclass
+class Animation:
+    """Хранит runtime-состояние idle/walk/attack анимации сущности.
+
+    Attributes:
+        animation_key: Логический ключ группы кадров, например `player` или `enemy`.
+        state: Текущее состояние анимации: `idle`, `walk` или `attack`.
+        direction: Текущее направление анимации: `down`, `up`, `left` или `right`.
+        frame_index: Индекс текущего кадра.
+        frame_timer: Накопленное время для переключения кадра.
+        frame_duration: Длительность одного кадра в секундах.
+        lock_timer: Оставшееся время visual-lock состояния.
+        lock_duration: Полная длительность visual-lock состояния.
+    """
+    animation_key: str
+    state: str = "idle"
+    direction: str = "down"
+    frame_index: int = 0
+    frame_timer: float = 0.0
+    frame_duration: float = 0.14
+    lock_timer: float = 0.0
+    lock_duration: float = 0.0
+
+
+@dataclass
+class AnimationRequest:
+    """Запрашивает краткую runtime-анимацию у `AnimationSystem`.
+
+    Attributes:
+        state: Состояние анимации, которое нужно включить.
+        direction: Направление анимации.
+        duration: Длительность visual-lock состояния.
+        frame_duration: Длительность одного кадра в секундах.
+    """
+    state: str
+    direction: str
+    duration: float
+    frame_duration: float
+
+
+@dataclass
 class Health:
     """Хранит данные ECS-компонента: health.
 
@@ -129,6 +169,24 @@ class Outpost:
     cleared: bool = False
     clear_duration: float = 1.2
     clear_progress: float = 0
+
+
+@dataclass
+class SupplyCache:
+    """Хранит runtime-состояние вражеского склада снабжения.
+
+    Attributes:
+        key: Стабильный строковый ключ склада из `RegionLayout`.
+        destroyed: Флаг, показывающий, уничтожен ли склад.
+        destroy_progress: Текущий прогресс удержания interaction.
+        destroy_duration: Время удержания, необходимое для уничтожения склада.
+        interaction_radius: Радиус, в котором игрок может взаимодействовать со складом.
+    """
+    key: str
+    destroyed: bool = False
+    destroy_progress: float = 0.0
+    destroy_duration: float = 1.2
+    interaction_radius: float = 48.0
 
 
 @dataclass

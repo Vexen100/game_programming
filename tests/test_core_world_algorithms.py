@@ -244,6 +244,8 @@ class TestCoreWorldAlgorithms(unittest.TestCase):
         self.assertGreaterEqual(len(layout.enemy_spawns), 6)
         self.assertEqual(len(layout.outposts), 2)
         self.assertEqual(len(layout.npcs), 2)
+        self.assertEqual(len(layout.supply_caches), 1)
+        self.assertEqual(layout.supply_caches[0].key, "east_supply_cache")
         self.assertTrue({GRASS, ROAD, WATER, FOREST}.issubset(tile_values))
 
     def test_old_ruins_important_tiles_are_reachable(self):
@@ -258,6 +260,27 @@ class TestCoreWorldAlgorithms(unittest.TestCase):
             [spawn.tile for spawn in layout.enemy_spawns]
             + [outpost.tile for outpost in layout.outposts]
             + [npc.tile for npc in layout.npcs]
+            + [(cache.x, cache.y) for cache in layout.supply_caches]
         )
 
         self.assertTrue(are_tiles_reachable(tile_map, layout.player_spawn_tile, important_tiles))
+
+    def test_old_ruins_supply_cache_has_nearby_guard(self):
+        """Проверяет, что склад снабжения в Old Ruins охраняется.
+
+        Returns:
+            None.
+        """
+        layout = create_old_ruins_region_layout()
+        supply_cache = layout.supply_caches[0]
+        supply_cache_tile = (supply_cache.x, supply_cache.y)
+        enemy_tiles = [spawn.tile for spawn in layout.enemy_spawns]
+
+        self.assertTrue(
+            any(
+                abs(enemy_tile[0] - supply_cache_tile[0])
+                + abs(enemy_tile[1] - supply_cache_tile[1])
+                <= 5
+                for enemy_tile in enemy_tiles
+            )
+        )

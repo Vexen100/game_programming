@@ -7,7 +7,7 @@ import pygame
 from PIL import Image
 
 import settings
-from src.components.components import Health, Position, Renderable
+from src.components.components import Health, Position, Renderable, SupplyCache
 from src.core.game_state import GameState
 from src.core.resource_manager import ResourceManager
 from src.ecs.entity_component_manager import EntityComponentManager
@@ -17,6 +17,7 @@ from src.scenes.world_map_scene import WorldMapScene
 from src.systems.render_system import RenderSystem
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.hud import HUD
+from src.ui import texts
 from src.world.castle_generator import CastleGenerator
 from src.world.tile_map import TileMap
 from src.world.tile_types import FLOOR, WALL
@@ -413,7 +414,64 @@ class TestCoreScenesAssets(unittest.TestCase):
         self.assertGreater(scene.tile_map.width, 0)
         self.assertGreater(len(scene.enemy_ids), 0)
         self.assertGreater(len(scene.outpost_ids), 0)
+        self.assertGreater(len(scene.supply_cache_ids), 0)
         self.assertGreater(len(scene.npc_ids), 0)
+
+    def test_region_scene_creates_supply_caches_from_layout(self):
+        """Проверяет создание складов снабжения из RegionLayout.
+
+        Returns:
+            None.
+        """
+        scene = RegionScene(game_state=self.load_game_state())
+
+        self.assertEqual(len(scene.supply_cache_ids), len(scene.region_layout.supply_caches))
+        self.assertIn("east_supply_cache", scene.supply_cache_entity_by_key)
+        supply_cache_id = scene.supply_cache_entity_by_key["east_supply_cache"]
+
+        self.assertTrue(scene.ecm.has_component(supply_cache_id, SupplyCache))
+
+    def test_region_scene_prompt_for_supply_cache(self):
+        """Проверяет prompt склада снабжения рядом с игроком.
+
+        Returns:
+            None.
+        """
+        scene = RegionScene(game_state=self.load_game_state())
+        supply_cache_id = scene.supply_cache_entity_by_key["east_supply_cache"]
+        supply_cache_position = scene.ecm.get_component(supply_cache_id, Position)
+        player_position = scene.ecm.get_component(scene.ecs_player_id, Position)
+        player_position.x = supply_cache_position.x
+        player_position.y = supply_cache_position.y
+
+        prompts = scene.get_contextual_prompts()
+
+        self.assertIn(texts.SUPPLY_CACHE_CLEAR_ENEMIES, prompts)
+
+    def test_region_scene_export_import_destroyed_supply_cache_keys(self):
+        """Проверяет runtime snapshot уничтоженных складов.
+
+        Returns:
+            None.
+        """
+        game_state = self.load_game_state()
+        scene = RegionScene(game_state=game_state)
+        supply_cache_id = scene.supply_cache_entity_by_key["east_supply_cache"]
+        scene.apply_supply_cache_runtime_state(supply_cache_id)
+
+        runtime_state = scene.export_runtime_state()
+        restored_scene = RegionScene(game_state=game_state)
+        restored_scene.apply_runtime_state(runtime_state)
+        restored_supply_cache_id = restored_scene.supply_cache_entity_by_key[
+            "east_supply_cache"
+        ]
+        restored_supply_cache = restored_scene.ecm.get_component(
+            restored_supply_cache_id,
+            SupplyCache,
+        )
+
+        self.assertEqual(runtime_state["destroyed_supply_cache_keys"], ["east_supply_cache"])
+        self.assertTrue(restored_supply_cache.destroyed)
 
     def test_region_scene_requests_castle_assault_when_unlocked(self):
         """Проверяет сценарий: регион сцена requests замок штурм when открытые.
@@ -473,6 +531,16 @@ class TestCoreScenesAssets(unittest.TestCase):
         self.assertIsNotNone(scene.visual_effect_system)
         self.assertIs(scene.melee_attack_system.visual_effect_system, scene.visual_effect_system)
 
+    def test_region_scene_has_animation_system(self):
+        """Проверяет, что RegionScene создает систему idle/walk анимации.
+
+        Returns:
+            None.
+        """
+        scene = RegionScene(game_state=self.load_game_state())
+
+        self.assertIsNotNone(scene.animation_system)
+
     def test_castle_assault_scene_builds_layout_and_capture_points(self):
         """Проверяет сценарий: замок штурм сцена builds layout and точка захвата точки.
 
@@ -497,6 +565,17 @@ class TestCoreScenesAssets(unittest.TestCase):
 
         self.assertIsNotNone(scene.visual_effect_system)
         self.assertIs(scene.melee_attack_system.visual_effect_system, scene.visual_effect_system)
+
+    def test_castle_assault_scene_has_animation_system(self):
+        """Проверяет, что CastleAssaultScene создает систему idle/walk анимации.
+
+        Returns:
+            None.
+        """
+        layout = CastleGenerator(48, 36, seed=31).generate()
+        scene = CastleAssaultScene(game_state=self.load_game_state(), castle_layout=layout)
+
+        self.assertIsNotNone(scene.animation_system)
 
     def test_world_map_enters_unlocked_region(self):
         """Проверяет сценарий: мир карта enters открытые регион.

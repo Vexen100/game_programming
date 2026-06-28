@@ -42,6 +42,7 @@ DEFAULT_ENTITY_ASSETS = {
     "enemy": "entities/enemy.png",
     "outpost_enemy": "entities/outpost_enemy.png",
     "npc_active": "entities/npc_active.png",
+    "supply_cache_enemy": "entities/supply_cache_enemy.png",
     "capture_point_enemy": "entities/capture_point_enemy.png",
 }
 
@@ -217,6 +218,68 @@ class ResourceManager:
             return pygame.transform.scale(image, (width, height))
 
         return self.get_or_create_placeholder(asset_key, width, height, fallback_color)
+
+    def get_animation_frame_surface(
+        self,
+        animation_key,
+        state,
+        direction,
+        frame_index,
+        width,
+        height,
+        fallback_color,
+    ):
+        """Возвращает кадр runtime-анимации, если файл существует.
+
+        Args:
+            animation_key: Логический ключ группы кадров.
+            state: Состояние анимации, например `idle`, `walk` или `attack`.
+            direction: Направление анимации.
+            frame_index: Индекс кадра.
+            width: Ширина области, карты или изображения.
+            height: Высота области, карты или изображения.
+            fallback_color: Цвет fallback-прямоугольника, если кадра нет.
+
+        Returns:
+            Surface кадра или `None`, если файл отсутствует.
+        """
+        relative_path = (
+            f"entities/{animation_key}/{state}_{direction}_{frame_index}.png"
+        )
+        cache_key = (
+            f"animation_{animation_key}_{state}_{direction}_{frame_index}",
+            (width, height),
+        )
+
+        if cache_key in self.images:
+            return self.images[cache_key]
+
+        image_path = self.image_root / relative_path
+
+        if not image_path.is_file():
+            return None
+
+        image = pygame.image.load(str(image_path))
+        image = pygame.transform.scale(image, (width, height))
+        self.images[cache_key] = image
+        return image
+
+    def has_animation_frame(self, animation_key, state, direction, frame_index):
+        """Проверяет, существует ли файл кадра анимации.
+
+        Args:
+            animation_key: Логический ключ группы кадров.
+            state: Состояние анимации, например `idle`, `walk` или `attack`.
+            direction: Направление анимации.
+            frame_index: Индекс кадра.
+
+        Returns:
+            `True`, если файл кадра существует, иначе `False`.
+        """
+        relative_path = (
+            f"entities/{animation_key}/{state}_{direction}_{frame_index}.png"
+        )
+        return (self.image_root / relative_path).is_file()
 
     def get_border_color(self, color):
         """Возвращает рамка цвет.

@@ -11,6 +11,7 @@ from src.events.game_events import (
     OutpostClearedEvent,
     QuestCompletedEvent,
     RegionLiberatedEvent,
+    SupplyCacheDestroyedEvent,
 )
 from src.scenes.castle_assault_scene import CastleAssaultScene
 from src.scenes.main_menu_scene import MainMenuScene
@@ -95,6 +96,7 @@ class Game:
         self.event_bus.subscribe(EnemyKilledEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(OutpostClearedEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(QuestCompletedEvent, self.on_world_progress_changed)
+        self.event_bus.subscribe(SupplyCacheDestroyedEvent, self.on_world_progress_changed)
         self.event_bus.subscribe(RegionLiberatedEvent, self.on_world_progress_changed)
 
     def on_world_progress_changed(self, event):

@@ -88,6 +88,19 @@ class NPCSettings:
     COMPLETED_COLOR = (220, 190, 40)
 
 
+class SupplyCacheSettings:
+    """Хранит настройки и цвета склада снабжения.
+
+    Attributes:
+        SIZE: Размер ECS-сущности склада в пикселях.
+        ENEMY_COLOR: Цвет активного вражеского склада.
+        DESTROYED_COLOR: Цвет уничтоженного склада.
+    """
+    SIZE = 32
+    ENEMY_COLOR = (165, 95, 35)
+    DESTROYED_COLOR = (85, 70, 55)
+
+
 class CapturePointSettings:
     """Хранит настройки и константы: точка захвата точка settings.
 

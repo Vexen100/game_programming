@@ -45,6 +45,20 @@ class NPCSpawn:
     required_outpost_key: str | None = None
 
 
+@dataclass(frozen=True)
+class SupplyCacheSpawn:
+    """Описывает точку появления склада снабжения.
+
+    Attributes:
+        key: Стабильный строковый ключ склада.
+        x: Координата тайла по оси X.
+        y: Координата тайла по оси Y.
+    """
+    key: str
+    x: int
+    y: int
+
+
 @dataclass
 class RegionLayout:
     """Описывает объект проекта: регион layout.
@@ -55,12 +69,14 @@ class RegionLayout:
         enemy_spawns: Значение `враг spawns`, используемое в логике метода.
         outposts: Значение `outposts`, используемое в логике метода.
         npcs: Значение `npcs`, используемое в логике метода.
+        supply_caches: Склады снабжения, размещённые в регионе.
     """
     matrix: list[list[int]]
     player_spawn_tile: tuple[int, int]
     enemy_spawns: list[EnemySpawn]
     outposts: list[OutpostSpawn]
     npcs: list[NPCSpawn]
+    supply_caches: tuple[SupplyCacheSpawn, ...] = ()
 
 
 def create_old_ruins_region_layout():
@@ -175,6 +191,9 @@ def create_old_ruins_region_layout():
                 required_outpost_key="east_supply_outpost",
             ),
         ],
+        supply_caches=(
+            SupplyCacheSpawn(key="east_supply_cache", x=68, y=42),
+        ),
     )
 
 

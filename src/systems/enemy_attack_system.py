@@ -1,4 +1,5 @@
 from src.components.components import (
+    AnimationRequest,
     AttackHitbox,
     Collider,
     Dead,
@@ -10,6 +11,7 @@ from src.components.components import (
     Position,
 )
 from src.entities.entities_settings import EnemySettings
+from src.systems.animation_system import direction_from_vector
 
 
 class EnemyAttackSystem:
@@ -179,7 +181,57 @@ class EnemyAttackSystem:
             player_position,
             player_collider,
         )
+        self.add_attack_animation_request(
+            ecm,
+            enemy_id,
+            enemy_position,
+            enemy_collider,
+            player_position,
+            player_collider,
+            attack_state.windup_duration,
+        )
         self.start_windup(attack_state, hitbox, attack_rect)
+
+    def add_attack_animation_request(
+        self,
+        ecm,
+        enemy_id,
+        enemy_position,
+        enemy_collider,
+        player_position,
+        player_collider,
+        duration,
+    ):
+        """Запрашивает visual-only attack animation врага.
+
+        Args:
+            ecm: Менеджер сущностей и компонентов игрового мира.
+            enemy_id: Идентификатор сущности врага.
+            enemy_position: Позиция врага в пикселях.
+            enemy_collider: Коллайдер врага.
+            player_position: Позиция игрока в пикселях.
+            player_collider: Коллайдер игрока.
+            duration: Длительность visual-lock состояния.
+
+        Returns:
+            None.
+        """
+        enemy_center_x, enemy_center_y = self.get_center(enemy_position, enemy_collider)
+        player_center_x, player_center_y = self.get_center(player_position, player_collider)
+        direction = direction_from_vector(
+            player_center_x - enemy_center_x,
+            player_center_y - enemy_center_y,
+            "down",
+        )
+        ecm.add_component(
+            enemy_id,
+            AnimationRequest(
+                state="attack",
+                direction=direction,
+                duration=duration,
+                frame_duration=duration / 4,
+            ),
+        )
 
     def update_pending_attack(
         self,
