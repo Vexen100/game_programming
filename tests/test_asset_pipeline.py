@@ -10,13 +10,17 @@ from tools.asset_pipeline.grid_slicing import get_grid_boxes
 from tools.asset_pipeline.process_surface_tileset import create_preview
 from tools.asset_pipeline.slice_tilesheet import slice_tilesheet
 from tools.asset_pipeline.sprite_normalization import (
+    analyze_runtime_scaled_artifacts,
     clean_sprite_artifacts,
     clean_transparent_rgb,
     get_alpha_bbox,
+    get_unique_visible_color_count,
     get_visible_size,
     is_green_dominant_artifact_pixel,
+    is_weak_green_or_olive_artifact_pixel,
     normalize_sprite_frame,
     remove_chroma_pixels,
+    stabilize_animation_sequence_palette,
 )
 from tools.asset_pipeline.validate_entity_animation_frames import (
     validate_entity_animation_frames,
@@ -313,6 +317,38 @@ class TestAssetPipeline(unittest.TestCase):
 
         self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
 
+    def test_is_weak_green_or_olive_detects_remaining_dark_remnants(self):
+        """Проверяет detection weak olive/green remnants.
+
+        Returns:
+            None.
+        """
+        artifact_colors = [
+            (0, 34, 0, 255),
+            (4, 51, 4, 255),
+            (15, 60, 0, 255),
+            (7, 61, 13, 255),
+            (8, 68, 6, 255),
+            (2, 43, 3, 255),
+            (18, 42, 9, 255),
+        ]
+
+        for color in artifact_colors:
+            with self.subTest(color=color):
+                self.assertTrue(is_weak_green_or_olive_artifact_pixel(*color))
+
+    def test_clean_sprite_artifacts_removes_weak_green_or_olive_noise(self):
+        """Проверяет удаление weak olive/green remnant.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (7, 61, 13, 255))
+
+        cleaned = clean_sprite_artifacts(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+
     def test_green_dominant_cleanup_preserves_blue_red_gold_gray_pixels(self):
         """Проверяет, что cleanup не удаляет обычные цвета спрайта.
 
@@ -335,6 +371,78 @@ class TestAssetPipeline(unittest.TestCase):
         for x, color in enumerate(safe_colors):
             with self.subTest(color=color):
                 self.assertEqual(cleaned.getpixel((x, 0)), color)
+
+    def test_visual_stability_cleanup_preserves_legitimate_dark_yellow_beige_colors(self):
+        """Проверяет сохранение легитимных dark/yellow/beige colors.
+
+        Returns:
+            None.
+        """
+        safe_colors = [
+            (12, 12, 12, 255),
+            (70, 45, 25, 255),
+            (180, 145, 95, 255),
+            (210, 170, 45, 255),
+            (135, 135, 135, 255),
+            (45, 80, 170, 255),
+            (130, 55, 35, 255),
+        ]
+        image = Image.new("RGBA", (len(safe_colors), 1), (0, 0, 0, 0))
+        for x, color in enumerate(safe_colors):
+            image.putpixel((x, 0), color)
+
+        cleaned = clean_sprite_artifacts(image)
+
+        for x, color in enumerate(safe_colors):
+            with self.subTest(color=color):
+                self.assertEqual(cleaned.getpixel((x, 0)), color)
+
+    def test_palette_stabilization_reduces_unique_visible_colors_without_dithering(self):
+        """Проверяет reduction color count без dither-like checker noise.
+
+        Returns:
+            None.
+        """
+        frame = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+        for y in range(8):
+            for x in range(8):
+                frame.putpixel((x, y), (120 + x, 80 + y, 60 + x + y, 255))
+
+        stabilized_frames, palette = stabilize_animation_sequence_palette(
+            [frame],
+            max_colors=4,
+        )
+        stabilized = stabilized_frames[0]
+
+        self.assertLessEqual(get_unique_visible_color_count(stabilized), 4)
+        self.assertEqual(get_alpha_bbox(stabilized), get_alpha_bbox(frame))
+        pixels = stabilized.load()
+        for y in range(stabilized.height):
+            for x in range(stabilized.width):
+                color = pixels[x, y]
+                if color[3] > 0:
+                    self.assertIn(color[:3], palette)
+
+    def test_sequence_palette_stabilization_uses_consistent_palette_across_frames(self):
+        """Проверяет общий palette snapping близких цветов sequence.
+
+        Returns:
+            None.
+        """
+        first = Image.new("RGBA", (2, 2), (180, 145, 92, 255))
+        second = Image.new("RGBA", (2, 2), (184, 148, 94, 255))
+
+        stabilized_frames, _palette = stabilize_animation_sequence_palette(
+            [first, second],
+            max_colors=2,
+        )
+
+        self.assertEqual(get_alpha_bbox(stabilized_frames[0]), get_alpha_bbox(first))
+        self.assertEqual(get_alpha_bbox(stabilized_frames[1]), get_alpha_bbox(second))
+        self.assertEqual(
+            stabilized_frames[0].getpixel((0, 0))[:3],
+            stabilized_frames[1].getpixel((0, 0))[:3],
+        )
 
     def test_validate_entity_animation_frames_allows_missing_enemy_attack_frames(self):
         """Проверяет, что validator не требует enemy attack frames.
@@ -407,6 +515,85 @@ class TestAssetPipeline(unittest.TestCase):
             self.assertTrue(
                 any("green-dominant artifact pixels" in error for error in result.errors)
             )
+
+    def test_validator_fails_weak_green_or_olive_artifact(self):
+        """Проверяет fail validator для weak olive/green artifact.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            self.save_alpha_sprite(frame_path, (4, 2, 28, 30))
+
+            with Image.open(frame_path) as frame:
+                frame = frame.convert("RGBA")
+                frame.putpixel((10, 10), (7, 61, 13, 255))
+                frame.save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any("weak green/olive artifact pixels" in error for error in result.errors)
+            )
+
+    def test_validator_fails_excessive_unique_visible_colors(self):
+        """Проверяет fail validator при слишком шумной visible palette.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            frame = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+            color_index = 0
+            for y in range(2, 30):
+                for x in range(4, 28):
+                    frame.putpixel(
+                        (x, y),
+                        (
+                            80 + (color_index % 120),
+                            40 + (color_index % 30),
+                            150 + (color_index % 80),
+                            255,
+                        ),
+                    )
+                    color_index += 1
+            frame_path.parent.mkdir(parents=True)
+            frame.save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any("unique visible colors" in error for error in result.errors)
+            )
+
+    def test_runtime28_diagnostics_reports_artifacts_after_scaling(self):
+        """Проверяет runtime28 diagnostics после nearest resize.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+        for y in range(8, 24):
+            for x in range(8, 24):
+                image.putpixel((x, y), (7, 61, 13, 255))
+
+        report = analyze_runtime_scaled_artifacts(image)
+
+        self.assertGreater(report.weak_green_or_olive_pixels, 0)
 
     def test_validator_passes_after_green_dominant_cleanup(self):
         """Проверяет pass validator после cleanup green-dominant artifact.

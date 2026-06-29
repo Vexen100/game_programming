@@ -30,7 +30,12 @@ class SpriteArtifactReport:
         low_alpha_pixels: Число видимых пикселей с почти нулевой alpha.
         visible_chroma_pixels: Число видимых пикселей, похожих на chroma green.
         green_dominant_artifact_pixels: Число видимых тёмно-зелёных remnants.
+        weak_green_or_olive_pixels: Число слабых olive/green remnants.
         isolated_suspicious_pixels: Число одиночных подозрительных пикселей.
+        dark_tinted_pixels: Число очень тёмных видимых пикселей.
+        yellow_beige_pixels: Число видимых yellow/beige pixels.
+        visible_pixel_count: Число видимых пикселей.
+        unique_visible_colors: Число уникальных видимых RGB-цветов.
         suspicious_colors: Частые подозрительные RGBA-цвета для диагностики.
     """
     transparent_nonzero_rgb: int
@@ -38,7 +43,12 @@ class SpriteArtifactReport:
     low_alpha_pixels: int
     visible_chroma_pixels: int
     green_dominant_artifact_pixels: int
+    weak_green_or_olive_pixels: int
     isolated_suspicious_pixels: int
+    dark_tinted_pixels: int
+    yellow_beige_pixels: int
+    visible_pixel_count: int
+    unique_visible_colors: int
     suspicious_colors: tuple
 
 
@@ -71,6 +81,55 @@ def get_visible_size(image):
 
     left, top, right, bottom = bbox
     return right - left, bottom - top
+
+
+def iter_visible_pixels(image):
+    """Перебирает видимые RGBA pixels изображения.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Yields:
+        RGBA tuple для пикселей с `alpha > 0`.
+    """
+    rgba_image = image.convert("RGBA")
+    pixels = rgba_image.load()
+    width, height = rgba_image.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha > 0:
+                yield red, green, blue, alpha
+
+
+def extract_visible_palette(image):
+    """Возвращает частоты видимых RGB-цветов.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Returns:
+        `Counter`, где ключом является `(red, green, blue)`.
+    """
+    palette = Counter()
+
+    for red, green, blue, _alpha in iter_visible_pixels(image):
+        palette[(red, green, blue)] += 1
+
+    return palette
+
+
+def get_unique_visible_color_count(image):
+    """Считает уникальные видимые RGB-цвета.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Returns:
+        Количество уникальных RGB-цветов среди pixels с `alpha > 0`.
+    """
+    return len(extract_visible_palette(image))
 
 
 def clean_transparent_rgb(image):
@@ -136,6 +195,28 @@ def remove_green_dominant_artifacts(image):
         for x in range(width):
             red, green, blue, alpha = pixels[x, y]
             if is_green_dominant_artifact_pixel(red, green, blue, alpha):
+                pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def remove_weak_green_or_olive_artifacts(image):
+    """Удаляет слабые dark olive/green chroma remnants.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Returns:
+        RGBA image без weak green/olive remnants.
+    """
+    cleaned = image.convert("RGBA")
+    pixels = cleaned.load()
+    width, height = cleaned.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if is_weak_green_or_olive_artifact_pixel(red, green, blue, alpha):
                 pixels[x, y] = (0, 0, 0, 0)
 
     return cleaned
@@ -230,6 +311,7 @@ def clean_sprite_artifacts(
     cleaned = clean_transparent_rgb(image)
     cleaned = remove_chroma_pixels(cleaned, chroma_color, chroma_tolerance)
     cleaned = remove_green_dominant_artifacts(cleaned)
+    cleaned = remove_weak_green_or_olive_artifacts(cleaned)
     cleaned = remove_low_alpha_pixels(cleaned, alpha_threshold)
     cleaned = remove_isolated_alpha_pixels(
         cleaned,
@@ -269,13 +351,22 @@ def analyze_sprite_artifacts(
     low_alpha_pixels = 0
     visible_chroma_pixels = 0
     green_dominant_artifact_pixels = 0
+    weak_green_or_olive_pixels = 0
     isolated_suspicious_pixels = 0
+    dark_tinted_pixels = 0
+    yellow_beige_pixels = 0
+    visible_pixel_count = 0
+    visible_colors = set()
 
     for y in range(height):
         for x in range(width):
             red, green, blue, alpha = pixels[x, y]
             color = (red, green, blue, alpha)
             is_suspicious = False
+
+            if alpha > 0:
+                visible_pixel_count += 1
+                visible_colors.add((red, green, blue))
 
             if alpha == 0 and (red, green, blue) != (0, 0, 0):
                 transparent_nonzero_rgb += 1
@@ -302,6 +393,16 @@ def analyze_sprite_artifacts(
                 green_dominant_artifact_pixels += 1
                 is_suspicious = True
 
+            if is_weak_green_or_olive_artifact_pixel(red, green, blue, alpha):
+                weak_green_or_olive_pixels += 1
+                is_suspicious = True
+
+            if is_dark_tinted_pixel(red, green, blue, alpha):
+                dark_tinted_pixels += 1
+
+            if is_yellow_beige_pixel(red, green, blue, alpha):
+                yellow_beige_pixels += 1
+
             if alpha > 0 and is_isolated_artifact_candidate(
                 red,
                 green,
@@ -323,7 +424,12 @@ def analyze_sprite_artifacts(
         low_alpha_pixels=low_alpha_pixels,
         visible_chroma_pixels=visible_chroma_pixels,
         green_dominant_artifact_pixels=green_dominant_artifact_pixels,
+        weak_green_or_olive_pixels=weak_green_or_olive_pixels,
         isolated_suspicious_pixels=isolated_suspicious_pixels,
+        dark_tinted_pixels=dark_tinted_pixels,
+        yellow_beige_pixels=yellow_beige_pixels,
+        visible_pixel_count=visible_pixel_count,
+        unique_visible_colors=len(visible_colors),
         suspicious_colors=tuple(suspicious_colors.most_common(8)),
     )
 
@@ -381,6 +487,74 @@ def is_green_dominant_artifact_pixel(red, green, blue, alpha):
     return strong_dark_green or chroma_shadow_green
 
 
+def is_weak_green_or_olive_artifact_pixel(red, green, blue, alpha):
+    """Проверяет weak olive/green chroma remnant.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        alpha: Alpha channel.
+
+    Returns:
+        `True`, если visible pixel похож на слабый olive/green remnant.
+    """
+    if alpha == 0:
+        return False
+
+    weak_green_tint = (
+        green >= 30
+        and green >= red + 8
+        and green >= blue + 8
+        and red <= 35
+        and blue <= 35
+    )
+    olive_shadow = (
+        35 <= green <= 90
+        and green >= max(red, blue) + 10
+        and red <= 45
+        and blue <= 45
+    )
+    return weak_green_tint or olive_shadow
+
+
+def is_dark_tinted_pixel(red, green, blue, alpha):
+    """Проверяет очень тёмный видимый pixel для diagnostics.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        alpha: Alpha channel.
+
+    Returns:
+        `True`, если pixel относится к тёмной палитре.
+    """
+    return alpha > 0 and max(red, green, blue) <= 45
+
+
+def is_yellow_beige_pixel(red, green, blue, alpha):
+    """Проверяет yellow/beige visible pixel для diagnostics.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        alpha: Alpha channel.
+
+    Returns:
+        `True`, если pixel похож на yellow/beige detail.
+    """
+    return (
+        alpha > 0
+        and red >= 90
+        and green >= 70
+        and blue <= 150
+        and red >= blue + 25
+        and green >= blue + 10
+    )
+
+
 def is_debug_artifact_color(red, green, blue):
     """Проверяет debug-like magenta/cyan colors.
 
@@ -420,6 +594,7 @@ def is_isolated_artifact_candidate(
         alpha <= artifact_alpha_threshold
         or is_chroma_pixel(red, green, blue)
         or is_green_dominant_artifact_pixel(red, green, blue, alpha)
+        or is_weak_green_or_olive_artifact_pixel(red, green, blue, alpha)
         or is_debug_artifact_color(red, green, blue)
     )
 
@@ -454,6 +629,174 @@ def count_visible_neighbors(pixels, x, y, width, height):
                 visible_neighbors += 1
 
     return visible_neighbors
+
+
+def get_palette_bucket(color, bucket_size=32):
+    """Возвращает coarse bucket для RGB-цвета.
+
+    Args:
+        color: RGB tuple.
+        bucket_size: Размер bucket по каждому каналу.
+
+    Returns:
+        Tuple bucket indexes.
+    """
+    red, green, blue = color
+    return red // bucket_size, green // bucket_size, blue // bucket_size
+
+
+def build_entity_animation_palette(
+    images,
+    reference_images=(),
+    max_colors=64,
+    bucket_size=32,
+):
+    """Строит стабильную palette для группы animation frames.
+
+    Args:
+        images: Iterable PIL-кадров animation group.
+        reference_images: Дополнительные reference sprites для palette.
+        max_colors: Максимальное число representative colors.
+        bucket_size: Размер coarse RGB bucket.
+
+    Returns:
+        Tuple RGB representative colors.
+    """
+    bucket_stats = {}
+
+    for image in tuple(reference_images) + tuple(images):
+        for color, count in extract_visible_palette(image).items():
+            bucket = get_palette_bucket(color, bucket_size)
+            if bucket not in bucket_stats:
+                bucket_stats[bucket] = [0, 0, 0, 0]
+
+            red, green, blue = color
+            bucket_stats[bucket][0] += count
+            bucket_stats[bucket][1] += red * count
+            bucket_stats[bucket][2] += green * count
+            bucket_stats[bucket][3] += blue * count
+
+    representatives = []
+    for bucket, (count, red_sum, green_sum, blue_sum) in bucket_stats.items():
+        if count <= 0:
+            continue
+
+        representatives.append(
+            (
+                count,
+                bucket,
+                (
+                    round(red_sum / count),
+                    round(green_sum / count),
+                    round(blue_sum / count),
+                ),
+            )
+        )
+
+    representatives.sort(key=lambda item: (-item[0], item[1], item[2]))
+    palette = tuple(color for _count, _bucket, color in representatives[:max_colors])
+
+    if not palette:
+        return ((0, 0, 0),)
+
+    return palette
+
+
+def find_nearest_palette_color(color, palette):
+    """Возвращает ближайший RGB-цвет из palette.
+
+    Args:
+        color: RGB tuple исходного pixel.
+        palette: Tuple RGB representative colors.
+
+    Returns:
+        RGB tuple из palette.
+    """
+    red, green, blue = color
+    return min(
+        palette,
+        key=lambda palette_color: (
+            (red - palette_color[0]) ** 2
+            + (green - palette_color[1]) ** 2
+            + (blue - palette_color[2]) ** 2
+        ),
+    )
+
+
+def quantize_sprite_to_palette(image, palette):
+    """Стабилизирует RGB pixels через nearest palette color.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        palette: Tuple RGB representative colors.
+
+    Returns:
+        RGBA image с исходной alpha mask и palette-snapped RGB.
+    """
+    quantized = image.convert("RGBA")
+    pixels = quantized.load()
+    width, height = quantized.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0:
+                pixels[x, y] = (0, 0, 0, 0)
+                continue
+
+            nearest = find_nearest_palette_color((red, green, blue), palette)
+            pixels[x, y] = (nearest[0], nearest[1], nearest[2], alpha)
+
+    return quantized
+
+
+def stabilize_animation_sequence_palette(
+    images,
+    reference_images=(),
+    max_colors=64,
+    bucket_size=32,
+):
+    """Стабилизирует palette группы кадров без dithering.
+
+    Args:
+        images: Iterable PIL-кадров animation group.
+        reference_images: Дополнительные reference sprites для palette.
+        max_colors: Максимальное число цветов в общей palette.
+        bucket_size: Размер coarse RGB bucket.
+
+    Returns:
+        Tuple `(stabilized_images, palette)`.
+    """
+    cleaned_images = [clean_sprite_artifacts(image) for image in images]
+    cleaned_references = [clean_sprite_artifacts(image) for image in reference_images]
+    palette = build_entity_animation_palette(
+        cleaned_images,
+        reference_images=cleaned_references,
+        max_colors=max_colors,
+        bucket_size=bucket_size,
+    )
+    stabilized_images = [
+        clean_sprite_artifacts(quantize_sprite_to_palette(image, palette))
+        for image in cleaned_images
+    ]
+    return stabilized_images, palette
+
+
+def analyze_runtime_scaled_artifacts(image, runtime_size=(28, 28)):
+    """Возвращает artifact diagnostics для runtime-size preview.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        runtime_size: Размер diagnostic runtime preview.
+
+    Returns:
+        `SpriteArtifactReport` для nearest-resized image.
+    """
+    runtime_image = image.convert("RGBA").resize(
+        runtime_size,
+        Image.Resampling.NEAREST,
+    )
+    return analyze_sprite_artifacts(runtime_image)
 
 
 def get_sprite_footprint(image):
@@ -678,14 +1021,16 @@ def normalize_sprite_files(
     reference_path=None,
     output_size=(32, 32),
     max_scale=None,
+    max_palette_colors=64,
 ):
-    """Нормализует набор PNG кадров относительно reference footprint.
+    """Нормализует и стабилизирует набор PNG кадров.
 
     Args:
         frame_paths: Пути PNG кадров, которые нужно перезаписать.
         reference_path: Путь к static sprite reference.
         output_size: Размер итогового canvas.
         max_scale: Максимально допустимый scale factor или `None`.
+        max_palette_colors: Максимальное число цветов общей stable palette.
 
     Returns:
         Количество перепроцессенных кадров.
@@ -697,7 +1042,7 @@ def normalize_sprite_files(
         frame_paths=existing_frame_paths,
         output_size=output_size,
     )
-    processed_count = 0
+    normalized_images = []
 
     for frame_path in existing_frame_paths:
         with Image.open(frame_path) as frame_image:
@@ -712,7 +1057,21 @@ def normalize_sprite_files(
             )
             normalized = clean_sprite_artifacts(normalized)
 
-        normalized.save(frame_path)
-        processed_count += 1
+        normalized_images.append(normalized)
 
-    return processed_count
+    reference_images = []
+    reference_path = Path(reference_path) if reference_path is not None else None
+    if reference_path is not None and reference_path.is_file():
+        with Image.open(reference_path) as reference_image:
+            reference_images.append(reference_image.convert("RGBA"))
+
+    stabilized_images, _palette = stabilize_animation_sequence_palette(
+        normalized_images,
+        reference_images=reference_images,
+        max_colors=max_palette_colors,
+    )
+
+    for frame_path, stabilized_image in zip(existing_frame_paths, stabilized_images):
+        stabilized_image.save(frame_path)
+
+    return len(stabilized_images)

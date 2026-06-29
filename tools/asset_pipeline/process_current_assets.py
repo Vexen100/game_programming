@@ -142,6 +142,7 @@ def process_current_assets(source_root="assets/source", output_root="assets/imag
     skipped = []
     output_paths = []
     normalized_count = 0
+    animation_groups = {}
 
     tilesheet = source_root / "tilesets" / "crown_reclaim_tileset_raw.png"
     if tilesheet.is_file():
@@ -224,15 +225,18 @@ def process_current_assets(source_root="assets/source", output_root="assets/imag
                 names=names,
                 folders=folders,
             )
-            normalized_count += normalize_sprite_files(
-                animation_output_paths,
-                reference_path=reference_path,
-                output_size=(32, 32),
-            )
+            animation_groups.setdefault(reference_path, []).extend(animation_output_paths)
             output_paths.extend(animation_output_paths)
             processed.append(animation_source)
         else:
             skipped.append(animation_source)
+
+    for reference_path, animation_output_paths in animation_groups.items():
+        normalized_count += normalize_sprite_files(
+            animation_output_paths,
+            reference_path=reference_path,
+            output_size=(32, 32),
+        )
 
     print_summary(processed, skipped, output_paths, normalized_count)
 

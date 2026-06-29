@@ -291,6 +291,7 @@ Nearby enemy check для capture points может использовать в�
 - visual-only attack animation request для player attack и enemy windup;
 - normalized animation frame footprint для player/enemy, чтобы static/walk/attack не меняли визуальный размер;
 - chroma/alpha cleanup animation frames в asset pipeline, чтобы bright chroma remnants, dark/medium green-dominant remnants и hidden RGB garbage не попадали в runtime;
+- visual stability audit и palette stabilization animation frames, чтобы weak olive remnants и noisy micro-color flicker не попадали в runtime-visible `28x28` preview;
 - runtime combat feedback: hit flash, damage popup и короткий slash effect;
 - временный enemy spatial index на базе `UniformGrid` для nearby enemy checks;
 - видимый AABB telegraph атаки врага;
@@ -315,7 +316,7 @@ Corrupted save не чинится и не удаляется автоматич
 
 CastleAssaultScene runtime, waves state, path cache, AI memory, attack hitbox timers и partial outpost/supply cache/NPC progress не сохраняются.
 
-Это всё ещё ручной прототип: первый static PNG pass, idle/walk animation, visual-only attack animation, normalized animation frame footprint, chroma/alpha cleanup animation frames включая dark/medium green remnants и базовый combat feedback подключены, но полноценный production art pass, animation events, hitbox timing sync, sound, screen shake, полноценный QuestSystem, диалоговые окна, multi-slot save UI, SettingsScene и procedural ordinary regions ещё не реализованы.
+Это всё ещё ручной прототип: первый static PNG pass, idle/walk animation, visual-only attack animation, normalized animation frame footprint, chroma/alpha cleanup animation frames включая dark/medium green remnants, palette stabilization animation frames и базовый combat feedback подключены, но полноценный production art pass, animation events, hitbox timing sync, sound, screen shake, полноценный QuestSystem, диалоговые окна, multi-slot save UI, SettingsScene и procedural ordinary regions ещё не реализованы.
 
 ## 10. MVP checkpoint
 

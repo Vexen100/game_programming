@@ -7,12 +7,14 @@ from PIL import Image
 try:
     from .sprite_normalization import (
         analyze_sprite_artifacts,
+        analyze_runtime_scaled_artifacts,
         get_alpha_bbox,
         get_sprite_footprint,
     )
 except ImportError:
     from sprite_normalization import (
         analyze_sprite_artifacts,
+        analyze_runtime_scaled_artifacts,
         get_alpha_bbox,
         get_sprite_footprint,
     )
@@ -58,8 +60,11 @@ def validate_entity_animation_frames(
     max_transparent_nonzero_rgb=0,
     max_visible_chroma_pixels=0,
     max_green_dominant_artifact_pixels=0,
+    max_weak_green_or_olive_pixels=0,
     max_low_alpha_pixels=0,
     max_isolated_suspicious_pixels=0,
+    max_unique_visible_colors=64,
+    max_runtime28_weak_green_or_olive_pixels=0,
 ):
     """Проверяет footprint и pixel artifacts существующих animation frames.
 
@@ -77,8 +82,11 @@ def validate_entity_animation_frames(
         max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
         max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
         max_green_dominant_artifact_pixels: Допустимое число green-dominant remnants.
+        max_weak_green_or_olive_pixels: Допустимое число weak olive/green remnants.
         max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
         max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
+        max_unique_visible_colors: Допустимое число видимых RGB-цветов.
+        max_runtime28_weak_green_or_olive_pixels: Допустимое число runtime28 remnants.
 
     Returns:
         `ValidationResult` с diagnostics и errors.
@@ -123,8 +131,11 @@ def validate_entity_animation_frames(
                 max_transparent_nonzero_rgb,
                 max_visible_chroma_pixels,
                 max_green_dominant_artifact_pixels,
+                max_weak_green_or_olive_pixels,
                 max_low_alpha_pixels,
                 max_isolated_suspicious_pixels,
+                max_unique_visible_colors,
+                max_runtime28_weak_green_or_olive_pixels,
                 diagnostics,
                 errors,
             )
@@ -182,8 +193,11 @@ def validate_frame(
     max_transparent_nonzero_rgb,
     max_visible_chroma_pixels,
     max_green_dominant_artifact_pixels,
+    max_weak_green_or_olive_pixels,
     max_low_alpha_pixels,
     max_isolated_suspicious_pixels,
+    max_unique_visible_colors,
+    max_runtime28_weak_green_or_olive_pixels,
     diagnostics,
     errors,
 ):
@@ -202,8 +216,11 @@ def validate_frame(
         max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
         max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
         max_green_dominant_artifact_pixels: Допустимое число green-dominant remnants.
+        max_weak_green_or_olive_pixels: Допустимое число weak olive/green remnants.
         max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
         max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
+        max_unique_visible_colors: Допустимое число видимых RGB-цветов.
+        max_runtime28_weak_green_or_olive_pixels: Допустимое число runtime28 remnants.
         diagnostics: Список строк диагностики.
         errors: Список строк ошибок.
 
@@ -217,6 +234,7 @@ def validate_frame(
         bbox = get_alpha_bbox(rgba_image)
         footprint = get_sprite_footprint(rgba_image)
         artifact_report = analyze_sprite_artifacts(rgba_image)
+        runtime28_report = analyze_runtime_scaled_artifacts(rgba_image)
 
     relative_path = frame_path.as_posix()
 
@@ -247,7 +265,13 @@ def validate_frame(
             f"low_alpha={artifact_report.low_alpha_pixels} "
             f"visible_chroma={artifact_report.visible_chroma_pixels} "
             f"green_dominant={artifact_report.green_dominant_artifact_pixels} "
-            f"isolated_suspicious={artifact_report.isolated_suspicious_pixels}"
+            f"weak_green_or_olive={artifact_report.weak_green_or_olive_pixels} "
+            f"isolated_suspicious={artifact_report.isolated_suspicious_pixels} "
+            f"visible_pixels={artifact_report.visible_pixel_count} "
+            f"unique_colors={artifact_report.unique_visible_colors} "
+            f"runtime28_unique_colors={runtime28_report.unique_visible_colors} "
+            f"runtime28_weak_green_or_olive="
+            f"{runtime28_report.weak_green_or_olive_pixels}"
         )
     )
     suspicious_total = sum(count for _, count in artifact_report.suspicious_colors)
@@ -311,11 +335,41 @@ def validate_frame(
             )
         )
 
+    if artifact_report.weak_green_or_olive_pixels > max_weak_green_or_olive_pixels:
+        errors.append(
+            (
+                f"{relative_path}: weak green/olive artifact pixels "
+                f"{artifact_report.weak_green_or_olive_pixels} above "
+                f"{max_weak_green_or_olive_pixels}"
+            )
+        )
+
     if artifact_report.low_alpha_pixels > max_low_alpha_pixels:
         errors.append(
             (
                 f"{relative_path}: low-alpha pixels "
                 f"{artifact_report.low_alpha_pixels} above {max_low_alpha_pixels}"
+            )
+        )
+
+    if artifact_report.unique_visible_colors > max_unique_visible_colors:
+        errors.append(
+            (
+                f"{relative_path}: unique visible colors "
+                f"{artifact_report.unique_visible_colors} above "
+                f"{max_unique_visible_colors}"
+            )
+        )
+
+    if (
+        runtime28_report.weak_green_or_olive_pixels
+        > max_runtime28_weak_green_or_olive_pixels
+    ):
+        errors.append(
+            (
+                f"{relative_path}: runtime28 weak green/olive artifact pixels "
+                f"{runtime28_report.weak_green_or_olive_pixels} above "
+                f"{max_runtime28_weak_green_or_olive_pixels}"
             )
         )
 
