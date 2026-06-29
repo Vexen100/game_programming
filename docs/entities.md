@@ -314,7 +314,9 @@ Animation = animation_key + state + direction + frame_index + frame_timer + fram
 
 Final animation PNG нормализуются в asset pipeline по visible alpha bbox относительно static sprite reference, чтобы player/enemy сохраняли совместимый visual footprint в static, walk и attack состояниях.
 
-Runtime не добавляет special-case scale multipliers для animation frames.
+Animation PNG также проходят asset cleanup: chroma-green remnants удаляются, transparent pixels получают RGB `(0, 0, 0)`, а low-alpha colored noise не должен попадать в final frames.
+
+Runtime не добавляет special-case scale multipliers, chroma-key или pixel cleanup для animation frames.
 
 `Animation` и `AnimationRequest` не хранят `pygame.Surface`, не сохраняются в `SaveManager`, не создают animation events, не управляют damage и не синхронизируют hitbox timing.
 

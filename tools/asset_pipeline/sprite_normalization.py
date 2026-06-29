@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
@@ -17,6 +18,26 @@ class SpriteFootprint:
     width: int
     height: int
     baseline_y: int
+
+
+@dataclass(frozen=True)
+class SpriteArtifactReport:
+    """Описывает найденные pixel artifacts в RGBA-спрайте.
+
+    Attributes:
+        transparent_nonzero_rgb: Число прозрачных пикселей с ненулевым RGB.
+        semi_transparent_pixels: Число пикселей с alpha между `0` и `255`.
+        low_alpha_pixels: Число видимых пикселей с почти нулевой alpha.
+        visible_chroma_pixels: Число видимых пикселей, похожих на chroma green.
+        isolated_suspicious_pixels: Число одиночных подозрительных пикселей.
+        suspicious_colors: Частые подозрительные RGBA-цвета для диагностики.
+    """
+    transparent_nonzero_rgb: int
+    semi_transparent_pixels: int
+    low_alpha_pixels: int
+    visible_chroma_pixels: int
+    isolated_suspicious_pixels: int
+    suspicious_colors: tuple
 
 
 def get_alpha_bbox(image):
@@ -48,6 +69,330 @@ def get_visible_size(image):
 
     left, top, right, bottom = bbox
     return right - left, bottom - top
+
+
+def clean_transparent_rgb(image):
+    """Обнуляет RGB у fully transparent пикселей.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Returns:
+        RGBA image, где все пиксели с `alpha == 0` равны `(0, 0, 0, 0)`.
+    """
+    cleaned = image.convert("RGBA")
+    pixels = cleaned.load()
+    width, height = cleaned.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0 and (red, green, blue) != (0, 0, 0):
+                pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def remove_chroma_pixels(image, chroma_color=(0, 255, 0), tolerance=40):
+    """Делает transparent пиксели, похожие на chroma green.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        chroma_color: Базовый chroma color.
+        tolerance: RGB-distance tolerance для точного chroma key.
+
+    Returns:
+        RGBA image без видимых chroma-green remnants.
+    """
+    cleaned = image.convert("RGBA")
+    pixels = cleaned.load()
+    width, height = cleaned.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha > 0 and is_chroma_pixel(red, green, blue, chroma_color, tolerance):
+                pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def remove_low_alpha_pixels(image, alpha_threshold=16):
+    """Удаляет почти прозрачный цветной noise.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        alpha_threshold: Максимальная alpha, которую нужно считать мусорной.
+
+    Returns:
+        RGBA image без low-alpha noise.
+    """
+    cleaned = image.convert("RGBA")
+    pixels = cleaned.load()
+    width, height = cleaned.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if 0 < alpha <= alpha_threshold:
+                pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def remove_isolated_alpha_pixels(
+    image,
+    min_neighbors=1,
+    artifact_alpha_threshold=64,
+):
+    """Удаляет одиночные слабые или debug-colored pixels.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        min_neighbors: Минимальное число видимых соседей в 8-neighborhood.
+        artifact_alpha_threshold: Alpha, ниже которой одиночный пиксель считается шумом.
+
+    Returns:
+        RGBA image с удалёнными одиночными подозрительными пикселями.
+    """
+    rgba_image = image.convert("RGBA")
+    pixels = rgba_image.load()
+    width, height = rgba_image.size
+    cleaned = rgba_image.copy()
+    cleaned_pixels = cleaned.load()
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0:
+                continue
+
+            if not is_isolated_artifact_candidate(
+                red,
+                green,
+                blue,
+                alpha,
+                artifact_alpha_threshold,
+            ):
+                continue
+
+            if count_visible_neighbors(pixels, x, y, width, height) < min_neighbors:
+                cleaned_pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def clean_sprite_artifacts(
+    image,
+    chroma_color=(0, 255, 0),
+    chroma_tolerance=40,
+    alpha_threshold=16,
+    min_neighbors=1,
+    artifact_alpha_threshold=64,
+):
+    """Чистит chroma/alpha artifacts у entity animation frame.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        chroma_color: Базовый chroma color.
+        chroma_tolerance: RGB-distance tolerance для chroma cleanup.
+        alpha_threshold: Максимальная alpha для удаления low-alpha noise.
+        min_neighbors: Минимальное число соседей для одиночных пикселей.
+        artifact_alpha_threshold: Alpha, ниже которой isolated pixel считается noise.
+
+    Returns:
+        RGBA image с прозрачным фоном и без chroma/alpha мусора.
+    """
+    cleaned = clean_transparent_rgb(image)
+    cleaned = remove_chroma_pixels(cleaned, chroma_color, chroma_tolerance)
+    cleaned = remove_low_alpha_pixels(cleaned, alpha_threshold)
+    cleaned = remove_isolated_alpha_pixels(
+        cleaned,
+        min_neighbors=min_neighbors,
+        artifact_alpha_threshold=artifact_alpha_threshold,
+    )
+    return clean_transparent_rgb(cleaned)
+
+
+def analyze_sprite_artifacts(
+    image,
+    chroma_color=(0, 255, 0),
+    chroma_tolerance=40,
+    low_alpha_threshold=16,
+    isolated_min_neighbors=1,
+    isolated_alpha_threshold=64,
+):
+    """Считает suspicious pixels в sprite frame.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+        chroma_color: Базовый chroma color.
+        chroma_tolerance: RGB-distance tolerance для chroma detection.
+        low_alpha_threshold: Максимальная alpha для low-alpha diagnostics.
+        isolated_min_neighbors: Минимум соседей для isolated-pixel проверки.
+        isolated_alpha_threshold: Alpha, ниже которой isolated pixel подозрителен.
+
+    Returns:
+        `SpriteArtifactReport` с количественной диагностикой.
+    """
+    rgba_image = image.convert("RGBA")
+    pixels = rgba_image.load()
+    width, height = rgba_image.size
+    suspicious_colors = Counter()
+    transparent_nonzero_rgb = 0
+    semi_transparent_pixels = 0
+    low_alpha_pixels = 0
+    visible_chroma_pixels = 0
+    isolated_suspicious_pixels = 0
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            color = (red, green, blue, alpha)
+            is_suspicious = False
+
+            if alpha == 0 and (red, green, blue) != (0, 0, 0):
+                transparent_nonzero_rgb += 1
+                is_suspicious = True
+
+            if 0 < alpha < 255:
+                semi_transparent_pixels += 1
+
+            if 0 < alpha <= low_alpha_threshold:
+                low_alpha_pixels += 1
+                is_suspicious = True
+
+            if alpha > 0 and is_chroma_pixel(
+                red,
+                green,
+                blue,
+                chroma_color,
+                chroma_tolerance,
+            ):
+                visible_chroma_pixels += 1
+                is_suspicious = True
+
+            if alpha > 0 and is_isolated_artifact_candidate(
+                red,
+                green,
+                blue,
+                alpha,
+                isolated_alpha_threshold,
+            ):
+                neighbor_count = count_visible_neighbors(pixels, x, y, width, height)
+                if neighbor_count < isolated_min_neighbors:
+                    isolated_suspicious_pixels += 1
+                    is_suspicious = True
+
+            if is_suspicious:
+                suspicious_colors[color] += 1
+
+    return SpriteArtifactReport(
+        transparent_nonzero_rgb=transparent_nonzero_rgb,
+        semi_transparent_pixels=semi_transparent_pixels,
+        low_alpha_pixels=low_alpha_pixels,
+        visible_chroma_pixels=visible_chroma_pixels,
+        isolated_suspicious_pixels=isolated_suspicious_pixels,
+        suspicious_colors=tuple(suspicious_colors.most_common(8)),
+    )
+
+
+def is_chroma_pixel(red, green, blue, chroma_color=(0, 255, 0), tolerance=40):
+    """Проверяет, похож ли RGB на chroma-green background.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        chroma_color: Базовый chroma color.
+        tolerance: Допустимая RGB-distance для точного совпадения.
+
+    Returns:
+        `True`, если цвет выглядит как chroma remnant.
+    """
+    chroma_red, chroma_green, chroma_blue = chroma_color
+    channel_rule = green >= 150 and green - red >= 70 and green - blue >= 70
+    distance_rule = (
+        abs(red - chroma_red)
+        + abs(green - chroma_green)
+        + abs(blue - chroma_blue)
+        <= tolerance
+    )
+    return channel_rule or distance_rule
+
+
+def is_debug_artifact_color(red, green, blue):
+    """Проверяет debug-like magenta/cyan colors.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+
+    Returns:
+        `True`, если цвет похож на debug-pink или cyan artifact.
+    """
+    is_magenta = red >= 180 and blue >= 180 and green <= 80
+    is_cyan = green >= 180 and blue >= 180 and red <= 80
+    return is_magenta or is_cyan
+
+
+def is_isolated_artifact_candidate(
+    red,
+    green,
+    blue,
+    alpha,
+    artifact_alpha_threshold,
+):
+    """Проверяет, стоит ли isolated pixel считать подозрительным.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        alpha: Alpha channel.
+        artifact_alpha_threshold: Alpha-порог для слабого isolated noise.
+
+    Returns:
+        `True`, если одиночный пиксель можно безопасно удалить.
+    """
+    return (
+        alpha <= artifact_alpha_threshold
+        or is_chroma_pixel(red, green, blue)
+        or is_debug_artifact_color(red, green, blue)
+    )
+
+
+def count_visible_neighbors(pixels, x, y, width, height):
+    """Считает видимых соседей пикселя в 8-neighborhood.
+
+    Args:
+        pixels: Pixel access object PIL.
+        x: X-координата пикселя.
+        y: Y-координата пикселя.
+        width: Ширина изображения.
+        height: Высота изображения.
+
+    Returns:
+        Количество соседей с `alpha > 0`.
+    """
+    visible_neighbors = 0
+
+    for offset_y in (-1, 0, 1):
+        for offset_x in (-1, 0, 1):
+            if offset_x == 0 and offset_y == 0:
+                continue
+
+            neighbor_x = x + offset_x
+            neighbor_y = y + offset_y
+
+            if not (0 <= neighbor_x < width and 0 <= neighbor_y < height):
+                continue
+
+            if pixels[neighbor_x, neighbor_y][3] > 0:
+                visible_neighbors += 1
+
+    return visible_neighbors
 
 
 def get_sprite_footprint(image):
@@ -295,14 +640,16 @@ def normalize_sprite_files(
 
     for frame_path in existing_frame_paths:
         with Image.open(frame_path) as frame_image:
+            cleaned_frame = clean_sprite_artifacts(frame_image)
             normalized = normalize_sprite_frame(
-                frame_image,
+                cleaned_frame,
                 output_size=output_size,
                 target_visible_height=reference.height,
                 target_visible_width=reference.width,
                 baseline_y=reference.baseline_y,
                 max_scale=max_scale,
             )
+            normalized = clean_sprite_artifacts(normalized)
 
         normalized.save(frame_path)
         processed_count += 1

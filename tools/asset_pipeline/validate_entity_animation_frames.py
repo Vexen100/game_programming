@@ -5,9 +5,17 @@ from pathlib import Path
 from PIL import Image
 
 try:
-    from .sprite_normalization import get_alpha_bbox, get_sprite_footprint
+    from .sprite_normalization import (
+        analyze_sprite_artifacts,
+        get_alpha_bbox,
+        get_sprite_footprint,
+    )
 except ImportError:
-    from sprite_normalization import get_alpha_bbox, get_sprite_footprint
+    from sprite_normalization import (
+        analyze_sprite_artifacts,
+        get_alpha_bbox,
+        get_sprite_footprint,
+    )
 
 
 DEFAULT_ENTITIES = ("player", "enemy")
@@ -47,8 +55,12 @@ def validate_entity_animation_frames(
     max_walk_width_ratio=1.25,
     max_attack_width_ratio=1.50,
     max_baseline_delta=3,
+    max_transparent_nonzero_rgb=0,
+    max_visible_chroma_pixels=0,
+    max_low_alpha_pixels=0,
+    max_isolated_suspicious_pixels=0,
 ):
-    """Проверяет footprint существующих animation frames.
+    """Проверяет footprint и pixel artifacts существующих animation frames.
 
     Args:
         image_root: Корень final game-ready PNG ассетов.
@@ -61,6 +73,10 @@ def validate_entity_animation_frames(
         max_walk_width_ratio: Максимальная доля ширины walk кадра.
         max_attack_width_ratio: Максимальная доля ширины attack кадра.
         max_baseline_delta: Допустимое отклонение baseline в пикселях.
+        max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
+        max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
+        max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
+        max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
 
     Returns:
         `ValidationResult` с diagnostics и errors.
@@ -102,6 +118,10 @@ def validate_entity_animation_frames(
                 max_walk_width_ratio,
                 max_attack_width_ratio,
                 max_baseline_delta,
+                max_transparent_nonzero_rgb,
+                max_visible_chroma_pixels,
+                max_low_alpha_pixels,
+                max_isolated_suspicious_pixels,
                 diagnostics,
                 errors,
             )
@@ -156,10 +176,14 @@ def validate_frame(
     max_walk_width_ratio,
     max_attack_width_ratio,
     max_baseline_delta,
+    max_transparent_nonzero_rgb,
+    max_visible_chroma_pixels,
+    max_low_alpha_pixels,
+    max_isolated_suspicious_pixels,
     diagnostics,
     errors,
 ):
-    """Проверяет один animation frame.
+    """Проверяет один animation frame на footprint и pixel artifacts.
 
     Args:
         frame_path: Путь к PNG кадру.
@@ -171,6 +195,10 @@ def validate_frame(
         max_walk_width_ratio: Максимальная доля ширины walk frame.
         max_attack_width_ratio: Максимальная доля ширины attack frame.
         max_baseline_delta: Допустимое отклонение baseline.
+        max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
+        max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
+        max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
+        max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
         diagnostics: Список строк диагностики.
         errors: Список строк ошибок.
 
@@ -180,8 +208,10 @@ def validate_frame(
     with Image.open(frame_path) as image:
         mode = image.mode
         size = image.size
-        bbox = get_alpha_bbox(image)
-        footprint = get_sprite_footprint(image)
+        rgba_image = image.convert("RGBA")
+        bbox = get_alpha_bbox(rgba_image)
+        footprint = get_sprite_footprint(rgba_image)
+        artifact_report = analyze_sprite_artifacts(rgba_image)
 
     relative_path = frame_path.as_posix()
 
@@ -206,9 +236,19 @@ def validate_frame(
             f"{relative_path}: mode={mode} size={size} bbox={bbox} "
             f"bbox_size={footprint.width}x{footprint.height} "
             f"height_ratio={height_ratio:.2f} width_ratio={width_ratio:.2f} "
-            f"baseline_delta={baseline_delta}"
+            f"baseline_delta={baseline_delta} "
+            f"transparent_rgb={artifact_report.transparent_nonzero_rgb} "
+            f"semi_alpha={artifact_report.semi_transparent_pixels} "
+            f"low_alpha={artifact_report.low_alpha_pixels} "
+            f"visible_chroma={artifact_report.visible_chroma_pixels} "
+            f"isolated_suspicious={artifact_report.isolated_suspicious_pixels}"
         )
     )
+    suspicious_total = sum(count for _, count in artifact_report.suspicious_colors)
+    if artifact_report.suspicious_colors and suspicious_total <= 24:
+        diagnostics.append(
+            f"{relative_path}: suspicious_colors={artifact_report.suspicious_colors}"
+        )
 
     if height_ratio < min_height_ratio:
         errors.append(
@@ -233,6 +273,41 @@ def validate_frame(
     if baseline_delta > max_baseline_delta:
         errors.append(
             f"{relative_path}: baseline delta {baseline_delta} above {max_baseline_delta}"
+        )
+
+    if artifact_report.transparent_nonzero_rgb > max_transparent_nonzero_rgb:
+        errors.append(
+            (
+                f"{relative_path}: transparent pixels with non-zero RGB "
+                f"{artifact_report.transparent_nonzero_rgb} above "
+                f"{max_transparent_nonzero_rgb}"
+            )
+        )
+
+    if artifact_report.visible_chroma_pixels > max_visible_chroma_pixels:
+        errors.append(
+            (
+                f"{relative_path}: visible chroma pixels "
+                f"{artifact_report.visible_chroma_pixels} above "
+                f"{max_visible_chroma_pixels}"
+            )
+        )
+
+    if artifact_report.low_alpha_pixels > max_low_alpha_pixels:
+        errors.append(
+            (
+                f"{relative_path}: low-alpha pixels "
+                f"{artifact_report.low_alpha_pixels} above {max_low_alpha_pixels}"
+            )
+        )
+
+    if artifact_report.isolated_suspicious_pixels > max_isolated_suspicious_pixels:
+        errors.append(
+            (
+                f"{relative_path}: isolated suspicious pixels "
+                f"{artifact_report.isolated_suspicious_pixels} above "
+                f"{max_isolated_suspicious_pixels}"
+            )
         )
 
 
@@ -267,7 +342,7 @@ def build_parser():
         `argparse.ArgumentParser`.
     """
     parser = argparse.ArgumentParser(
-        description="Validate Crown Reclaim entity animation frame footprints.",
+        description="Validate Crown Reclaim entity animation frame footprints and artifacts.",
     )
     parser.add_argument("--image-root", default="assets/images")
     return parser

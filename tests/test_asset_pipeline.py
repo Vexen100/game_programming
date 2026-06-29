@@ -10,9 +10,12 @@ from tools.asset_pipeline.grid_slicing import get_grid_boxes
 from tools.asset_pipeline.process_surface_tileset import create_preview
 from tools.asset_pipeline.slice_tilesheet import slice_tilesheet
 from tools.asset_pipeline.sprite_normalization import (
+    clean_sprite_artifacts,
+    clean_transparent_rgb,
     get_alpha_bbox,
     get_visible_size,
     normalize_sprite_frame,
+    remove_chroma_pixels,
 )
 from tools.asset_pipeline.validate_entity_animation_frames import (
     validate_entity_animation_frames,
@@ -233,6 +236,54 @@ class TestAssetPipeline(unittest.TestCase):
         self.assertEqual(bbox[3] - 1, 29)
         self.assertEqual((bbox[0] + bbox[2]) // 2, 16)
 
+    def test_clean_transparent_rgb_zeroes_hidden_rgb(self):
+        """Проверяет очистку RGB у fully transparent pixels.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (255, 0, 255, 0))
+
+        cleaned = clean_transparent_rgb(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+
+    def test_remove_chroma_pixels_makes_green_transparent(self):
+        """Проверяет удаление chroma-green пикселя.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (12, 204, 8, 255))
+
+        cleaned = remove_chroma_pixels(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+
+    def test_clean_sprite_artifacts_preserves_visible_non_chroma_sprite_pixel(self):
+        """Проверяет, что обычный видимый цвет спрайта сохраняется.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (160, 80, 64, 255))
+
+        cleaned = clean_sprite_artifacts(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (160, 80, 64, 255))
+
+    def test_clean_sprite_artifacts_removes_low_alpha_colored_noise(self):
+        """Проверяет удаление low-alpha colored noise.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (255, 0, 255, 8))
+
+        cleaned = clean_sprite_artifacts(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+
     def test_validate_entity_animation_frames_allows_missing_enemy_attack_frames(self):
         """Проверяет, что validator не требует enemy attack frames.
 
@@ -276,4 +327,61 @@ class TestAssetPipeline(unittest.TestCase):
             self.assertFalse(result.passed)
             self.assertTrue(
                 any("visible height ratio" in error for error in result.errors)
+            )
+
+    def test_validator_fails_visible_chroma_artifact(self):
+        """Проверяет fail validator для видимого chroma-green artifact.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            self.save_alpha_sprite(frame_path, (4, 2, 28, 30))
+
+            with Image.open(frame_path) as frame:
+                frame = frame.convert("RGBA")
+                frame.putpixel((10, 10), (12, 204, 8, 255))
+                frame.save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any("visible chroma pixels" in error for error in result.errors)
+            )
+
+    def test_validator_fails_transparent_nonzero_rgb(self):
+        """Проверяет fail validator для transparent pixel с ненулевым RGB.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            self.save_alpha_sprite(frame_path, (4, 2, 28, 30))
+
+            with Image.open(frame_path) as frame:
+                frame = frame.convert("RGBA")
+                frame.putpixel((0, 0), (255, 0, 255, 0))
+                frame.save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any(
+                    "transparent pixels with non-zero RGB" in error
+                    for error in result.errors
+                )
             )
