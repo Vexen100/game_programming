@@ -312,6 +312,10 @@ Animation = animation_key + state + direction + frame_index + frame_timer + fram
 
 Если кадра нет, отрисовка откатывается к static `Sprite`, а потом к rectangle fallback.
 
+Final animation PNG нормализуются в asset pipeline по visible alpha bbox относительно static sprite reference, чтобы player/enemy сохраняли совместимый visual footprint в static, walk и attack состояниях.
+
+Runtime не добавляет special-case scale multipliers для animation frames.
+
 `Animation` и `AnimationRequest` не хранят `pygame.Surface`, не сохраняются в `SaveManager`, не создают animation events, не управляют damage и не синхронизируют hitbox timing.
 
 На этом шаге `Animation` получают только player и enemy.

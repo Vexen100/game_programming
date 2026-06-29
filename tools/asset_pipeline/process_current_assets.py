@@ -4,9 +4,11 @@ from pathlib import Path
 try:
     from .slice_spritesheet import slice_spritesheet
     from .slice_tilesheet import slice_tilesheet
+    from .sprite_normalization import normalize_sprite_files
 except ImportError:
     from slice_spritesheet import slice_spritesheet
     from slice_tilesheet import slice_tilesheet
+    from sprite_normalization import normalize_sprite_files
 
 
 TILE_NAMES = [
@@ -139,6 +141,7 @@ def process_current_assets(source_root="assets/source", output_root="assets/imag
     processed = []
     skipped = []
     output_paths = []
+    normalized_count = 0
 
     tilesheet = source_root / "tilesets" / "crown_reclaim_tileset_raw.png"
     if tilesheet.is_file():
@@ -188,58 +191,67 @@ def process_current_assets(source_root="assets/source", output_root="assets/imag
             source_root / "spritesheets" / "player_knight_walk_raw.png",
             PLAYER_WALK_NAMES,
             ["entities/player"] * 16,
+            output_root / "entities" / "player.png",
         ),
         (
             source_root / "spritesheets" / "player_knight_attack_raw.png",
             PLAYER_ATTACK_NAMES,
             ["entities/player"] * 16,
+            output_root / "entities" / "player.png",
         ),
         (
             source_root / "spritesheets" / "enemy_soldier_walk_raw.png",
             ENEMY_WALK_NAMES,
             ["entities/enemy"] * 16,
+            output_root / "entities" / "enemy.png",
         ),
     ]
 
-    for animation_source, names, folders in animation_jobs:
+    for animation_source, names, folders, reference_path in animation_jobs:
         if animation_source.is_file():
-            output_paths.extend(
-                slice_spritesheet(
-                    input_path=animation_source,
-                    output_root=output_root,
-                    cols=4,
-                    rows=4,
-                    grid_mode="proportional",
-                    output_frame_size=32,
-                    background_mode="top-left",
-                    tolerance=30,
-                    trim_mode="shared",
-                    anchor="center-bottom",
-                    resample="box",
-                    names=names,
-                    folders=folders,
-                )
+            animation_output_paths = slice_spritesheet(
+                input_path=animation_source,
+                output_root=output_root,
+                cols=4,
+                rows=4,
+                grid_mode="proportional",
+                output_frame_size=32,
+                background_mode="top-left",
+                tolerance=30,
+                trim_mode="shared",
+                anchor="center-bottom",
+                resample="nearest",
+                names=names,
+                folders=folders,
             )
+            normalized_count += normalize_sprite_files(
+                animation_output_paths,
+                reference_path=reference_path,
+                output_size=(32, 32),
+            )
+            output_paths.extend(animation_output_paths)
             processed.append(animation_source)
         else:
             skipped.append(animation_source)
 
-    print_summary(processed, skipped, output_paths)
+    print_summary(processed, skipped, output_paths, normalized_count)
 
     return {
         "processed": processed,
         "skipped": skipped,
         "outputs": output_paths,
+        "normalized": normalized_count,
     }
 
 
-def print_summary(processed, skipped, output_paths):
+def print_summary(processed, skipped, output_paths, normalized_count=0):
     """Печатает сводку обработки ассетов в терминал.
 
     Args:
         processed: Количество успешно обработанных файлов.
         skipped: Количество пропущенных файлов.
         output_paths: Список путей к файлам, созданным пайплайном ассетов.
+        normalized_count: Количество нормализованных animation frames.
 
     Returns:
         None.
@@ -254,6 +266,7 @@ def print_summary(processed, skipped, output_paths):
         print(f"- {path}")
 
     print(f"Output count: {len(output_paths)}")
+    print(f"Normalized animation frames: {normalized_count}")
 
 
 def build_parser():

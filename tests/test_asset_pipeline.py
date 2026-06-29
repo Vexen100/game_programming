@@ -9,6 +9,14 @@ from PIL import Image
 from tools.asset_pipeline.grid_slicing import get_grid_boxes
 from tools.asset_pipeline.process_surface_tileset import create_preview
 from tools.asset_pipeline.slice_tilesheet import slice_tilesheet
+from tools.asset_pipeline.sprite_normalization import (
+    get_alpha_bbox,
+    get_visible_size,
+    normalize_sprite_frame,
+)
+from tools.asset_pipeline.validate_entity_animation_frames import (
+    validate_entity_animation_frames,
+)
 from tools.asset_pipeline.validate_surface_tiles import validate_surface_tiles
 
 
@@ -45,6 +53,36 @@ class TestAssetPipeline(unittest.TestCase):
 
         image.save(image_path)
         return colors
+
+    def create_alpha_sprite(self, size, bbox, color=(200, 80, 40, 255)):
+        """Создает transparent image с заполненной alpha bbox.
+
+        Args:
+            size: Размер canvas.
+            bbox: Видимая область `(left, top, right, bottom)`.
+            color: Цвет видимых пикселей.
+
+        Returns:
+            PIL RGBA image.
+        """
+        image = Image.new("RGBA", size, (0, 0, 0, 0))
+        patch = Image.new("RGBA", (bbox[2] - bbox[0], bbox[3] - bbox[1]), color)
+        image.alpha_composite(patch, (bbox[0], bbox[1]))
+        return image
+
+    def save_alpha_sprite(self, path, bbox, size=(32, 32)):
+        """Сохраняет transparent PNG с заданной alpha bbox.
+
+        Args:
+            path: Путь записи PNG.
+            bbox: Видимая область `(left, top, right, bottom)`.
+            size: Размер canvas.
+
+        Returns:
+            None.
+        """
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.create_alpha_sprite(size, bbox).save(path)
 
     def test_proportional_4x4_slicing_handles_1254_image(self):
         """Проверяет proportional slicing для non-divisible 1254x1254 source.
@@ -145,3 +183,97 @@ class TestAssetPipeline(unittest.TestCase):
             with Image.open(preview_path) as preview:
                 self.assertEqual(preview.size, (128, 128))
                 self.assertEqual(preview.mode, "RGBA")
+
+    def test_normalize_sprite_frame_keeps_32x32_canvas(self):
+        """Проверяет, что normalization сохраняет 32x32 canvas.
+
+        Returns:
+            None.
+        """
+        image = self.create_alpha_sprite((48, 48), (20, 20, 28, 28))
+
+        normalized = normalize_sprite_frame(image, output_size=(32, 32))
+
+        self.assertEqual(normalized.size, (32, 32))
+        self.assertEqual(normalized.mode, "RGBA")
+
+    def test_normalize_sprite_frame_scales_small_visible_bbox_to_target_height(self):
+        """Проверяет scale маленького bbox до target height.
+
+        Returns:
+            None.
+        """
+        image = self.create_alpha_sprite((48, 48), (20, 20, 28, 28))
+
+        normalized = normalize_sprite_frame(
+            image,
+            output_size=(32, 32),
+            target_visible_height=24,
+        )
+
+        self.assertEqual(get_visible_size(normalized)[1], 24)
+
+    def test_normalize_sprite_frame_bottom_centers_to_baseline(self):
+        """Проверяет bottom-center alignment по baseline.
+
+        Returns:
+            None.
+        """
+        image = self.create_alpha_sprite((48, 48), (20, 20, 28, 28))
+
+        normalized = normalize_sprite_frame(
+            image,
+            output_size=(32, 32),
+            target_visible_height=16,
+            target_visible_width=16,
+            baseline_y=29,
+        )
+        bbox = get_alpha_bbox(normalized)
+
+        self.assertEqual(bbox[3] - 1, 29)
+        self.assertEqual((bbox[0] + bbox[2]) // 2, 16)
+
+    def test_validate_entity_animation_frames_allows_missing_enemy_attack_frames(self):
+        """Проверяет, что validator не требует enemy attack frames.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "enemy.png",
+                (5, 2, 26, 30),
+            )
+            self.save_alpha_sprite(
+                image_root / "entities" / "enemy" / "walk_down_0.png",
+                (5, 2, 26, 30),
+            )
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertTrue(result.passed)
+
+    def test_validate_entity_animation_frames_fails_tiny_walk_frame(self):
+        """Проверяет fail validator для слишком маленького walk frame.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "enemy.png",
+                (5, 2, 26, 30),
+            )
+            self.save_alpha_sprite(
+                image_root / "entities" / "enemy" / "walk_down_0.png",
+                (14, 14, 18, 18),
+            )
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any("visible height ratio" in error for error in result.errors)
+            )
