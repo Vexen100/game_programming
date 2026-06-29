@@ -57,6 +57,7 @@ def validate_entity_animation_frames(
     max_baseline_delta=3,
     max_transparent_nonzero_rgb=0,
     max_visible_chroma_pixels=0,
+    max_green_dominant_artifact_pixels=0,
     max_low_alpha_pixels=0,
     max_isolated_suspicious_pixels=0,
 ):
@@ -75,6 +76,7 @@ def validate_entity_animation_frames(
         max_baseline_delta: Допустимое отклонение baseline в пикселях.
         max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
         max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
+        max_green_dominant_artifact_pixels: Допустимое число green-dominant remnants.
         max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
         max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
 
@@ -120,6 +122,7 @@ def validate_entity_animation_frames(
                 max_baseline_delta,
                 max_transparent_nonzero_rgb,
                 max_visible_chroma_pixels,
+                max_green_dominant_artifact_pixels,
                 max_low_alpha_pixels,
                 max_isolated_suspicious_pixels,
                 diagnostics,
@@ -178,6 +181,7 @@ def validate_frame(
     max_baseline_delta,
     max_transparent_nonzero_rgb,
     max_visible_chroma_pixels,
+    max_green_dominant_artifact_pixels,
     max_low_alpha_pixels,
     max_isolated_suspicious_pixels,
     diagnostics,
@@ -197,6 +201,7 @@ def validate_frame(
         max_baseline_delta: Допустимое отклонение baseline.
         max_transparent_nonzero_rgb: Допустимое число прозрачных пикселей с RGB.
         max_visible_chroma_pixels: Допустимое число видимых chroma pixels.
+        max_green_dominant_artifact_pixels: Допустимое число green-dominant remnants.
         max_low_alpha_pixels: Допустимое число low-alpha visible pixels.
         max_isolated_suspicious_pixels: Допустимое число isolated artifacts.
         diagnostics: Список строк диагностики.
@@ -241,6 +246,7 @@ def validate_frame(
             f"semi_alpha={artifact_report.semi_transparent_pixels} "
             f"low_alpha={artifact_report.low_alpha_pixels} "
             f"visible_chroma={artifact_report.visible_chroma_pixels} "
+            f"green_dominant={artifact_report.green_dominant_artifact_pixels} "
             f"isolated_suspicious={artifact_report.isolated_suspicious_pixels}"
         )
     )
@@ -290,6 +296,18 @@ def validate_frame(
                 f"{relative_path}: visible chroma pixels "
                 f"{artifact_report.visible_chroma_pixels} above "
                 f"{max_visible_chroma_pixels}"
+            )
+        )
+
+    if (
+        artifact_report.green_dominant_artifact_pixels
+        > max_green_dominant_artifact_pixels
+    ):
+        errors.append(
+            (
+                f"{relative_path}: green-dominant artifact pixels "
+                f"{artifact_report.green_dominant_artifact_pixels} above "
+                f"{max_green_dominant_artifact_pixels}"
             )
         )
 

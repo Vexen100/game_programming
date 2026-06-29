@@ -14,6 +14,7 @@ from tools.asset_pipeline.sprite_normalization import (
     clean_transparent_rgb,
     get_alpha_bbox,
     get_visible_size,
+    is_green_dominant_artifact_pixel,
     normalize_sprite_frame,
     remove_chroma_pixels,
 )
@@ -284,6 +285,57 @@ class TestAssetPipeline(unittest.TestCase):
 
         self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
 
+    def test_is_green_dominant_artifact_detects_dark_chroma_remnant(self):
+        """Проверяет detection тёмных green-dominant remnants.
+
+        Returns:
+            None.
+        """
+        artifact_colors = [
+            (10, 120, 0, 255),
+            (23, 100, 14, 255),
+            (12, 113, 3, 255),
+        ]
+
+        for color in artifact_colors:
+            with self.subTest(color=color):
+                self.assertTrue(is_green_dominant_artifact_pixel(*color))
+
+    def test_clean_sprite_artifacts_removes_dark_green_opaque_noise(self):
+        """Проверяет удаление opaque dark-green chroma remnant.
+
+        Returns:
+            None.
+        """
+        image = Image.new("RGBA", (1, 1), (10, 120, 0, 255))
+
+        cleaned = clean_sprite_artifacts(image)
+
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+
+    def test_green_dominant_cleanup_preserves_blue_red_gold_gray_pixels(self):
+        """Проверяет, что cleanup не удаляет обычные цвета спрайта.
+
+        Returns:
+            None.
+        """
+        safe_colors = [
+            (45, 80, 170, 255),
+            (130, 55, 35, 255),
+            (135, 135, 135, 255),
+            (210, 170, 45, 255),
+            (12, 12, 12, 255),
+        ]
+        image = Image.new("RGBA", (len(safe_colors), 1), (0, 0, 0, 0))
+        for x, color in enumerate(safe_colors):
+            image.putpixel((x, 0), color)
+
+        cleaned = clean_sprite_artifacts(image)
+
+        for x, color in enumerate(safe_colors):
+            with self.subTest(color=color):
+                self.assertEqual(cleaned.getpixel((x, 0)), color)
+
     def test_validate_entity_animation_frames_allows_missing_enemy_attack_frames(self):
         """Проверяет, что validator не требует enemy attack frames.
 
@@ -328,6 +380,57 @@ class TestAssetPipeline(unittest.TestCase):
             self.assertTrue(
                 any("visible height ratio" in error for error in result.errors)
             )
+
+    def test_validator_fails_green_dominant_opaque_artifact(self):
+        """Проверяет fail validator для dark green opaque artifact.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            self.save_alpha_sprite(frame_path, (4, 2, 28, 30))
+
+            with Image.open(frame_path) as frame:
+                frame = frame.convert("RGBA")
+                frame.putpixel((10, 10), (10, 120, 0, 255))
+                frame.save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertFalse(result.passed)
+            self.assertTrue(
+                any("green-dominant artifact pixels" in error for error in result.errors)
+            )
+
+    def test_validator_passes_after_green_dominant_cleanup(self):
+        """Проверяет pass validator после cleanup green-dominant artifact.
+
+        Returns:
+            None.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            image_root = Path(tmp)
+            self.save_alpha_sprite(
+                image_root / "entities" / "player.png",
+                (4, 2, 28, 30),
+            )
+            frame_path = image_root / "entities" / "player" / "walk_down_0.png"
+            self.save_alpha_sprite(frame_path, (4, 2, 28, 30))
+
+            with Image.open(frame_path) as frame:
+                frame = frame.convert("RGBA")
+                frame.putpixel((10, 10), (10, 120, 0, 255))
+                clean_sprite_artifacts(frame).save(frame_path)
+
+            result = validate_entity_animation_frames(image_root=image_root)
+
+            self.assertTrue(result.passed)
 
     def test_validator_fails_visible_chroma_artifact(self):
         """Проверяет fail validator для видимого chroma-green artifact.

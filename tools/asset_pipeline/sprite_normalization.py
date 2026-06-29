@@ -29,6 +29,7 @@ class SpriteArtifactReport:
         semi_transparent_pixels: Число пикселей с alpha между `0` и `255`.
         low_alpha_pixels: Число видимых пикселей с почти нулевой alpha.
         visible_chroma_pixels: Число видимых пикселей, похожих на chroma green.
+        green_dominant_artifact_pixels: Число видимых тёмно-зелёных remnants.
         isolated_suspicious_pixels: Число одиночных подозрительных пикселей.
         suspicious_colors: Частые подозрительные RGBA-цвета для диагностики.
     """
@@ -36,6 +37,7 @@ class SpriteArtifactReport:
     semi_transparent_pixels: int
     low_alpha_pixels: int
     visible_chroma_pixels: int
+    green_dominant_artifact_pixels: int
     isolated_suspicious_pixels: int
     suspicious_colors: tuple
 
@@ -112,6 +114,28 @@ def remove_chroma_pixels(image, chroma_color=(0, 255, 0), tolerance=40):
         for x in range(width):
             red, green, blue, alpha = pixels[x, y]
             if alpha > 0 and is_chroma_pixel(red, green, blue, chroma_color, tolerance):
+                pixels[x, y] = (0, 0, 0, 0)
+
+    return cleaned
+
+
+def remove_green_dominant_artifacts(image):
+    """Удаляет dark/medium green chroma remnants.
+
+    Args:
+        image: PIL-изображение с alpha channel или без него.
+
+    Returns:
+        RGBA image без green-dominant opaque artifacts.
+    """
+    cleaned = image.convert("RGBA")
+    pixels = cleaned.load()
+    width, height = cleaned.size
+
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if is_green_dominant_artifact_pixel(red, green, blue, alpha):
                 pixels[x, y] = (0, 0, 0, 0)
 
     return cleaned
@@ -205,6 +229,7 @@ def clean_sprite_artifacts(
     """
     cleaned = clean_transparent_rgb(image)
     cleaned = remove_chroma_pixels(cleaned, chroma_color, chroma_tolerance)
+    cleaned = remove_green_dominant_artifacts(cleaned)
     cleaned = remove_low_alpha_pixels(cleaned, alpha_threshold)
     cleaned = remove_isolated_alpha_pixels(
         cleaned,
@@ -243,6 +268,7 @@ def analyze_sprite_artifacts(
     semi_transparent_pixels = 0
     low_alpha_pixels = 0
     visible_chroma_pixels = 0
+    green_dominant_artifact_pixels = 0
     isolated_suspicious_pixels = 0
 
     for y in range(height):
@@ -272,6 +298,10 @@ def analyze_sprite_artifacts(
                 visible_chroma_pixels += 1
                 is_suspicious = True
 
+            if is_green_dominant_artifact_pixel(red, green, blue, alpha):
+                green_dominant_artifact_pixels += 1
+                is_suspicious = True
+
             if alpha > 0 and is_isolated_artifact_candidate(
                 red,
                 green,
@@ -292,6 +322,7 @@ def analyze_sprite_artifacts(
         semi_transparent_pixels=semi_transparent_pixels,
         low_alpha_pixels=low_alpha_pixels,
         visible_chroma_pixels=visible_chroma_pixels,
+        green_dominant_artifact_pixels=green_dominant_artifact_pixels,
         isolated_suspicious_pixels=isolated_suspicious_pixels,
         suspicious_colors=tuple(suspicious_colors.most_common(8)),
     )
@@ -319,6 +350,35 @@ def is_chroma_pixel(red, green, blue, chroma_color=(0, 255, 0), tolerance=40):
         <= tolerance
     )
     return channel_rule or distance_rule
+
+
+def is_green_dominant_artifact_pixel(red, green, blue, alpha):
+    """Проверяет dark/medium green chroma remnant.
+
+    Args:
+        red: Красный канал.
+        green: Зелёный канал.
+        blue: Синий канал.
+        alpha: Alpha channel.
+
+    Returns:
+        `True`, если visible pixel похож на тёмный chroma-green остаток.
+    """
+    if alpha == 0:
+        return False
+
+    strong_dark_green = (
+        green >= 70
+        and green >= red + 25
+        and green >= blue + 25
+    )
+    chroma_shadow_green = (
+        green >= 90
+        and red <= 45
+        and blue <= 45
+        and green >= max(red, blue) * 2
+    )
+    return strong_dark_green or chroma_shadow_green
 
 
 def is_debug_artifact_color(red, green, blue):
@@ -359,6 +419,7 @@ def is_isolated_artifact_candidate(
     return (
         alpha <= artifact_alpha_threshold
         or is_chroma_pixel(red, green, blue)
+        or is_green_dominant_artifact_pixel(red, green, blue, alpha)
         or is_debug_artifact_color(red, green, blue)
     )
 

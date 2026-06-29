@@ -41,11 +41,14 @@ Normalization crop-ает видимую alpha bbox, подгоняет width/he
 После slicing и normalization animation frames дополнительно проходят chroma/alpha artifact cleanup:
 
 - visible chroma-green remnants становятся fully transparent;
+- dark/medium green-dominant chroma remnants тоже становятся fully transparent;
 - low-alpha colored noise удаляется;
 - RGB у fully transparent pixels нормализуется в `(0, 0, 0, 0)`;
 - одиночные подозрительные debug-colored pixels удаляются только как asset cleanup.
 
-Runtime renderer не содержит special-case scaling или runtime pixel cleanup для animation frames.
+Bright chroma cleanup сам по себе недостаточен: приглушённые зелёные остатки вроде `(10, 120, 0, 255)` и `(23, 100, 14, 255)` тоже считаются artifacts для текущих player/enemy animation frames.
+
+Runtime renderer не содержит special-case scaling, runtime chroma-key или runtime pixel cleanup для animation frames.
 
 ---
 
@@ -165,7 +168,7 @@ Visual-only attack animation frames ищутся по пути `assets/images/en
 
 Final player/enemy animation frames должны оставаться `32x32`, RGBA-compatible, иметь alpha bbox близкую к static sprite reference и стабильный bottom baseline.
 
-Final animation PNG не должны содержать visible chroma-green pixels, transparent pixels с ненулевым RGB или low-alpha colored noise.
+Final animation PNG не должны содержать visible chroma-green pixels, green-dominant opaque remnants, transparent pixels с ненулевым RGB или low-alpha colored noise.
 
 Если animation frame отсутствует, `RenderSystem` откатывается к static `Sprite`, а затем к rectangle fallback.
 
